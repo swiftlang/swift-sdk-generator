@@ -26,10 +26,23 @@ private let clangDarwin =
     "https://github.com/llvm/llvm-project/releases/download/llvmorg-13.0.1/clang+llvm-13.0.1-x86_64-apple-darwin.tar.xz"
 private let swiftBranch = "swift-5.7-release"
 private let swiftVersion = "5.7-RELEASE"
+private let sdkDestinationTriple = "x86_64-unknown-linux-gnu"
 
 private let byteCountFormatter = ByteCountFormatter()
 
+private let generatorWorkspacePath = FilePath(#file)
+    .removingLastComponent()
+    .removingLastComponent()
+    .removingLastComponent()
+    .appending("cc-sdk")
+
+private let sdkRootPath = generatorWorkspacePath.appending("cross-toolchain")
+private let sdkDirPath = sdkRootPath.appending("ubuntu-\(ubuntuRelease).sdk")
+private let toolchainDirPath = generatorWorkspacePath.appending("cross-toolchain/swift.xctoolchain")
+private let toolchainBinDirPath = toolchainDirPath.appending("usr/bin")
+
 extension FileSystem {
+
     public func generateSDK() async throws {
         let client = HTTPClient(
             eventLoopGroupProvider: .createNew,
@@ -42,19 +55,10 @@ extension FileSystem {
             try! client.syncShutdown()
         }
 
-        let sdkRootPath = FilePath(#file)
-            .removingLastComponent()
-            .removingLastComponent()
-            .removingLastComponent()
-            .appending("cc-sdk")
-
         let artifactsCachePath = sdkRootPath.appending("artifacts-cache")
         try createDirectoryIfNeeded(at: artifactsCachePath)
 
-        let sdkDirPath = sdkRootPath.appending("cross-toolchain/ubuntu-\(ubuntuRelease).sdk")
         try createDirectoryIfNeeded(at: sdkDirPath)
-
-        let toolchainDirPath = sdkRootPath.appending("cross-toolchain/swift.xctoolchain")
         try createDirectoryIfNeeded(at: toolchainDirPath)
 
         let hostURL = URL(string: "https://download.swift.org/\(swiftBranch)/xcode/swift-\(swiftVersion)/swift-\(swiftVersion)-osx.pkg")!
@@ -101,7 +105,6 @@ extension FileSystem {
             }
         }
 
-        let toolchainBinDirPath = toolchainDirPath.appending("usr/bin")
         try createDirectoryIfNeeded(at: toolchainBinDirPath)
 
         try await inTemporaryDirectory { fs, tmpDir in
@@ -160,6 +163,35 @@ extension FileSystem {
             print("Fixing `swift-autolink-extract` symlink...")
             try createSymlink(at: autolinkExtractPath, pointingTo: "swift")
         }
+
+        try generateDestinationJSON(at: sdkRootPath.appending("ubuntu-\(ubuntuRelease)-destination.json"))
+    }
+
+    func generateDestinationJSON(at path: FilePath) throws {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .prettyPrinted
+
+        try writeFile(
+            at: path,
+            encoder.encode(
+                DestinationV1(
+                    sdk: sdkDirPath.string,
+                    toolchainBinDir: toolchainBinDirPath.string,
+                    target: sdkDestinationTriple,
+                    extraCCFlags: [
+                        "-fPIC"
+                    ],
+                    extraSwiftCFlags: [
+                        "-use-ld=lld",
+                        "-tools-directory", "\(generatorWorkspacePath)/cross-toolchain/swift.xctoolchain/usr/bin",
+                        "-sdk", "\(generatorWorkspacePath)/cross-toolchain/ubuntu-jammy.sdk",
+                    ],
+                    extraCPPFlags: [
+                        "-lstdc++"
+                    ]
+                )
+            )
+        )
     }
 
     func fixGlibcModuleMap(at path: FilePath) throws {
@@ -172,8 +204,27 @@ extension FileSystem {
             let (_, headerKeyword, _, headerPath) = $0.output
             return #"\#n\#(headerKeyword) "private_includes/\#(headerPath.replacing("/", with: "_"))""#
         }
-
     }
+}
+
+private struct DestinationV1: Encodable {
+    enum CodingKeys: String, CodingKey {
+        case version
+        case sdk
+        case toolchainBinDir = "toolchain-bin-dir"
+        case target
+        case extraCCFlags = "extra-cc-flags"
+        case extraSwiftCFlags = "extra-swiftc-flags"
+        case extraCPPFlags = "extra-cpp-flags"
+    }
+
+    let version = 1
+    let sdk: String
+    let toolchainBinDir: String
+    let target: String
+    let extraCCFlags: [String]
+    let extraSwiftCFlags: [String]
+    let extraCPPFlags: [String]
 }
 
 /// Checks whether two given progress value are different enough from each other. Used for filtering out progress values
