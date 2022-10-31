@@ -38,7 +38,7 @@ private let generatorWorkspacePath = FilePath(#file)
     .appending("cc-sdk")
     .appending(destinationTriple)
 
-private let sdkRootPath = generatorWorkspacePath.appending("cross-toolchain")
+private let sdkRootPath = generatorWorkspacePath
 private let sdkDirPath = sdkRootPath.appending("ubuntu-\(ubuntuRelease).sdk")
 private let toolchainDirPath = generatorWorkspacePath.appending("cross-toolchain/swift.xctoolchain")
 private let toolchainBinDirPath = toolchainDirPath.appending("usr/bin")
@@ -193,8 +193,8 @@ extension FileSystem {
                     ],
                     extraSwiftCFlags: [
                         "-use-ld=lld",
-                        "-tools-directory", "\(generatorWorkspacePath)/cross-toolchain/swift.xctoolchain/usr/bin",
-                        "-sdk", "\(generatorWorkspacePath)/cross-toolchain/ubuntu-jammy.sdk",
+                        "-tools-directory", toolchainBinDirPath.string,
+                        "-sdk", sdkDirPath.string,
                     ],
                     extraCPPFlags: [
                         "-lstdc++"
