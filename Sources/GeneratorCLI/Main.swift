@@ -10,14 +10,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-import XCTest
-@testable import swift_cc_sdk_builder
+import FileUtils
+import SDKGenerator
 
-final class swift_cc_sdk_builderTests: XCTestCase {
-    func testExample() throws {
-        // This is an example of a functional test case.
-        // Use XCTAssert and related functions to verify your tests produce the correct
-        // results.
-        XCTAssertEqual(swift_cc_sdk_builder().text, "Hello, World!")
+@main
+struct Main {
+    static func main() async throws {
+        try await LocalFileSystem().generateSDK()
     }
 }

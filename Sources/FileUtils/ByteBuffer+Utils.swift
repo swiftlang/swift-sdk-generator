@@ -10,9 +10,16 @@
 //
 //===----------------------------------------------------------------------===//
 
-public struct swift_cc_sdk_builder {
-    public private(set) var text = "Hello, World!"
+import Foundation
+import NIOCore
+import NIOFoundationCompat
 
-    public init() {
+extension ByteBuffer {
+    public func unzip() throws -> AsyncThrowingStream<Data, any Error> {
+        let gzip = try Shell("gzip -cd")
+        gzip.stdin.write(Data(buffer: self))
+        try gzip.stdin.close()
+
+        return gzip.stdout
     }
 }
