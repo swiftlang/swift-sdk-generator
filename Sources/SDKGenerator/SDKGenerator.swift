@@ -22,11 +22,12 @@ private let ubuntuMirror = "http://gb.archive.ubuntu.com/ubuntu"
 private let ubuntuRelease = "jammy"
 private let ubuntuVersion = "22.04"
 private let packagesFile = "\(ubuntuMirror)/dists/\(ubuntuRelease)/main/binary-amd64/Packages.gz"
+private let destinationCPUArch = "x86_64"
 private let clangDarwin =
-    "https://github.com/llvm/llvm-project/releases/download/llvmorg-13.0.1/clang+llvm-13.0.1-x86_64-apple-darwin.tar.xz"
+    "https://github.com/llvm/llvm-project/releases/download/llvmorg-13.0.1/clang+llvm-13.0.1-\(destinationCPUArch)-apple-darwin.tar.xz"
 private let swiftBranch = "swift-5.7-release"
 private let swiftVersion = "5.7-RELEASE"
-private let sdkDestinationTriple = "x86_64-unknown-linux-gnu"
+private let destinationTriple = "\(destinationCPUArch)-unknown-linux-gnu"
 
 private let byteCountFormatter = ByteCountFormatter()
 
@@ -35,6 +36,7 @@ private let generatorWorkspacePath = FilePath(#file)
     .removingLastComponent()
     .removingLastComponent()
     .appending("cc-sdk")
+    .appending(destinationTriple)
 
 private let sdkRootPath = generatorWorkspacePath.appending("cross-toolchain")
 private let sdkDirPath = sdkRootPath.appending("ubuntu-\(ubuntuRelease).sdk")
@@ -42,7 +44,6 @@ private let toolchainDirPath = generatorWorkspacePath.appending("cross-toolchain
 private let toolchainBinDirPath = toolchainDirPath.appending("usr/bin")
 
 extension FileSystem {
-
     public func generateSDK() async throws {
         let client = HTTPClient(
             eventLoopGroupProvider: .createNew,
@@ -83,19 +84,20 @@ extension FileSystem {
         let progressStream = combineLatest(hostProgressStream, destProgressStream, clangProgress)
             .throttle(for: .seconds(1))
 
+        print("Downloading required packages...")
         for try await (hostProgress, destProgress, clangProgress) in progressStream {
             report(progress: hostProgress, for: hostURL)
             report(progress: destProgress, for: destURL)
             report(progress: clangProgress, for: clangURL)
         }
 
-        print("Parsing the packages list...")
+        print("Parsing Ubuntu packages list...")
         let allPackages = try await parse(packages: client.downloadPackagesList())
 
         let requiredPackages = ["libc6-dev", "linux-libc-dev", "libicu70", "libgcc-12-dev", "libicu-dev", "libc6", "libgcc-s1", "libstdc++-12-dev", "libstdc++6", "zlib1g", "zlib1g-dev"]
         let urls = requiredPackages.compactMap { allPackages[$0] }
-        print("Downloading \(urls.count) packages...")
 
+        print("Downloading \(urls.count) Ubuntu packages...")
         try await inTemporaryDirectory { fs, tmpDir in
             let progress = try await client.downloadFiles(from: urls, to: tmpDir)
             report(downloadedFiles: Array(zip(urls, progress.map(\.receivedBytes))))
@@ -107,36 +109,22 @@ extension FileSystem {
 
         try createDirectoryIfNeeded(at: toolchainBinDirPath)
 
+        print("Unpacking and copying `lld` linker...")
         try await inTemporaryDirectory { fs, tmpDir in
             try await fs.untar(file: clangArchive, into: tmpDir, stripComponents: 1)
             try fs.copy(from: tmpDir.appending("bin/lld"), to: toolchainBinDirPath.appending("ld.lld"))
         }
 
         print("Fixing up absolute symlinks...")
-        for (source, absoluteDestination) in try findSymlinks(at: sdkDirPath).filter({ $1.string.hasPrefix("/") }) {
-            var relativeSource = source
-            var relativeDestination = FilePath()
+        try fixAbsoluteSymlinks()
 
-            let isPrefixRemoved = relativeSource.removePrefix(sdkDirPath)
-            precondition(isPrefixRemoved)
-            for _ in relativeSource.removingLastComponent().components {
-                relativeDestination.append("..")
-            }
-
-            relativeDestination.push(absoluteDestination.removingRoot())
-            try removeRecursively(at: source)
-            try createSymlink(at: source, pointingTo: relativeDestination)
-
-            guard FileManager.default.fileExists(atPath: source.string) else {
-                throw FileOperationError.symlinkFixupFailed(source: source, destination: absoluteDestination)
-            }
-        }
-
+        print("Unpacking and copying host toolchain...")
         try await inTemporaryDirectory { fs, tmpDir in
             try await fs.unpack(file: hostPath, into: tmpDir)
             try await fs.rsync(from: tmpDir.appending("usr"), to: toolchainDirPath)
         }
 
+        print("Unpacking and copying destination Swift SDK...")
         try await inTemporaryDirectory { fs, tmpDir in
             try await fs.unpack(file: destPath, into: tmpDir)
 
@@ -155,7 +143,7 @@ extension FileSystem {
         }
 
         print("Fixing absolute paths in `glibc.modulemap`...")
-        try fixGlibcModuleMap(at: toolchainDirPath.appending("/usr/lib/swift/linux/x86_64/glibc.modulemap"))
+        try fixGlibcModuleMap(at: toolchainDirPath.appending("/usr/lib/swift/linux/\(destinationCPUArch)/glibc.modulemap"))
 
         let autolinkExtractPath = toolchainBinDirPath.appending("swift-autolink-extract")
 
@@ -164,10 +152,32 @@ extension FileSystem {
             try createSymlink(at: autolinkExtractPath, pointingTo: "swift")
         }
 
+        print("Generating destination JSON file...")
         try generateDestinationJSON(at: sdkRootPath.appending("ubuntu-\(ubuntuRelease)-destination.json"))
     }
 
-    func generateDestinationJSON(at path: FilePath) throws {
+    private func fixAbsoluteSymlinks() throws {
+        for (source, absoluteDestination) in try findSymlinks(at: sdkDirPath).filter({ $1.string.hasPrefix("/") }) {
+            var relativeSource = source
+            var relativeDestination = FilePath()
+
+            let isPrefixRemoved = relativeSource.removePrefix(sdkDirPath)
+            precondition(isPrefixRemoved)
+            for _ in relativeSource.removingLastComponent().components {
+                relativeDestination.append("..")
+            }
+
+            relativeDestination.push(absoluteDestination.removingRoot())
+            try removeRecursively(at: source)
+            try createSymlink(at: source, pointingTo: relativeDestination)
+
+            guard FileManager.default.fileExists(atPath: source.string) else {
+                throw FileOperationError.symlinkFixupFailed(source: source, destination: absoluteDestination)
+            }
+        }
+    }
+
+    private func generateDestinationJSON(at path: FilePath) throws {
         let encoder = JSONEncoder()
         encoder.outputFormatting = .prettyPrinted
 
@@ -177,7 +187,7 @@ extension FileSystem {
                 DestinationV1(
                     sdk: sdkDirPath.string,
                     toolchainBinDir: toolchainBinDirPath.string,
-                    target: sdkDestinationTriple,
+                    target: destinationTriple,
                     extraCCFlags: [
                         "-fPIC"
                     ],
@@ -194,16 +204,36 @@ extension FileSystem {
         )
     }
 
-    func fixGlibcModuleMap(at path: FilePath) throws {
+    private func fixGlibcModuleMap(at path: FilePath) throws {
         let privateIncludesPath = path.removingLastComponent().appending("private_includes")
         try removeRecursively(at: privateIncludesPath)
         try createDirectoryIfNeeded(at: privateIncludesPath)
 
-        var moduleMap = try String(data: readFile(at: path), encoding: .utf8)!
-        moduleMap.replace(#/\n( *header )"\/+usr\/include\/(x86_64-linux-gnu\/)?([^\"]+)\"/#) {
-            let (_, headerKeyword, _, headerPath) = $0.output
-            return #"\#n\#(headerKeyword) "private_includes/\#(headerPath.replacing("/", with: "_"))""#
+        let regex = Regex {
+            #/\n( *header )"\/+usr\/include\//#
+            Capture {
+                Optionally {
+                    destinationCPUArch
+                    "-linux-gnu"
+                }
+            }
+            #/([^\"]+)\"/#
         }
+
+        var moduleMap = try String(data: readFile(at: path), encoding: .utf8)!
+        try moduleMap.replace(regex) {
+            let (_, headerKeyword, _, headerPath) = $0.output
+
+            let newHeaderRelativePath = headerPath.replacing("/", with: "_")
+            try writeFile(
+                at: privateIncludesPath.appending(String(newHeaderRelativePath)),
+                Data("#include <linux/uuid.h>\n".utf8)
+            )
+
+            return #"\#n\#(headerKeyword) "private_includes/\#(newHeaderRelativePath)""#
+        }
+
+        try writeFile(at: path, Data(moduleMap.utf8))
     }
 }
 
