@@ -40,7 +40,7 @@ private let generatorWorkspacePath = FilePath(#file)
 
 private let sdkRootPath = generatorWorkspacePath
 private let sdkDirPath = sdkRootPath.appending("ubuntu-\(ubuntuRelease).sdk")
-private let toolchainDirPath = generatorWorkspacePath.appending("cross-toolchain/swift.xctoolchain")
+private let toolchainDirPath = generatorWorkspacePath.appending("swift.xctoolchain")
 private let toolchainBinDirPath = toolchainDirPath.appending("usr/bin")
 
 extension FileSystem {
@@ -153,7 +153,16 @@ extension FileSystem {
         }
 
         print("Generating destination JSON file...")
-        try generateDestinationJSON(at: sdkRootPath.appending("ubuntu-\(ubuntuRelease)-destination.json"))
+        let destinationJSONPath = sdkRootPath.appending("ubuntu-\(ubuntuRelease)-destination.json")
+        try generateDestinationJSON(at: destinationJSONPath)
+
+        print(
+            """
+            
+            All done! Use the sdk as:
+            swift build --destination \(destinationJSONPath)
+            """
+        )
     }
 
     private func fixAbsoluteSymlinks() throws {

@@ -6,5 +6,5 @@ Build and run with `swift run sdk-generator`. This will download and produce an 
 You can then use the newly produced CC SDK with
 
 ```
-swift build --destination <path_to_the_generator_source_dir>/cc-sdk/x86_64-unknown-linux-gnu/cross-toolchain/ubuntu-jammy-destination.json
+swift build --destination <path_to_the_generator_source_dir>/cc-sdk/x86_64-unknown-linux-gnu/ubuntu-jammy-destination.json
 ```
