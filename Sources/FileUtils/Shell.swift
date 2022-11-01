@@ -104,7 +104,29 @@ final class Shell {
         file: String = #file,
         line: Int = #line
     ) async throws {
-        try await Shell(command, currentDirectory: currentDirectory, disableIOStreams: true, file: file, line: line).waitUntilExit()
+        try await Shell(command, currentDirectory: currentDirectory, disableIOStreams: true, file: file, line: line)
+            .waitUntilExit()
+    }
+
+    static func readStdout(
+        _ command: String,
+        currentDirectory: FilePath? = nil,
+        file: String = #file,
+        line: Int = #line
+    ) async throws -> String {
+        let process = try Shell(
+            command,
+            currentDirectory: currentDirectory,
+            disableIOStreams: false,
+            file: file,
+            line: line
+        )
+
+        var output = ""
+        for try await chunk in process.stdout {
+            output.append(String(data: chunk, encoding: .utf8)!)
+        }
+        return output
     }
 }
 

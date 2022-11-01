@@ -42,9 +42,22 @@ private let sdkRootPath = generatorWorkspacePath
 private let sdkDirPath = sdkRootPath.appending("ubuntu-\(ubuntuRelease).sdk")
 private let toolchainDirPath = generatorWorkspacePath.appending("swift.xctoolchain")
 private let toolchainBinDirPath = toolchainDirPath.appending("usr/bin")
+private let artifactsCachePath = sdkRootPath.appending("artifacts-cache")
+
+private let hostURL = URL(string: "https://download.swift.org/\(swiftBranch)/xcode/swift-\(swiftVersion)/swift-\(swiftVersion)-osx.pkg")!
+private let destURL = URL(string: """
+    https://download.swift.org/\(swiftBranch)/ubuntu\(
+        ubuntuVersion.replacingOccurrences(of: ".", with: "")
+    )/swift-\(swiftVersion)/swift-\(swiftVersion)-ubuntu\(ubuntuVersion).tar.gz
+    """)!
+private let clangURL = URL(string: clangDarwin)!
+
+private let destPath = artifactsCachePath.appending("dest.tar.gz")
+private let hostPath = artifactsCachePath.appending("host.pkg")
+private let clangArchive = artifactsCachePath.appending("clang.tar.xz")
 
 extension FileSystem {
-    public func generateSDK() async throws {
+    public func generateSDK(shouldUseDocker: Bool = false) async throws {
         let client = HTTPClient(
             eventLoopGroupProvider: .createNew,
             configuration: .init(
@@ -56,23 +69,116 @@ extension FileSystem {
             try! client.syncShutdown()
         }
 
-        let artifactsCachePath = sdkRootPath.appending("artifacts-cache")
         try createDirectoryIfNeeded(at: artifactsCachePath)
-
         try createDirectoryIfNeeded(at: sdkDirPath)
         try createDirectoryIfNeeded(at: toolchainDirPath)
 
-        let hostURL = URL(string: "https://download.swift.org/\(swiftBranch)/xcode/swift-\(swiftVersion)/swift-\(swiftVersion)-osx.pkg")!
-        let destURL = URL(string: """
-        https://download.swift.org/\(swiftBranch)/ubuntu\(
-            ubuntuVersion.replacingOccurrences(of: ".", with: "")
-        )/swift-\(swiftVersion)/swift-\(swiftVersion)-ubuntu\(ubuntuVersion).tar.gz
-        """)!
-        let clangURL = URL(string: clangDarwin)!
+        if shouldUseDocker {
+            let hostProgressStream = client.streamDownloadProgress(from: hostURL, to: hostPath)
+                .removeDuplicates(by: didProgressChangeSignificantly)
+                .throttle(for: .seconds(1))
 
-        let destPath = artifactsCachePath.appending("dest.tar.gz")
-        let hostPath = artifactsCachePath.appending("host.pkg")
-        let clangArchive = artifactsCachePath.appending("clang.tar.xz")
+            for try await hostProgress in hostProgressStream {
+                report(progress: hostProgress, for: hostURL)
+            }
+        } else {
+            try await downloadToolchainPackages(client)
+
+            try await downloadUbuntuPackages(client)
+
+            try await unpackLLDLinker()
+        }
+
+        try await unpackHostToolchain()
+
+        if shouldUseDocker {
+            try await copyDestinationSDKFromDocker()
+        } else {
+            try await unpackDestinationSDKPackage()
+        }
+
+        try fixAbsoluteSymlinks()
+
+        try fixGlibcModuleMap(at: toolchainDirPath.appending("/usr/lib/swift/linux/\(destinationCPUArch)/glibc.modulemap"))
+
+        let autolinkExtractPath = toolchainBinDirPath.appending("swift-autolink-extract")
+
+        if !doesFileExist(at: autolinkExtractPath) {
+            print("Fixing `swift-autolink-extract` symlink...")
+            try createSymlink(at: autolinkExtractPath, pointingTo: "swift")
+        }
+
+        let destinationJSONPath = try generateDestinationJSON()
+
+        print(
+            """
+            
+            All done! Use the sdk as:
+            swift build --destination \(destinationJSONPath)
+            """
+        )
+    }
+
+    private func unpackDestinationSDKPackage() async throws {
+        print("Unpacking destination Swift SDK package...")
+
+        try await inTemporaryDirectory { fs, tmpDir in
+            try await fs.unpack(file: destPath, into: tmpDir)
+            try await fs.copyDestinationSDK(from: tmpDir.appending("swift-\(swiftVersion)-ubuntu\(ubuntuVersion)/usr/lib"))
+        }
+    }
+
+    private func copyDestinationSDKFromDocker() async throws {
+        print("Launching a Docker container to copy destination Swift SDK from it...")
+
+        let containerID = try await launchDockerContainer(
+            swiftVersion: swiftVersion.components(separatedBy: "-")[0],
+            ubuntuRelease: ubuntuRelease
+        )
+
+        try await inTemporaryDirectory { fs, tmpDir in
+            try await fs.copyFromDockerContainer(id: containerID, from: "/usr/lib", to: tmpDir)
+            try await fs.copyDestinationSDK(from: tmpDir.appending("lib"))
+        }
+    }
+
+    private func copyDestinationSDK(from destinationPackage: FilePath) async throws {
+        print("Copying Swift core libraries into destination SDK bundle...")
+
+        for (packagePath, destinationPath) in [
+            ("swift/linux", toolchainDirPath.appending("usr/lib/swift")),
+            ("swift_static/linux", toolchainDirPath.appending("usr/lib/swift_static")),
+            ("swift/dispatch", sdkDirPath.appending("usr/include")),
+            ("swift/os", sdkDirPath.appending("usr/include")),
+            ("swift/CoreFoundation", sdkDirPath.appending("usr/include")),
+        ] {
+            try await rsync(
+                from: destinationPackage.appending(packagePath),
+                to: destinationPath
+            )
+        }
+    }
+
+    private func unpackHostToolchain() async throws {
+        print("Unpacking and copying host toolchain...")
+
+        try await inTemporaryDirectory { fs, tmpDir in
+            try await fs.unpack(file: hostPath, into: tmpDir)
+            try await fs.rsync(from: tmpDir.appending("usr"), to: toolchainDirPath)
+        }
+    }
+
+    private func unpackLLDLinker() async throws {
+        print("Unpacking and copying `lld` linker...")
+
+        try await inTemporaryDirectory { fs, tmpDir in
+            try await fs.untar(file: clangArchive, into: tmpDir, stripComponents: 1)
+            try fs.copy(from: tmpDir.appending("bin/lld"), to: toolchainBinDirPath.appending("ld.lld"))
+        }
+    }
+
+    private func downloadToolchainPackages(_ client: HTTPClient) async throws {
+        print("Downloading required toolchain packages...")
 
         let hostProgressStream = client.streamDownloadProgress(from: hostURL, to: hostPath)
             .removeDuplicates(by: didProgressChangeSignificantly)
@@ -84,14 +190,16 @@ extension FileSystem {
         let progressStream = combineLatest(hostProgressStream, destProgressStream, clangProgress)
             .throttle(for: .seconds(1))
 
-        print("Downloading required packages...")
         for try await (hostProgress, destProgress, clangProgress) in progressStream {
             report(progress: hostProgress, for: hostURL)
             report(progress: destProgress, for: destURL)
             report(progress: clangProgress, for: clangURL)
         }
+    }
 
+    private func downloadUbuntuPackages(_ client: HTTPClient) async throws {
         print("Parsing Ubuntu packages list...")
+
         let allPackages = try await parse(packages: client.downloadPackagesList())
 
         let requiredPackages = ["libc6-dev", "linux-libc-dev", "libicu70", "libgcc-12-dev", "libicu-dev", "libc6", "libgcc-s1", "libstdc++-12-dev", "libstdc++6", "zlib1g", "zlib1g-dev"]
@@ -108,64 +216,11 @@ extension FileSystem {
         }
 
         try createDirectoryIfNeeded(at: toolchainBinDirPath)
-
-        print("Unpacking and copying `lld` linker...")
-        try await inTemporaryDirectory { fs, tmpDir in
-            try await fs.untar(file: clangArchive, into: tmpDir, stripComponents: 1)
-            try fs.copy(from: tmpDir.appending("bin/lld"), to: toolchainBinDirPath.appending("ld.lld"))
-        }
-
-        print("Fixing up absolute symlinks...")
-        try fixAbsoluteSymlinks()
-
-        print("Unpacking and copying host toolchain...")
-        try await inTemporaryDirectory { fs, tmpDir in
-            try await fs.unpack(file: hostPath, into: tmpDir)
-            try await fs.rsync(from: tmpDir.appending("usr"), to: toolchainDirPath)
-        }
-
-        print("Unpacking and copying destination Swift SDK...")
-        try await inTemporaryDirectory { fs, tmpDir in
-            try await fs.unpack(file: destPath, into: tmpDir)
-
-            for (source, destination) in [
-                ("swift/linux", toolchainDirPath.appending("usr/lib/swift")),
-                ("swift_static/linux", toolchainDirPath.appending("usr/lib/swift_static")),
-                ("swift/dispatch", sdkDirPath.appending("usr/include")),
-                ("swift/os", sdkDirPath.appending("usr/include")),
-                ("swift/CoreFoundation", sdkDirPath.appending("usr/include")),
-            ] {
-                try await fs.rsync(
-                    from: tmpDir.appending("swift-\(swiftVersion)-ubuntu\(ubuntuVersion)/usr/lib/\(source)"),
-                    to: destination
-                )
-            }
-        }
-
-        print("Fixing absolute paths in `glibc.modulemap`...")
-        try fixGlibcModuleMap(at: toolchainDirPath.appending("/usr/lib/swift/linux/\(destinationCPUArch)/glibc.modulemap"))
-
-        let autolinkExtractPath = toolchainBinDirPath.appending("swift-autolink-extract")
-
-        if !doesFileExist(at: autolinkExtractPath) {
-            print("Fixing `swift-autolink-extract` symlink...")
-            try createSymlink(at: autolinkExtractPath, pointingTo: "swift")
-        }
-
-        print("Generating destination JSON file...")
-        let destinationJSONPath = sdkRootPath.appending("ubuntu-\(ubuntuRelease)-destination.json")
-        try generateDestinationJSON(at: destinationJSONPath)
-
-        print(
-            """
-            
-            All done! Use the sdk as:
-            swift build --destination \(destinationJSONPath)
-            """
-        )
     }
 
     private func fixAbsoluteSymlinks() throws {
+        print("Fixing up absolute symlinks...")
+
         for (source, absoluteDestination) in try findSymlinks(at: sdkDirPath).filter({ $1.string.hasPrefix("/") }) {
             var relativeSource = source
             var relativeDestination = FilePath()
@@ -186,12 +241,16 @@ extension FileSystem {
         }
     }
 
-    private func generateDestinationJSON(at path: FilePath) throws {
+    private func generateDestinationJSON() throws -> FilePath {
+        print("Generating destination JSON file...")
+
+        let destinationJSONPath = sdkRootPath.appending("ubuntu-\(ubuntuRelease)-destination.json")
+
         let encoder = JSONEncoder()
         encoder.outputFormatting = .prettyPrinted
 
         try writeFile(
-            at: path,
+            at: destinationJSONPath,
             encoder.encode(
                 DestinationV1(
                     sdk: sdkDirPath.string,
@@ -211,9 +270,13 @@ extension FileSystem {
                 )
             )
         )
+
+        return destinationJSONPath
     }
 
     private func fixGlibcModuleMap(at path: FilePath) throws {
+        print("Fixing absolute paths in `glibc.modulemap`...")
+
         let privateIncludesPath = path.removingLastComponent().appending("private_includes")
         try removeRecursively(at: privateIncludesPath)
         try createDirectoryIfNeeded(at: privateIncludesPath)

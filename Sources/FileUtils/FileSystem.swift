@@ -42,6 +42,11 @@ public protocol FileSystem {
     func findSymlinks(at directory: FilePath) throws -> [(FilePath, FilePath)]
     func createSymlink(at source: FilePath, pointingTo destination: FilePath) throws
 
+    // MARK: Docker operations
+
+    func launchDockerContainer(swiftVersion: String, ubuntuRelease: String) async throws -> String
+    func copyFromDockerContainer(id: String, from containerPath: FilePath, to localPath: FilePath) async throws
+    func stopDockerContainer(id: String) async throws
 }
 
 // FIXME: make an actor?
@@ -49,6 +54,19 @@ public final class LocalFileSystem: FileSystem {
     public init() {}
 
     private let fileManager = FileManager.default
+
+    public func launchDockerContainer(swiftVersion: String, ubuntuRelease: String) async throws -> String {
+        try await Shell.readStdout("PATH='/bin:/usr/bin:/usr/local/bin' docker create swift:\(swiftVersion)-\(ubuntuRelease)")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    public func copyFromDockerContainer(id: String, from containerPath: FilePath, to localPath: FilePath) async throws {
+        try await Shell.run("PATH='/bin:/usr/bin:/usr/local/bin' docker cp \(id):\(containerPath) \(localPath)")
+    }
+
+    public func stopDockerContainer(id: String) async throws {
+        try await Shell.run("PATH='/bin:/usr/bin:/usr/local/bin' docker rm -v \(id)")
+    }
 
     public func doesFileExist(at path: FilePath) -> Bool {
         fileManager.fileExists(atPath: path.string)
