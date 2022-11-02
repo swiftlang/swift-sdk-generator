@@ -22,12 +22,31 @@ private let ubuntuMirror = "http://gb.archive.ubuntu.com/ubuntu"
 private let ubuntuRelease = "jammy"
 private let ubuntuVersion = "22.04"
 private let packagesFile = "\(ubuntuMirror)/dists/\(ubuntuRelease)/main/binary-amd64/Packages.gz"
-private let destinationCPUArch = "x86_64"
+
+private struct Platform {
+    let cpu: String
+    let vendor: String
+    let os: String
+}
+
+private let availablePlatforms = (
+    linux: Platform(
+        cpu: "aarch64",
+        vendor: "unknown",
+        os: "linux"
+    ),
+    darwin: Platform(
+        cpu: "arm64",
+        vendor: "apple",
+        os: "darwin21.0"
+    )
+)
+
 private let clangDarwin =
-    "https://github.com/llvm/llvm-project/releases/download/llvmorg-13.0.1/clang+llvm-13.0.1-\(destinationCPUArch)-apple-darwin.tar.xz"
+"https://github.com/llvm/llvm-project/releases/download/llvmorg-15.0.3/clang+llvm-15.0.3-\(availablePlatforms.darwin.cpu)-apple-\(availablePlatforms.darwin.os).tar.xz"
 private let swiftBranch = "swift-5.7-release"
 private let swiftVersion = "5.7-RELEASE"
-private let destinationTriple = "\(destinationCPUArch)-unknown-linux-gnu"
+private let destinationTriple = "\(availablePlatforms.linux.cpu)-unknown-linux-gnu"
 
 private let byteCountFormatter = ByteCountFormatter()
 
@@ -57,7 +76,7 @@ private let hostPath = artifactsCachePath.appending("host.pkg")
 private let clangArchive = artifactsCachePath.appending("clang.tar.xz")
 
 extension FileSystem {
-    public func generateSDK(shouldUseDocker: Bool = false) async throws {
+    public func generateSDK(shouldUseDocker: Bool = true) async throws {
         let client = HTTPClient(
             eventLoopGroupProvider: .createNew,
             configuration: .init(
@@ -73,20 +92,10 @@ extension FileSystem {
         try createDirectoryIfNeeded(at: sdkDirPath)
         try createDirectoryIfNeeded(at: toolchainDirPath)
 
-        if shouldUseDocker {
-            let hostProgressStream = client.streamDownloadProgress(from: hostURL, to: hostPath)
-                .removeDuplicates(by: didProgressChangeSignificantly)
-                .throttle(for: .seconds(1))
+        try await downloadToolchainPackages(client, shouldUseDocker: shouldUseDocker)
 
-            for try await hostProgress in hostProgressStream {
-                report(progress: hostProgress, for: hostURL)
-            }
-        } else {
-            try await downloadToolchainPackages(client)
-
+        if !shouldUseDocker {
             try await downloadUbuntuPackages(client)
-
-            try await unpackLLDLinker()
         }
 
         try await unpackHostToolchain()
@@ -97,9 +106,11 @@ extension FileSystem {
             try await unpackDestinationSDKPackage()
         }
 
+        try await unpackLLDLinker()
+
         try fixAbsoluteSymlinks()
 
-        try fixGlibcModuleMap(at: toolchainDirPath.appending("/usr/lib/swift/linux/\(destinationCPUArch)/glibc.modulemap"))
+        try fixGlibcModuleMap(at: toolchainDirPath.appending("/usr/lib/swift/linux/\(availablePlatforms.linux.cpu)/glibc.modulemap"))
 
         let autolinkExtractPath = toolchainBinDirPath.appending("swift-autolink-extract")
 
@@ -137,15 +148,21 @@ extension FileSystem {
         )
 
         try await inTemporaryDirectory { fs, tmpDir in
-            try await fs.copyFromDockerContainer(id: containerID, from: "/usr/lib", to: tmpDir)
-            try await fs.copyDestinationSDK(from: tmpDir.appending("lib"))
+            let sdkUsrPath = sdkDirPath.appending("usr")
+            let sdkUsrLibPath = sdkUsrPath.appending("lib")
+            try fs.createDirectoryIfNeeded(at: sdkUsrPath)
+            try await fs.copyFromDockerContainer(id: containerID, from: "/usr/include", to: sdkUsrPath.appending("include"))
+            try await fs.copyFromDockerContainer(id: containerID, from: "/usr/lib", to: sdkUsrLibPath)
+            try fs.createSymlink(at: sdkDirPath.appending("lib"), pointingTo: "usr/lib")
+            try fs.removeRecursively(at: sdkUsrLibPath.appending("ssl"))
+            try await fs.copyDestinationSDK(from: sdkUsrLibPath)
         }
     }
 
-    private func copyDestinationSDK(from destinationPackage: FilePath) async throws {
+    private func copyDestinationSDK(from destinationPackagePath: FilePath) async throws {
         print("Copying Swift core libraries into destination SDK bundle...")
 
-        for (packagePath, destinationPath) in [
+        for (pathWithinPackage, destinationBundlePath) in [
             ("swift/linux", toolchainDirPath.appending("usr/lib/swift")),
             ("swift_static/linux", toolchainDirPath.appending("usr/lib/swift_static")),
             ("swift/dispatch", sdkDirPath.appending("usr/include")),
@@ -153,8 +170,8 @@ extension FileSystem {
             ("swift/CoreFoundation", sdkDirPath.appending("usr/include")),
         ] {
             try await rsync(
-                from: destinationPackage.appending(packagePath),
-                to: destinationPath
+                from: destinationPackagePath.appending(pathWithinPackage),
+                to: destinationBundlePath
             )
         }
     }
@@ -177,7 +194,7 @@ extension FileSystem {
         }
     }
 
-    private func downloadToolchainPackages(_ client: HTTPClient) async throws {
+    private func downloadToolchainPackages(_ client: HTTPClient, shouldUseDocker: Bool) async throws {
         print("Downloading required toolchain packages...")
 
         let hostProgressStream = client.streamDownloadProgress(from: hostURL, to: hostPath)
@@ -187,13 +204,23 @@ extension FileSystem {
         let clangProgress = client.streamDownloadProgress(from: clangURL, to: clangArchive)
             .removeDuplicates(by: didProgressChangeSignificantly)
 
-        let progressStream = combineLatest(hostProgressStream, destProgressStream, clangProgress)
-            .throttle(for: .seconds(1))
+        if shouldUseDocker {
+            let progressStream = combineLatest(hostProgressStream, clangProgress)
+                .throttle(for: .seconds(1))
 
-        for try await (hostProgress, destProgress, clangProgress) in progressStream {
-            report(progress: hostProgress, for: hostURL)
-            report(progress: destProgress, for: destURL)
-            report(progress: clangProgress, for: clangURL)
+            for try await (hostProgress, clangProgress) in progressStream {
+                report(progress: hostProgress, for: destURL)
+                report(progress: clangProgress, for: clangURL)
+            }
+        } else {
+            let progressStream = combineLatest(hostProgressStream, destProgressStream, clangProgress)
+                .throttle(for: .seconds(1))
+
+            for try await (hostProgress, destProgress, clangProgress) in progressStream {
+                report(progress: hostProgress, for: hostURL)
+                report(progress: destProgress, for: destURL)
+                report(progress: clangProgress, for: clangURL)
+            }
         }
     }
 
@@ -285,7 +312,7 @@ extension FileSystem {
             #/\n( *header )"\/+usr\/include\//#
             Capture {
                 Optionally {
-                    destinationCPUArch
+                    availablePlatforms.linux.cpu
                     "-linux-gnu"
                 }
             }
