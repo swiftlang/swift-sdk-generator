@@ -290,6 +290,7 @@ extension FileSystem {
                         "-use-ld=lld",
                         "-tools-directory", toolchainBinDirPath.string,
                         "-sdk", sdkDirPath.string,
+                        "-Xlinker", "-R/usr/lib/swift/linux/"
                     ],
                     extraCPPFlags: [
                         "-lstdc++"
