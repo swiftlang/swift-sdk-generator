@@ -50,10 +50,12 @@ private let destinationTriple = "\(availablePlatforms.linux.cpu)-unknown-linux-g
 
 private let byteCountFormatter = ByteCountFormatter()
 
-private let generatorWorkspacePath = FilePath(#file)
+private let sourceRoot = FilePath(#file)
     .removingLastComponent()
     .removingLastComponent()
     .removingLastComponent()
+
+private let generatorWorkspacePath = sourceRoot
     .appending("cc-sdk")
     .appending(destinationTriple)
 
@@ -140,12 +142,14 @@ extension FileSystem {
     }
 
     private func copyDestinationSDKFromDocker() async throws {
-        print("Launching a Docker container to copy destination Swift SDK from it...")
 
-        let containerID = try await launchDockerContainer(
-            swiftVersion: swiftVersion.components(separatedBy: "-")[0],
-            ubuntuRelease: ubuntuRelease
-        )
+        let imageName = "swiftlang/swift-cc-destination:\(swiftVersion.components(separatedBy: "-")[0])-\(ubuntuRelease)"
+
+        print("Building a Docker image with the destination environment...")
+        try await buildDockerImage(name: imageName, dockerfileDirectory: sourceRoot.appending("Dockerfiles"))
+
+        print("Launching a Docker container to copy destination Swift SDK from it...")
+        let containerID = try await launchDockerContainer(imageName: imageName)
 
         try await inTemporaryDirectory { fs, tmpDir in
             let sdkUsrPath = sdkDirPath.appending("usr")

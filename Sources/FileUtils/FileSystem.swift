@@ -44,7 +44,8 @@ public protocol FileSystem {
 
     // MARK: Docker operations
 
-    func launchDockerContainer(swiftVersion: String, ubuntuRelease: String) async throws -> String
+    func buildDockerImage(name: String, dockerfileDirectory: FilePath) async throws
+    func launchDockerContainer(imageName: String) async throws -> String
     func copyFromDockerContainer(id: String, from containerPath: FilePath, to localPath: FilePath) async throws
     func stopDockerContainer(id: String) async throws
 }
@@ -55,8 +56,15 @@ public final class LocalFileSystem: FileSystem {
 
     private let fileManager = FileManager.default
 
-    public func launchDockerContainer(swiftVersion: String, ubuntuRelease: String) async throws -> String {
-        try await Shell.readStdout("PATH='/bin:/usr/bin:/usr/local/bin' docker create swift:\(swiftVersion)-\(ubuntuRelease)")
+    public func buildDockerImage(name: String, dockerfileDirectory: FilePath) async throws {
+        try await Shell.run(
+            "PATH='/bin:/usr/bin:/usr/local/bin' docker build . -t \(name)",
+            currentDirectory: dockerfileDirectory
+        )
+    }
+
+    public func launchDockerContainer(imageName: String) async throws -> String {
+        try await Shell.readStdout("PATH='/bin:/usr/bin:/usr/local/bin' docker create \(imageName)")
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
