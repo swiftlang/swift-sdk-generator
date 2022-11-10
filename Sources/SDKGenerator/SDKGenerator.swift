@@ -42,8 +42,15 @@ private let availablePlatforms = (
     )
 )
 
+private let clangVersion = "15.0.3"
 private let clangDarwin =
-"https://github.com/llvm/llvm-project/releases/download/llvmorg-15.0.3/clang+llvm-15.0.3-\(availablePlatforms.darwin.cpu)-apple-\(availablePlatforms.darwin.os).tar.xz"
+    """
+    https://github.com/llvm/llvm-project/releases/download/llvmorg-\(
+        clangVersion
+    )/clang+llvm-\(
+        clangVersion
+    )-\(availablePlatforms.darwin.cpu)-apple-\(availablePlatforms.darwin.os).tar.xz
+    """
 private let swiftBranch = "swift-5.7-release"
 private let swiftVersion = "5.7-RELEASE"
 private let destinationTriple = "\(availablePlatforms.linux.cpu)-unknown-linux-gnu"
