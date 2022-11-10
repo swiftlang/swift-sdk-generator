@@ -122,6 +122,8 @@ final class Shell {
             line: line
         )
 
+        try await process.waitUntilExit()
+
         var output = ""
         for try await chunk in process.stdout {
             output.append(String(data: chunk, encoding: .utf8)!)
@@ -141,7 +143,7 @@ private extension AsyncThrowingStream where Element == Data, Failure == any Erro
     ) {
         self.init { continuation in
             let pipe = Pipe()
-            pipe.fileHandleForReading.readabilityHandler = { fileHandle in
+            pipe.fileHandleForReading.readabilityHandler = { [unowned pipe] fileHandle in
                 let data = fileHandle.availableData
                 if !data.isEmpty {
                     continuation.yield(data)
@@ -151,6 +153,9 @@ private extension AsyncThrowingStream where Element == Data, Failure == any Erro
                     } else {
                         continuation.finish()
                     }
+
+                    // Clean up the handler to prevent repeated calls and continuation finishes for the same process.
+                    pipe.fileHandleForReading.readabilityHandler = nil
                 }
             }
             
