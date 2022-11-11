@@ -17,6 +17,7 @@ let package = Package(
         // Dependencies declare other packages that this package depends on.
         .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.13.1"),
         .package(url: "https://github.com/apple/swift-system", from: "1.2.1"),
+        .package(url: "https://github.com/apple/swift-argument-parser", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-async-algorithms.git", from: "0.0.3")
     ],
     targets: [
@@ -25,7 +26,8 @@ let package = Package(
         .executableTarget(
             name: "GeneratorCLI",
             dependencies: [
-                "SDKGenerator"
+                "SDKGenerator",
+                .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ]
         ),
         .target(

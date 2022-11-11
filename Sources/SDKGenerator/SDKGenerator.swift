@@ -87,7 +87,7 @@ private let hostPath = artifactsCachePath.appending("host.pkg")
 private let clangArchivePath = artifactsCachePath.appending("clang.tar.xz")
 
 extension FileSystem {
-    public func generateSDK(shouldUseDocker: Bool = true) async throws {
+    public func generateSDK(shouldUseDocker: Bool, shouldGenerateFromScratch: Bool) async throws {
         let client = HTTPClient(
             eventLoopGroupProvider: .createNew,
             configuration: .init(
@@ -97,6 +97,11 @@ extension FileSystem {
 
         defer {
             try! client.syncShutdown()
+        }
+
+        if shouldGenerateFromScratch {
+            try removeRecursively(at: sdkDirPath)
+            try removeRecursively(at: toolchainDirPath)
         }
 
         try createDirectoryIfNeeded(at: artifactsCachePath)
