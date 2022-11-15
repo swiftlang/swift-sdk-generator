@@ -1,0 +1,19 @@
+{
+  "extra-cc-flags" : [
+    "-fPIC"
+  ],
+  "extra-cpp-flags" : [
+    "-lstdc++"
+  ],
+  "target" : "x86_64-unknown-linux-gnu",
+  "version" : 1,
+  "extra-swiftc-flags" : [
+    "-use-ld=lld",
+    "-tools-directory",
+    "\/Users\/maxd\/Documents\/appleOSS\/swift-cc-sdk-generator\/cc-sdk\/x86_64-unknown-linux-gnu\/swift.xctoolchain\/usr\/bin",
+    "-sdk",
+    "\/Users\/maxd\/Documents\/appleOSS\/swift-cc-sdk-generator\/cc-sdk\/x86_64-unknown-linux-gnu\/ubuntu-jammy.sdk"
+  ],
+  "sdk" : "\/Users\/maxd\/Documents\/appleOSS\/swift-cc-sdk-generator\/cc-sdk\/x86_64-unknown-linux-gnu\/ubuntu-jammy.sdk",
+  "toolchain-bin-dir" : "\/Users\/maxd\/Documents\/appleOSS\/swift-cc-sdk-generator\/cc-sdk\/x86_64-unknown-linux-gnu\/swift.xctoolchain\/usr\/bin"
+}

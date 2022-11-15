@@ -23,6 +23,10 @@ struct Main: AsyncParsableCommand {
     var incremental: Bool = false
 
     mutating func run() async throws {
-        try await LocalFileSystem().generateSDK(shouldUseDocker: !withoutDocker, shouldGenerateFromScratch: !incremental)
+        let elapsed = try await ContinuousClock().measure {
+            try await LocalFileSystem().generateSDK(shouldUseDocker: !withoutDocker, shouldGenerateFromScratch: !incremental)
+        }
+
+        print("Done in \(elapsed.formatted())")
     }
 }

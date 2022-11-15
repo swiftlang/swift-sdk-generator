@@ -23,10 +23,12 @@ private let ubuntuRelease = "jammy"
 private let ubuntuVersion = "22.04"
 private let packagesFile = "\(ubuntuMirror)/dists/\(ubuntuRelease)/main/binary-amd64/Packages.gz"
 
-private struct Platform {
+private struct Platform: CustomStringConvertible {
     let cpu: String
     let vendor: String
     let os: String
+
+    var description: String { "\(cpu)-\(vendor)-\(os)" }
 }
 
 private let availablePlatforms = (
@@ -62,15 +64,17 @@ private let sourceRoot = FilePath(#file)
     .removingLastComponent()
     .removingLastComponent()
 
-private let generatorWorkspacePath = sourceRoot
-    .appending("cc-sdk")
+private let artifactBundlePath = sourceRoot
+    .appending("cc-sdk.artifactbundle")
+
+private let generatorWorkspacePath = artifactBundlePath
     .appending(destinationTriple)
 
 private let sdkRootPath = generatorWorkspacePath
 private let sdkDirPath = sdkRootPath.appending("ubuntu-\(ubuntuRelease).sdk")
 private let toolchainDirPath = generatorWorkspacePath.appending("swift.xctoolchain")
 private let toolchainBinDirPath = toolchainDirPath.appending("usr/bin")
-private let artifactsCachePath = sdkRootPath.appending("artifacts-cache")
+private let artifactsCachePath = sourceRoot.appending("artifacts-cache")
 
 private let toolchainPackages = [hostPath, destPath, clangArchivePath]
 
@@ -82,9 +86,9 @@ private let destURL = URL(string: """
     """)!
 private let clangURL = URL(string: clangDarwin)!
 
-private let destPath = artifactsCachePath.appending("dest.tar.gz")
-private let hostPath = artifactsCachePath.appending("host.pkg")
-private let clangArchivePath = artifactsCachePath.appending("clang.tar.xz")
+private let destPath = artifactsCachePath.appending("\(availablePlatforms.linux).tar.gz")
+private let hostPath = artifactsCachePath.appending("\(availablePlatforms.darwin).pkg")
+private let clangArchivePath = artifactsCachePath.appending("clang-\(availablePlatforms.darwin).tar.xz")
 
 extension FileSystem {
     public func generateSDK(shouldUseDocker: Bool, shouldGenerateFromScratch: Bool) async throws {
@@ -138,6 +142,8 @@ extension FileSystem {
         }
 
         let destinationJSONPath = try generateDestinationJSON()
+
+        try generateArtifactBundleManifest()
 
         logGenerationStep(
             """
@@ -339,6 +345,36 @@ extension FileSystem {
         )
 
         return destinationJSONPath
+    }
+
+    private func generateArtifactBundleManifest() throws {
+        logGenerationStep("Generating .artifactbundle manifest file...")
+
+        let artifactBundleManifestPath = artifactBundlePath.appending("info.json")
+
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .prettyPrinted
+
+        try writeFile(
+            at: artifactBundleManifestPath,
+            encoder.encode(
+                ArtifactsArchiveMetadata(
+                    schemaVersion: "1.0",
+                    artifacts: [
+                        "ubuntu22.04_aarch64": .init(
+                            type: .crossCompilationSDK,
+                            version: "0.0.1",
+                            variants: [
+                                .init(
+                                    path: "aarch64-unknown-linux-gnu",
+                                    supportedTriples: ["arm64-apple-darwin"]
+                                )
+                            ]
+                        )
+                    ]
+                )
+            )
+        )
     }
 
     private func fixGlibcModuleMap(at path: FilePath) throws {
