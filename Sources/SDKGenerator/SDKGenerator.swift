@@ -365,7 +365,7 @@ extension FileSystem {
                     schemaVersion: "1.0",
                     artifacts: [
                         "ubuntu22.04_aarch64": .init(
-                            type: .crossCompilationSDK,
+                            type: .crossCompilationDestination,
                             version: "0.0.1",
                             variants: [
                                 .init(
