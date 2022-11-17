@@ -67,7 +67,10 @@ private let sourceRoot = FilePath(#file)
 private let artifactBundlePath = sourceRoot
     .appending("cc-sdk.artifactbundle")
 
+private let artifactID = "5.7_ubuntu_jammy"
+
 private let generatorWorkspacePath = artifactBundlePath
+    .appending(artifactID)
     .appending(destinationTriple)
 
 private let sdkRootPath = generatorWorkspacePath
@@ -316,7 +319,7 @@ extension FileSystem {
     private func generateDestinationJSON() throws -> FilePath {
         logGenerationStep("Generating destination JSON file...")
 
-        let destinationJSONPath = sdkRootPath.appending("ubuntu-\(ubuntuRelease)-destination.json")
+        let destinationJSONPath = sdkRootPath.appending("destination.json")
 
         let encoder = JSONEncoder()
         encoder.outputFormatting = .prettyPrinted
@@ -366,8 +369,8 @@ extension FileSystem {
                             version: "0.0.1",
                             variants: [
                                 .init(
-                                    path: "aarch64-unknown-linux-gnu",
-                                    supportedTriples: ["arm64-apple-darwin"]
+                                    path: FilePath(artifactID).appending(availablePlatforms.linux.description).string,
+                                    supportedTriples: [availablePlatforms.darwin.description]
                                 )
                             ]
                         )
