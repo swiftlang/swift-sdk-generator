@@ -228,9 +228,9 @@ extension FileSystem {
             return false
         }
 
-        async let hostChecksum = computeChecksum(file: hostPath)
-        async let destChecksum = computeChecksum(file: destPath)
-        async let clangChecksum = computeChecksum(file: clangArchivePath)
+        async let hostChecksum = Self.computeChecksum(file: hostPath)
+        async let destChecksum = Self.computeChecksum(file: destPath)
+        async let clangChecksum = Self.computeChecksum(file: clangArchivePath)
 
         return try await [hostChecksum, destChecksum, clangChecksum] == [
             "8e56c80e98e6488611944b23fa69ebb13d3a150c5bc12fa44b7dbe755478225b",

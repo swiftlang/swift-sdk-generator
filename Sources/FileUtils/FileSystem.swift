@@ -20,7 +20,8 @@ public protocol FileSystem {
     func untar(file: FilePath, into directoryPath: FilePath, stripComponents: Int?) async throws
     func unpack(file: FilePath, into directoryPath: FilePath) async throws
     func rsync(from source: FilePath, to destination: FilePath) async throws
-    func computeChecksum(file: FilePath) async throws -> String
+
+    static func computeChecksum(file: FilePath) async throws -> String
 
     // MARK: common operations on files
 
@@ -57,7 +58,7 @@ public final class LocalFileSystem: FileSystem {
 
     private let fileManager = FileManager.default
 
-    public func computeChecksum(file: FilePath) async throws -> String {
+    public static func computeChecksum(file: FilePath) async throws -> String {
         try await String(Shell.readStdout("openssl dgst -sha256 \(file)").split(separator: "= ")[1]
             // drop the trailing newline
             .dropLast())
