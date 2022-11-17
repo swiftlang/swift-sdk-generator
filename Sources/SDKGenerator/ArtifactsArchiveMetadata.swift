@@ -35,7 +35,7 @@ public struct ArtifactsArchiveMetadata: Equatable, Codable {
 
     public enum ArtifactType: String, RawRepresentable, Codable {
         case executable
-        case crossCompilationSDK
+        case crossCompilationDestination
     }
 
     public struct Variant: Equatable, Codable {
