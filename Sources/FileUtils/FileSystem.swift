@@ -196,7 +196,7 @@ public final class LocalFileSystem: FileSystem {
     }
 
     public func inTemporaryDirectory<T>(_ closure: @Sendable (LocalFileSystem, FilePath) async throws -> T) async throws -> T {
-        let tmp = FilePath(NSTemporaryDirectory()).appending("cc-sdk-\(UUID().uuidString.prefix(6))")
+        let tmp = FilePath(NSTemporaryDirectory()).appending("cc-destination-\(UUID().uuidString.prefix(6))")
 
         try createDirectoryIfNeeded(at: tmp)
 

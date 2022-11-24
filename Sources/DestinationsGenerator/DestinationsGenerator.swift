@@ -67,17 +67,16 @@ private let sourceRoot = FilePath(#file)
     .removingLastComponent()
 
 private let artifactBundlePath = sourceRoot
-    .appending("cc-sdk.artifactbundle")
+    .appending("cc-destination.artifactbundle")
 
 private let artifactID = "5.7_ubuntu_jammy"
 
-private let generatorWorkspacePath = artifactBundlePath
+private let destinationRootPath = artifactBundlePath
     .appending(artifactID)
     .appending(destinationTriple)
 
-private let sdkRootPath = generatorWorkspacePath
-private let sdkDirPath = sdkRootPath.appending("ubuntu-\(ubuntuRelease).sdk")
-private let toolchainDirPath = generatorWorkspacePath.appending("swift.xctoolchain")
+private let sdkDirPath = destinationRootPath.appending("ubuntu-\(ubuntuRelease).sdk")
+private let toolchainDirPath = destinationRootPath.appending("swift.xctoolchain")
 private let toolchainBinDirPath = toolchainDirPath.appending("usr/bin")
 private let artifactsCachePath = sourceRoot.appending("artifacts-cache")
 
@@ -96,7 +95,7 @@ private let hostPath = artifactsCachePath.appending("\(availablePlatforms.darwin
 private let clangArchivePath = artifactsCachePath.appending("clang-\(availablePlatforms.darwin).tar.xz")
 
 extension FileSystem {
-    public func generateSDK(shouldUseDocker: Bool, shouldGenerateFromScratch: Bool) async throws {
+    public func generateDestinationBundle(shouldUseDocker: Bool, shouldGenerateFromScratch: Bool) async throws {
         let client = HTTPClient(
             eventLoopGroupProvider: .createNew,
             configuration: .init(
@@ -321,7 +320,7 @@ extension FileSystem {
     private func generateDestinationJSON() throws -> FilePath {
         logGenerationStep("Generating destination JSON file...")
 
-        let destinationJSONPath = sdkRootPath.appending("destination.json")
+        let destinationJSONPath = destinationRootPath.appending("destination.json")
 
         let encoder = JSONEncoder()
         encoder.outputFormatting = .prettyPrinted
