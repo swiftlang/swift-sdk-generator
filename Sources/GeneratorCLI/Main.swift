@@ -12,7 +12,7 @@
 
 import ArgumentParser
 import FileUtils
-import SDKGenerator
+import DestinationsGenerator
 
 @main
 struct Main: AsyncParsableCommand {
