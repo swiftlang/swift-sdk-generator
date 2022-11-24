@@ -27,15 +27,17 @@ private struct Platform: CustomStringConvertible {
     let cpu: String
     let vendor: String
     let os: String
+    var abi: String?
 
-    var description: String { "\(cpu)-\(vendor)-\(os)" }
+    var description: String { "\(cpu)-\(vendor)-\(os)\(abi != nil ? "-\(abi!)" : "")" }
 }
 
 private let availablePlatforms = (
     linux: Platform(
         cpu: "aarch64",
         vendor: "unknown",
-        os: "linux"
+        os: "linux",
+        abi: "gnu"
     ),
     darwin: Platform(
         cpu: "arm64",
