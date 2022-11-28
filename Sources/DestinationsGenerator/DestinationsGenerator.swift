@@ -43,6 +43,11 @@ private let availablePlatforms = (
         cpu: "arm64",
         vendor: "apple",
         os: "darwin21.0"
+    ),
+    macOS: Platform(
+        cpu: "arm64",
+        vendor: "apple",
+        os: "macosx13.0"
     )
 )
 
@@ -55,9 +60,8 @@ private let clangDarwin =
         clangVersion
     )-\(availablePlatforms.darwin.cpu)-apple-\(availablePlatforms.darwin.os).tar.xz
     """
-private let swiftBranch = "swift-5.7-release"
-private let swiftVersion = "5.7-RELEASE"
-private let destinationTriple = "\(availablePlatforms.linux.cpu)-unknown-linux-gnu"
+private let swiftBranch = "swift-5.7.1-release"
+private let swiftVersion = "5.7.1-RELEASE"
 
 private let byteCountFormatter = ByteCountFormatter()
 
@@ -73,7 +77,7 @@ private let artifactID = "5.7_ubuntu_jammy"
 
 private let destinationRootPath = artifactBundlePath
     .appending(artifactID)
-    .appending(destinationTriple)
+    .appending(availablePlatforms.linux.description)
 
 private let sdkDirPath = destinationRootPath.appending("ubuntu-\(ubuntuRelease).sdk")
 private let toolchainDirPath = destinationRootPath.appending("swift.xctoolchain")
@@ -91,8 +95,8 @@ private let destURL = URL(string: """
 private let clangURL = URL(string: clangDarwin)!
 
 private let destPath = artifactsCachePath.appending("\(availablePlatforms.linux).tar.gz")
-private let hostPath = artifactsCachePath.appending("\(availablePlatforms.darwin).pkg")
-private let clangArchivePath = artifactsCachePath.appending("clang-\(availablePlatforms.darwin).tar.xz")
+private let hostPath = artifactsCachePath.appending("\(availablePlatforms.macOS).pkg")
+private let clangArchivePath = artifactsCachePath.appending("clang-\(availablePlatforms.macOS).tar.xz")
 
 extension FileSystem {
     public func generateDestinationBundle(shouldUseDocker: Bool, shouldGenerateFromScratch: Bool) async throws {
@@ -237,8 +241,8 @@ extension FileSystem {
         async let clangChecksum = Self.computeChecksum(file: clangArchivePath)
 
         return try await [hostChecksum, destChecksum, clangChecksum] == [
-            "8e56c80e98e6488611944b23fa69ebb13d3a150c5bc12fa44b7dbe755478225b",
-            "642f76399556947f9ebf83d4b31580395459032be66d29a218f36b99fae37be8",
+            "25eefd5795bce571f37f75ef7f78763fdcb11b6649ae47411bb2147f861c6f09",
+            "7f60291f5088d3e77b0c2364beaabd29616ee7b37260b7b06bdbeb891a7fe161",
             "83603b1258995f2659c3a87f7f62ee9b9c9775d7c7cde92a375c635f7bf73c28"
         ]
     }
@@ -325,25 +329,37 @@ extension FileSystem {
         let encoder = JSONEncoder()
         encoder.outputFormatting = .prettyPrinted
 
+        var relativeToolchainBinDir = toolchainBinDirPath
+        var relativeSDKDir = sdkDirPath
+
+        guard
+            relativeToolchainBinDir.removePrefix(destinationRootPath),
+            relativeSDKDir.removePrefix(destinationRootPath)
+        else {
+            fatalError(
+                "`toolchainBinDirPath` and `sdkDirPath` are at unexpected locations that prevent computing relative paths"
+            )
+        }
+
         try writeFile(
             at: destinationJSONPath,
             encoder.encode(
-                DestinationV1(
-                    sdk: sdkDirPath.string,
-                    toolchainBinDir: toolchainBinDirPath.string,
-                    target: destinationTriple,
+                DestinationV2(
+                    sdkRootDir: relativeSDKDir.string,
+                    toolchainBinDir: relativeToolchainBinDir.string,
+                    hostTriples: [availablePlatforms.macOS.description],
+                    targetTriples: [availablePlatforms.linux.description],
                     extraCCFlags: [
                         "-fPIC"
                     ],
                     extraSwiftCFlags: [
                         "-use-ld=lld",
-                        "-tools-directory", toolchainBinDirPath.string,
-                        "-sdk", sdkDirPath.string,
                         "-Xlinker", "-R/usr/lib/swift/linux/"
                     ],
-                    extraCPPFlags: [
+                    extraCXXFlags: [
                         "-lstdc++"
-                    ]
+                    ],
+                    extraLinkerFlags: []
                 )
             )
         )
@@ -371,7 +387,7 @@ extension FileSystem {
                             variants: [
                                 .init(
                                     path: FilePath(artifactID).appending(availablePlatforms.linux.description).string,
-                                    supportedTriples: [availablePlatforms.darwin.description]
+                                    supportedTriples: [availablePlatforms.macOS.description]
                                 )
                             ]
                         )
@@ -434,6 +450,19 @@ private struct DestinationV1: Encodable {
     let extraCCFlags: [String]
     let extraSwiftCFlags: [String]
     let extraCPPFlags: [String]
+}
+
+private struct DestinationV2: Encodable {
+    let version = 2
+
+    let sdkRootDir: String
+    let toolchainBinDir: String
+    let hostTriples: [String]
+    let targetTriples: [String]
+    let extraCCFlags: [String]
+    let extraSwiftCFlags: [String]
+    let extraCXXFlags: [String]
+    let extraLinkerFlags: [String]
 }
 
 /// Checks whether two given progress value are different enough from each other. Used for filtering out progress values
