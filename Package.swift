@@ -18,7 +18,7 @@ let package = Package(
         .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.13.1"),
         .package(url: "https://github.com/apple/swift-system", from: "1.2.1"),
         .package(url: "https://github.com/apple/swift-argument-parser", from: "1.0.0"),
-        .package(url: "https://github.com/apple/swift-async-algorithms.git", revision: "9abd029409149294459742960c9f20ac2078caea")
+        .package(url: "https://github.com/apple/swift-async-algorithms.git", revision: "5656338b5d1d9a8d2e90b92a32bddefd7175285b")
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
