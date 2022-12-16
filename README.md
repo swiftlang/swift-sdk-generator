@@ -1,4 +1,4 @@
-# Swift Cross-Compilation SDK Generator
+# Swift Cross-Compilation Destinations Generator
 
 Build and run with `swift run sdk-generator`. This will download and produce an SDK for `aarch64` Ubuntu Jammy in
 `cc-destination.artifactbundle` subdirectory of the project.
