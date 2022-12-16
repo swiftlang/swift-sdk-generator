@@ -1,6 +1,6 @@
 # Swift Cross-Compilation SDK Generator
 
-Build and run with `swift run sdk-generator`. This will download and produce an SDK for `x86_64` Ubuntu Jammy in
+Build and run with `swift run sdk-generator`. This will download and produce an SDK for `arm64` Ubuntu Jammy in
 `cc-destination.artifactbundle` subdirectory of the project.
 
 You can then use the newly produced CC SDK with
