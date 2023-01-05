@@ -58,6 +58,12 @@ public final class LocalFileSystem: FileSystem {
 
     private let fileManager = FileManager.default
 
+    #if arch(arm64)
+    private static let homebrewPrefix = "/opt/homebrew"
+    #elseif arch(x86_64)
+    private static let homebrewPrefix = "/usr/local"
+    #endif
+
     public static func computeChecksum(file: FilePath) async throws -> String {
         try await String(Shell.readStdout("openssl dgst -sha256 \(file)").split(separator: "= ")[1]
             // drop the trailing newline
@@ -66,22 +72,22 @@ public final class LocalFileSystem: FileSystem {
 
     public func buildDockerImage(name: String, dockerfileDirectory: FilePath) async throws {
         try await Shell.run(
-            "PATH='/bin:/usr/bin:/usr/local/bin' docker build . -t \(name)",
+            "PATH='/bin:/usr/bin:\(Self.homebrewPrefix)/bin' docker build . -t \(name)",
             currentDirectory: dockerfileDirectory
         )
     }
 
     public func launchDockerContainer(imageName: String) async throws -> String {
-        try await Shell.readStdout("PATH='/bin:/usr/bin:/usr/local/bin' docker create \(imageName)")
+        try await Shell.readStdout("PATH='/bin:/usr/bin:\(Self.homebrewPrefix)/bin' docker create \(imageName)")
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     public func copyFromDockerContainer(id: String, from containerPath: FilePath, to localPath: FilePath) async throws {
-        try await Shell.run("PATH='/bin:/usr/bin:/usr/local/bin' docker cp \(id):\(containerPath) \(localPath)")
+        try await Shell.run("PATH='/bin:/usr/bin:\(Self.homebrewPrefix)/bin' docker cp \(id):\(containerPath) \(localPath)")
     }
 
     public func stopDockerContainer(id: String) async throws {
-        try await Shell.run("PATH='/bin:/usr/bin:/usr/local/bin' docker rm -v \(id)")
+        try await Shell.run("PATH='/bin:/usr/bin:\(Self.homebrewPrefix)/bin' docker rm -v \(id)")
     }
 
     public func doesFileExist(at path: FilePath) -> Bool {
@@ -163,9 +169,9 @@ public final class LocalFileSystem: FileSystem {
     func unpack(debFile: FilePath, into directoryPath: FilePath) async throws {
         try await inTemporaryDirectory { _, tmp in
             try await Shell.run("ar -x \(debFile)", currentDirectory: tmp)
-            // FIXME: don't hardcode homebrew path
+
             try await Shell.run(
-                "PATH='/bin:/usr/bin:/opt/homebrew/bin' tar -xf \(tmp)/data.tar.*",
+                "PATH='/bin:/usr/bin:\(Self.homebrewPrefix)/bin' tar -xf \(tmp)/data.tar.*",
                 currentDirectory: directoryPath
             )
         }

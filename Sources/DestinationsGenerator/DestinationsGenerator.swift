@@ -51,17 +51,17 @@ private let availablePlatforms = (
     )
 )
 
-private let clangVersion = "15.0.3"
-private let clangDarwin =
+private let llvmVersion = "15.0.6"
+private let llvmDarwin =
     """
     https://github.com/llvm/llvm-project/releases/download/llvmorg-\(
-        clangVersion
+        llvmVersion
     )/clang+llvm-\(
-        clangVersion
+        llvmVersion
     )-\(availablePlatforms.darwin.cpu)-apple-\(availablePlatforms.darwin.os).tar.xz
     """
-private let swiftBranch = "swift-5.7.1-release"
-private let swiftVersion = "5.7.1-RELEASE"
+private let swiftBranch = "swift-5.7.2-release"
+private let swiftVersion = "5.7.2-RELEASE"
 
 private let byteCountFormatter = ByteCountFormatter()
 
@@ -73,7 +73,7 @@ private let sourceRoot = FilePath(#file)
 private let artifactBundlePath = sourceRoot
     .appending("cc-destination.artifactbundle")
 
-private let artifactID = "5.7_ubuntu_jammy"
+private let artifactID = "5.7.2_ubuntu_jammy"
 
 private let destinationRootPath = artifactBundlePath
     .appending(artifactID)
@@ -84,7 +84,7 @@ private let toolchainDirPath = destinationRootPath.appending("swift.xctoolchain"
 private let toolchainBinDirPath = toolchainDirPath.appending("usr/bin")
 private let artifactsCachePath = sourceRoot.appending("artifacts-cache")
 
-private let toolchainPackages = [hostPath, destPath, clangArchivePath]
+private let toolchainPackages = [hostPath, destPath, llvmArchivePath]
 
 private let hostURL = URL(string: "https://download.swift.org/\(swiftBranch)/xcode/swift-\(swiftVersion)/swift-\(swiftVersion)-osx.pkg")!
 private let destURL = URL(string: """
@@ -92,11 +92,11 @@ private let destURL = URL(string: """
         ubuntuVersion.replacingOccurrences(of: ".", with: "")
     )/swift-\(swiftVersion)/swift-\(swiftVersion)-ubuntu\(ubuntuVersion).tar.gz
     """)!
-private let clangURL = URL(string: clangDarwin)!
+private let llvmURL = URL(string: llvmDarwin)!
 
 private let destPath = artifactsCachePath.appending("\(availablePlatforms.linux).tar.gz")
 private let hostPath = artifactsCachePath.appending("\(availablePlatforms.macOS).pkg")
-private let clangArchivePath = artifactsCachePath.appending("clang-\(availablePlatforms.macOS).tar.xz")
+private let llvmArchivePath = artifactsCachePath.appending("llvm-\(availablePlatforms.macOS).tar.xz")
 
 extension FileSystem {
     public func generateDestinationBundle(shouldUseDocker: Bool, shouldGenerateFromScratch: Bool) async throws {
@@ -222,7 +222,7 @@ extension FileSystem {
         logGenerationStep("Unpacking and copying `lld` linker...")
 
         try await inTemporaryDirectory { fs, tmpDir in
-            try await fs.untar(file: clangArchivePath, into: tmpDir, stripComponents: 1)
+            try await fs.untar(file: llvmArchivePath, into: tmpDir, stripComponents: 1)
             try fs.copy(from: tmpDir.appending("bin/lld"), to: toolchainBinDirPath.appending("ld.lld"))
         }
     }
@@ -238,12 +238,12 @@ extension FileSystem {
 
         async let hostChecksum = Self.computeChecksum(file: hostPath)
         async let destChecksum = Self.computeChecksum(file: destPath)
-        async let clangChecksum = Self.computeChecksum(file: clangArchivePath)
+        async let llvmChecksum = Self.computeChecksum(file: llvmArchivePath)
 
-        return try await [hostChecksum, destChecksum, clangChecksum] == [
-            "25eefd5795bce571f37f75ef7f78763fdcb11b6649ae47411bb2147f861c6f09",
-            "7f60291f5088d3e77b0c2364beaabd29616ee7b37260b7b06bdbeb891a7fe161",
-            "83603b1258995f2659c3a87f7f62ee9b9c9775d7c7cde92a375c635f7bf73c28"
+        return try await [hostChecksum, destChecksum, llvmChecksum] == [
+            "fa9a18aa2e63d9a8532e640a86900dca0fb6d1361b7af22c77423b5cdef3ed2b",
+            "e729912846b0cff98bf8e0e5ede2e17bc2d1098de3cdb6fa13b3ff52c36ee5d6",
+            "32bc7b8eee3d98f72dd4e5651e6da990274ee2d28c5c19a7d8237eb817ce8d91"
         ]
     }
 
@@ -254,25 +254,25 @@ extension FileSystem {
             .removeDuplicates(by: didProgressChangeSignificantly)
         let destProgressStream = client.streamDownloadProgress(from: destURL, to: destPath)
             .removeDuplicates(by: didProgressChangeSignificantly)
-        let clangProgress = client.streamDownloadProgress(from: clangURL, to: clangArchivePath)
+        let llvmProgress = client.streamDownloadProgress(from: llvmURL, to: llvmArchivePath)
             .removeDuplicates(by: didProgressChangeSignificantly)
 
         if shouldUseDocker {
-            let progressStream = combineLatest(hostProgressStream, clangProgress)
+            let progressStream = combineLatest(hostProgressStream, llvmProgress)
                 .throttle(for: .seconds(1))
 
-            for try await (hostProgress, clangProgress) in progressStream {
+            for try await (hostProgress, llvmProgress) in progressStream {
                 report(progress: hostProgress, for: destURL)
-                report(progress: clangProgress, for: clangURL)
+                report(progress: llvmProgress, for: llvmURL)
             }
         } else {
-            let progressStream = combineLatest(hostProgressStream, destProgressStream, clangProgress)
+            let progressStream = combineLatest(hostProgressStream, destProgressStream, llvmProgress)
                 .throttle(for: .seconds(1))
 
-            for try await (hostProgress, destProgress, clangProgress) in progressStream {
+            for try await (hostProgress, destProgress, llvmProgress) in progressStream {
                 report(progress: hostProgress, for: hostURL)
                 report(progress: destProgress, for: destURL)
-                report(progress: clangProgress, for: clangURL)
+                report(progress: llvmProgress, for: llvmURL)
             }
         }
     }
