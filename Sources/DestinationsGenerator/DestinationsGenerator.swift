@@ -23,7 +23,7 @@ private let ubuntuRelease = "jammy"
 private let ubuntuVersion = "22.04"
 private let packagesFile = "\(ubuntuMirror)/dists/\(ubuntuRelease)/main/binary-amd64/Packages.gz"
 
-private struct Platform: CustomStringConvertible {
+private struct Triple: CustomStringConvertible {
     let cpu: String
     let vendor: String
     let os: String
@@ -33,25 +33,27 @@ private struct Platform: CustomStringConvertible {
 }
 
 private let availablePlatforms = (
-    linux: Platform(
+    linux: Triple(
         cpu: "aarch64",
         vendor: "unknown",
         os: "linux",
         abi: "gnu"
     ),
-    darwin: Platform(
+    // Used to download LLVM distribution.
+    darwin: Triple(
         cpu: "arm64",
         vendor: "apple",
-        os: "darwin21.0"
+        os: "darwin22.0"
     ),
-    macOS: Platform(
+    // Used to download Swift distribution.
+    macOS: Triple(
         cpu: "arm64",
         vendor: "apple",
         os: "macosx13.0"
     )
 )
 
-private let llvmVersion = "15.0.6"
+private let llvmVersion = "15.0.7"
 private let llvmDarwin =
     """
     https://github.com/llvm/llvm-project/releases/download/llvmorg-\(
@@ -280,7 +282,7 @@ extension FileSystem {
     private func downloadUbuntuPackages(_ client: HTTPClient) async throws {
         logGenerationStep("Parsing Ubuntu packages list...")
 
-        let allPackages = try await parse(packages: client.downloadPackagesList())
+        let allPackages = try await parse(ubuntuPackagesList: client.downloadUbuntuPackagesList())
 
         let requiredPackages = ["libc6-dev", "linux-libc-dev", "libicu70", "libgcc-12-dev", "libicu-dev", "libc6", "libgcc-s1", "libstdc++-12-dev", "libstdc++6", "zlib1g", "zlib1g-dev"]
         let urls = requiredPackages.compactMap { allPackages[$0] }
@@ -501,7 +503,7 @@ private func report(downloadedFiles: [(URL, Int)]) {
 }
 
 extension HTTPClient {
-    func downloadPackagesList() async throws -> String {
+    func downloadUbuntuPackagesList() async throws -> String {
         guard let packages = try await get(url: packagesFile).get().body else {
             throw FileOperationError.downloadFailed(URL(string: packagesFile)!)
         }
@@ -515,7 +517,7 @@ extension HTTPClient {
     }
 }
 
-private func parse(packages: String) -> [String: URL] {
+private func parse(ubuntuPackagesList packages: String) -> [String: URL] {
     let packageRef = Reference(Substring.self)
     let pathRef = Reference(Substring.self)
 
