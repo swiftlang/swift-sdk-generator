@@ -24,7 +24,7 @@ Verify that the `experimental-destination` command is available:
 swift experimental-destination list
 ```
 
-If all goes well it will produce no output, or a list of CC destinations you previously had installed.
+If all goes well it will produce no output, or a list of CC destinations in case you previously had any installed.
 
 ## How to use it
 
@@ -68,7 +68,6 @@ file .build/debug/cross-compilation-test
 That should produce output similar to this:
 
 ```
-.build/debug/cross-compilation-test: ELF 64-bit LSB pie executable,
-ARM aarch64, version 1 (SYSV), dynamically linked,
-interpreter /lib/ld-linux-aarch64.so.1, for GNU/Linux 3.7.0, with debug_info, not stripped
+.build/debug/cross-compilation-test: ELF 64-bit LSB pie executable, ARM aarch64, version 1 (SYSV), 
+dynamically linked, interpreter /lib/ld-linux-aarch64.so.1, for GNU/Linux 3.7.0, with debug_info, not stripped
 ```
