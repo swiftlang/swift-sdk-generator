@@ -229,7 +229,7 @@ extension FileSystem {
         }
     }
 
-    /// Check whether files in `artifactsCachePath` can be reused instaed of downloading them.
+    /// Check whether files in `artifactsCachePath` can be reused instead of downloading them.
     /// - Returns: `true` if artifacts are valid, `false` otherwise.
     private func checkArtifactsCache() async throws -> Bool {
         logGenerationStep("Checking packages cache...")
@@ -245,7 +245,7 @@ extension FileSystem {
         return try await [hostChecksum, destChecksum, llvmChecksum] == [
             "fa9a18aa2e63d9a8532e640a86900dca0fb6d1361b7af22c77423b5cdef3ed2b",
             "e729912846b0cff98bf8e0e5ede2e17bc2d1098de3cdb6fa13b3ff52c36ee5d6",
-            "32bc7b8eee3d98f72dd4e5651e6da990274ee2d28c5c19a7d8237eb817ce8d91"
+            "867c6afd41158c132ef05a8f1ddaecf476a26b91c85def8e124414f9a9ba188d"
         ]
     }
 
