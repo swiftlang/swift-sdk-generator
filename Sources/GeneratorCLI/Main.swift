@@ -32,6 +32,6 @@ struct Main: AsyncParsableCommand {
       )
     }
 
-    print("Done in \(elapsed.formatted())")
+    print("\nTime taken for this generator run: \(elapsed.formatted())")
   }
 }
