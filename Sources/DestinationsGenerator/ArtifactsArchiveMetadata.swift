@@ -13,38 +13,42 @@
 import Foundation
 
 public struct ArtifactsArchiveMetadata: Equatable, Codable {
-    public let schemaVersion: String
-    public let artifacts: [String: Artifact]
+  public let schemaVersion: String
+  public let artifacts: [String: Artifact]
 
-    public init(schemaVersion: String, artifacts: [String: Artifact]) {
-        self.schemaVersion = schemaVersion
-        self.artifacts = artifacts
+  public init(schemaVersion: String, artifacts: [String: Artifact]) {
+    self.schemaVersion = schemaVersion
+    self.artifacts = artifacts
+  }
+
+  public struct Artifact: Equatable, Codable {
+    let type: ArtifactType
+    let version: String
+    let variants: [Variant]
+
+    public init(
+      type: ArtifactsArchiveMetadata.ArtifactType,
+      version: String,
+      variants: [Variant]
+    ) {
+      self.type = type
+      self.version = version
+      self.variants = variants
     }
+  }
 
-    public struct Artifact: Equatable, Codable {
-        let type: ArtifactType
-        let version: String
-        let variants: [Variant]
+  public enum ArtifactType: String, RawRepresentable, Codable {
+    case executable
+    case crossCompilationDestination
+  }
 
-        public init(type: ArtifactsArchiveMetadata.ArtifactType, version: String, variants: [Variant]) {
-            self.type = type
-            self.version = version
-            self.variants = variants
-        }
+  public struct Variant: Equatable, Codable {
+    let path: String
+    let supportedTriples: [String]
+
+    public init(path: String, supportedTriples: [String]) {
+      self.path = path
+      self.supportedTriples = supportedTriples
     }
-
-    public enum ArtifactType: String, RawRepresentable, Codable {
-        case executable
-        case crossCompilationDestination
-    }
-
-    public struct Variant: Equatable, Codable {
-        let path: String
-        let supportedTriples: [String]
-
-        public init(path: String, supportedTriples: [String]) {
-            self.path = path
-            self.supportedTriples = supportedTriples
-        }
-    }
+  }
 }

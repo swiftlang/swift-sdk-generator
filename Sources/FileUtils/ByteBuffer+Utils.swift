@@ -14,12 +14,12 @@ import Foundation
 import NIOCore
 import NIOFoundationCompat
 
-extension ByteBuffer {
-    public func unzip() throws -> AsyncThrowingStream<Data, any Error> {
-        let gzip = try Shell("gzip -cd")
-        gzip.stdin.write(Data(buffer: self))
-        try gzip.stdin.close()
+public extension ByteBuffer {
+  func unzip() throws -> AsyncThrowingStream<Data, any Error> {
+    let gzip = try Shell("gzip -cd")
+    gzip.stdin.write(Data(buffer: self))
+    try gzip.stdin.close()
 
-        return gzip.stdout
-    }
+    return gzip.stdout
+  }
 }

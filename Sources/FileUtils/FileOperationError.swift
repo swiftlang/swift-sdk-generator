@@ -15,10 +15,10 @@ import NIOHTTP1
 import SystemPackage
 
 public enum FileOperationError: Error {
-    case downloadFailed(URL, HTTPResponseStatus)
-    case directoryCreationFailed(FilePath)
-    case downloadFailed(URL)
-    case unknownArchiveFormat(String?)
-    case nonZeroExitCode(Int32, CommandInfo)
-    case symlinkFixupFailed(source: FilePath, destination: FilePath)
+  case downloadFailed(URL, HTTPResponseStatus)
+  case directoryCreationFailed(FilePath)
+  case downloadFailed(URL)
+  case unknownArchiveFormat(String?)
+  case nonZeroExitCode(Int32, CommandInfo)
+  case symlinkFixupFailed(source: FilePath, destination: FilePath)
 }
