@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift open source project
 //
-// Copyright (c) 2022 Apple Inc. and the Swift project authors
+// Copyright (c) 2022-2023 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See http://swift.org/LICENSE.txt for license information
@@ -480,39 +480,6 @@ extension FileSystem {
 
     try writeFile(at: path, Data(moduleMap.utf8))
   }
-}
-
-private struct DestinationV1: Encodable {
-  enum CodingKeys: String, CodingKey {
-    case version
-    case sdk
-    case toolchainBinDir = "toolchain-bin-dir"
-    case target
-    case extraCCFlags = "extra-cc-flags"
-    case extraSwiftCFlags = "extra-swiftc-flags"
-    case extraCPPFlags = "extra-cpp-flags"
-  }
-
-  let version = 1
-  let sdk: String
-  let toolchainBinDir: String
-  let target: String
-  let extraCCFlags: [String]
-  let extraSwiftCFlags: [String]
-  let extraCPPFlags: [String]
-}
-
-private struct DestinationV2: Encodable {
-  let version = 2
-
-  let sdkRootDir: String
-  let toolchainBinDir: String
-  let hostTriples: [String]
-  let targetTriples: [String]
-  let extraCCFlags: [String]
-  let extraSwiftCFlags: [String]
-  let extraCXXFlags: [String]
-  let extraLinkerFlags: [String]
 }
 
 /// Checks whether two given progress value are different enough from each other. Used for filtering
