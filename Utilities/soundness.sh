@@ -40,13 +40,13 @@ printf "\033[0;32mokay.\033[0m\n"
 printf "=> Checking format... \n"
 git diff --name-only | grep ".swift" | while read changed_file; do
   printf "  * checking ${changed_file}... "
-  before=$(cat ${changed_file})
-  swiftformat $changed_file > /dev/null 2>&1
-  after=$(cat ${changed_file})
+  before=$(cat "${changed_file}")
+  swiftformat "$changed_file" > /dev/null 2>&1
+  after=$(cat "${changed_file}")
 
   if [[ "$before" != "$after" ]]; then
     printf "\033[0;31mformatting issues!\033[0m\n"
-    git --no-pager diff ${changed_file}
+    git --no-pager diff "${changed_file}"
     exit 1
   else
     printf "\033[0;32mokay.\033[0m\n"
