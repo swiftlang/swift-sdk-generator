@@ -32,8 +32,7 @@ public protocol FileSystem {
   func createDirectoryIfNeeded(at directoryPath: FilePath) throws
   func removeRecursively(at path: FilePath) throws
   func inTemporaryDirectory<T>(
-    _ closure: @Sendable (Self, FilePath) async throws
-      -> T
+    _ closure: @Sendable (Self, FilePath) async throws -> T
   ) async throws -> T
 
   // MARK: file I/O
@@ -50,11 +49,7 @@ public protocol FileSystem {
 
   func buildDockerImage(name: String, dockerfileDirectory: FilePath) async throws
   func launchDockerContainer(imageName: String) async throws -> String
-  func copyFromDockerContainer(
-    id: String,
-    from containerPath: FilePath,
-    to localPath: FilePath
-  ) async throws
+  func copyFromDockerContainer(id: String, from containerPath: FilePath, to localPath: FilePath) async throws
   func stopDockerContainer(id: String) async throws
 }
 
@@ -142,11 +137,7 @@ public final class LocalFileSystem: FileSystem {
 
       if isSymlink {
         let path = url.path
-        try result
-          .append((
-            FilePath(path),
-            FilePath(fileManager.destinationOfSymbolicLink(atPath: url.path))
-          ))
+        try result.append((FilePath(path), FilePath(fileManager.destinationOfSymbolicLink(atPath: url.path))))
       }
     }
 
@@ -240,10 +231,9 @@ public final class LocalFileSystem: FileSystem {
     }
   }
 
-  public func inTemporaryDirectory<T>(_ closure: @Sendable (
-    LocalFileSystem,
-    FilePath
-  ) async throws -> T) async throws -> T {
+  public func inTemporaryDirectory<T>(
+    _ closure: @Sendable (LocalFileSystem, FilePath) async throws -> T
+  ) async throws -> T {
     let tmp = FilePath(NSTemporaryDirectory())
       .appending("cc-destination-\(UUID().uuidString.prefix(6))")
 

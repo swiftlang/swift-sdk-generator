@@ -5,7 +5,7 @@
 --nospaceoperators ..<,...
 --ifdef noindent
 --stripunusedargs closure-only
---maxwidth 100
+--maxwidth 120
 --wraparguments before-first
 --funcattributes prev-line
 --varattributes prev-line

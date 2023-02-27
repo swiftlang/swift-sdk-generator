@@ -61,8 +61,8 @@ private let llvmDarwin =
     llvmVersion
   )-\(availablePlatforms.darwin.cpu)-apple-\(availablePlatforms.darwin.os).tar.xz
   """
-private let swiftBranch = "swift-5.7.2-release"
-private let swiftVersion = "5.7.2-RELEASE"
+private let swiftBranch = "swift-5.7.3-release"
+private let swiftVersion = "5.7.3-RELEASE"
 
 private let byteCountFormatter = ByteCountFormatter()
 
@@ -74,7 +74,7 @@ private let sourceRoot = FilePath(#file)
 private let artifactBundlePath = sourceRoot
   .appending("cc-destination.artifactbundle")
 
-private let artifactID = "5.7.2_ubuntu_jammy"
+private let artifactID = "5.7.3_ubuntu_jammy"
 
 private let destinationRootPath = artifactBundlePath
   .appending(artifactID)
@@ -85,23 +85,22 @@ private let toolchainDirPath = destinationRootPath.appending("swift.xctoolchain"
 private let toolchainBinDirPath = toolchainDirPath.appending("usr/bin")
 private let artifactsCachePath = sourceRoot.appending("artifacts-cache")
 
-private let toolchainPackages = [hostPath, destPath, llvmArchivePath]
+private let downloadableArtifacts = [buildTimeArtifactsPath, runTimeArtifactsPath, llvmArtifactsPath]
 
-private let hostURL =
+private let buildTimeArtifactsURL =
   URL(
     string: "https://download.swift.org/\(swiftBranch)/xcode/swift-\(swiftVersion)/swift-\(swiftVersion)-osx.pkg"
   )!
-private let destURL = URL(string: """
+private let runTimeArtifactsURL = URL(string: """
 https://download.swift.org/\(swiftBranch)/ubuntu\(
   ubuntuVersion.replacingOccurrences(of: ".", with: "")
 )/swift-\(swiftVersion)/swift-\(swiftVersion)-ubuntu\(ubuntuVersion).tar.gz
 """)!
 private let llvmURL = URL(string: llvmDarwin)!
 
-private let destPath = artifactsCachePath.appending("\(availablePlatforms.linux).tar.gz")
-private let hostPath = artifactsCachePath.appending("\(availablePlatforms.macOS).pkg")
-private let llvmArchivePath = artifactsCachePath
-  .appending("llvm-\(availablePlatforms.macOS).tar.xz")
+private let runTimeArtifactsPath = artifactsCachePath.appending("runtime_\(swiftBranch)_\(availablePlatforms.linux).tar.gz")
+private let buildTimeArtifactsPath = artifactsCachePath.appending("buildtime_\(swiftBranch)_\(availablePlatforms.macOS).pkg")
+private let llvmArtifactsPath = artifactsCachePath.appending("llvm_\(llvmVersion)_\(availablePlatforms.macOS).tar.xz")
 
 extension FileSystem {
   public func generateDestinationBundle(
@@ -110,9 +109,7 @@ extension FileSystem {
   ) async throws {
     let client = HTTPClient(
       eventLoopGroupProvider: .createNew,
-      configuration: .init(
-        redirectConfiguration: .follow(max: 5, allowCycles: false)
-      )
+      configuration: .init( redirectConfiguration: .follow(max: 5, allowCycles: false) )
     )
 
     defer {
@@ -129,7 +126,7 @@ extension FileSystem {
     try createDirectoryIfNeeded(at: toolchainDirPath)
 
     if try await !checkArtifactsCache() {
-      try await downloadToolchainPackages(client, shouldUseDocker: shouldUseDocker)
+      try await downloadArtifacts(client, shouldUseDocker: shouldUseDocker)
     }
 
     if !shouldUseDocker {
@@ -176,7 +173,7 @@ extension FileSystem {
     logGenerationStep("Unpacking destination Swift SDK package...")
 
     try await inTemporaryDirectory { fs, tmpDir in
-      try await fs.unpack(file: destPath, into: tmpDir)
+      try await fs.unpack(file: runTimeArtifactsPath, into: tmpDir)
       try await fs
         .copyDestinationSDK(
           from: tmpDir
@@ -239,7 +236,7 @@ extension FileSystem {
     logGenerationStep("Unpacking and copying host toolchain...")
 
     try await inTemporaryDirectory { fs, tmpDir in
-      try await fs.unpack(file: hostPath, into: tmpDir)
+      try await fs.unpack(file: buildTimeArtifactsPath, into: tmpDir)
       try await fs.rsync(from: tmpDir.appending("usr"), to: toolchainDirPath)
     }
   }
@@ -248,7 +245,7 @@ extension FileSystem {
     logGenerationStep("Unpacking and copying `lld` linker...")
 
     try await inTemporaryDirectory { fs, tmpDir in
-      try await fs.untar(file: llvmArchivePath, into: tmpDir, stripComponents: 1)
+      try await fs.untar(file: llvmArtifactsPath, into: tmpDir, stripComponents: 1)
       try fs.copy(
         from: tmpDir.appending("bin/lld"),
         to: toolchainBinDirPath.appending("ld.lld")
@@ -261,32 +258,32 @@ extension FileSystem {
   private func checkArtifactsCache() async throws -> Bool {
     logGenerationStep("Checking packages cache...")
 
-    guard toolchainPackages.contains(where: doesFileExist(at:)) else {
+    guard downloadableArtifacts.allSatisfy(doesFileExist(at:)) else {
       return false
     }
 
-    async let hostChecksum = Self.computeChecksum(file: hostPath)
-    async let destChecksum = Self.computeChecksum(file: destPath)
-    async let llvmChecksum = Self.computeChecksum(file: llvmArchivePath)
+    async let builtTimeArtifactsChecksum = Self.computeChecksum(file: buildTimeArtifactsPath)
+    async let runTimeArtifactsChecksum = Self.computeChecksum(file: runTimeArtifactsPath)
+    async let llvmArtifactsChecksum = Self.computeChecksum(file: llvmArtifactsPath)
 
-    return try await [hostChecksum, destChecksum, llvmChecksum] == [
-      "fa9a18aa2e63d9a8532e640a86900dca0fb6d1361b7af22c77423b5cdef3ed2b",
-      "e729912846b0cff98bf8e0e5ede2e17bc2d1098de3cdb6fa13b3ff52c36ee5d6",
+    return try await [builtTimeArtifactsChecksum, runTimeArtifactsChecksum, llvmArtifactsChecksum] == [
+      "ba3516845eb8f4469a8bb06a273687f05791187324a3843996af32a73a2a687d",
+      "312a18d0d2f207620349e3a373200f369fc1a6aad1b7f2365d55aa8a10881a59",
       "867c6afd41158c132ef05a8f1ddaecf476a26b91c85def8e124414f9a9ba188d",
     ]
   }
 
-  private func downloadToolchainPackages(
+  private func downloadArtifacts(
     _ client: HTTPClient,
     shouldUseDocker: Bool
   ) async throws {
     logGenerationStep("Downloading required toolchain packages...")
 
-    let hostProgressStream = client.streamDownloadProgress(from: hostURL, to: hostPath)
+    let hostProgressStream = client.streamDownloadProgress(from: buildTimeArtifactsURL, to: buildTimeArtifactsPath)
       .removeDuplicates(by: didProgressChangeSignificantly)
-    let destProgressStream = client.streamDownloadProgress(from: destURL, to: destPath)
+    let destProgressStream = client.streamDownloadProgress(from: runTimeArtifactsURL, to: runTimeArtifactsPath)
       .removeDuplicates(by: didProgressChangeSignificantly)
-    let llvmProgress = client.streamDownloadProgress(from: llvmURL, to: llvmArchivePath)
+    let llvmProgress = client.streamDownloadProgress(from: llvmURL, to: llvmArtifactsPath)
       .removeDuplicates(by: didProgressChangeSignificantly)
 
     if shouldUseDocker {
@@ -294,7 +291,7 @@ extension FileSystem {
         .throttle(for: .seconds(1))
 
       for try await (hostProgress, llvmProgress) in progressStream {
-        report(progress: hostProgress, for: destURL)
+        report(progress: hostProgress, for: runTimeArtifactsURL)
         report(progress: llvmProgress, for: llvmURL)
       }
     } else {
@@ -302,8 +299,8 @@ extension FileSystem {
         .throttle(for: .seconds(1))
 
       for try await (hostProgress, destProgress, llvmProgress) in progressStream {
-        report(progress: hostProgress, for: hostURL)
-        report(progress: destProgress, for: destURL)
+        report(progress: hostProgress, for: buildTimeArtifactsURL)
+        report(progress: destProgress, for: runTimeArtifactsURL)
         report(progress: llvmProgress, for: llvmURL)
       }
     }

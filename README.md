@@ -28,7 +28,13 @@ If all goes well it will produce no output, or a list of CC destinations in case
 
 ## How to use it
 
-Build and run with `swift run sdk-generator`. This will download required components and produce an SDK for `aarch64`
+Build and run with
+
+```
+swift run destinations-generator
+```
+
+This will download required components and produce an SDK for `aarch64`
 Ubuntu Jammy in `cc-destination.artifactbundle` subdirectory of this project.
 
 Move the newly produced artifact bundle to a directory where SwiftPM can find it:
