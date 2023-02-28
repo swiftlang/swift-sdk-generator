@@ -50,16 +50,16 @@ struct DestinationV3: Encodable {
     let sdkRootPath: String
 
     /// Path relative to `destination.json` containing Swift resources for dynamic linking.
-    let swiftResourcesPath: String?
+    var swiftResourcesPath: String?
 
     /// Path relative to `destination.json` containing Swift resources for static linking.
-    let swiftStaticResourcesPath: String?
+    var swiftStaticResourcesPath: String?
 
     /// Array of paths relative to `destination.json` containing headers.
-    let includeSearchPaths: [String]?
+    var includeSearchPaths: [String]?
 
     /// Array of paths relative to `destination.json` containing libraries.
-    let librarySearchPaths: [String]?
+    var librarySearchPaths: [String]?
 
     /// Array of paths relative to `destination.json` containing toolset files.
     let toolsetPaths: [String]?

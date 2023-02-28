@@ -160,7 +160,9 @@ extension FileSystem {
       try createSymlink(at: autolinkExtractPath, pointingTo: "swift")
     }
 
-    let destinationJSONPath = try generateDestinationJSON()
+    let toolsetJSONPath = try generateToolsetJSON()
+
+    let destinationJSONPath = try generateDestinationJSON(toolsetPath: toolsetJSONPath)
 
     try generateArtifactBundleManifest()
 
@@ -417,7 +419,7 @@ extension FileSystem {
     return toolsetJSONPath
   }
 
-  private func generateDestinationJSON() throws -> FilePath {
+  private func generateDestinationJSON(toolsetPath: FilePath) throws -> FilePath {
     logGenerationStep("Generating destination JSON file...")
 
     let destinationJSONPath = destinationRootPath.appending("destination.json")
@@ -437,22 +439,13 @@ extension FileSystem {
     try writeFile(
       at: destinationJSONPath,
       encoder.encode(
-        DestinationV2(
-          sdkRootDir: relativeSDKDir.string,
-          toolchainBinDir: relativeToolchainBinDir.string,
-          hostTriples: [availablePlatforms.macOS.description],
-          targetTriples: [availablePlatforms.linux.description],
-          extraCCFlags: [
-            "-fPIC",
-          ],
-          extraSwiftCFlags: [
-            "-use-ld=lld",
-            "-Xlinker", "-R/usr/lib/swift/linux/",
-          ],
-          extraCXXFlags: [
-            "-lstdc++",
-          ],
-          extraLinkerFlags: []
+        DestinationV3(
+          runTimeTriples: [
+            availablePlatforms.linux.description: .init(
+              sdkRootPath: relativeSDKDir.string,
+              toolsetPaths: [toolsetPath.string]
+            ),
+          ]
         )
       )
     )
