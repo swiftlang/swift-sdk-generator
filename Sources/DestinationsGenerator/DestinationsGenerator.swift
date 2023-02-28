@@ -98,9 +98,12 @@ https://download.swift.org/\(swiftBranch)/ubuntu\(
 """)!
 private let llvmURL = URL(string: llvmDarwin)!
 
-private let runTimeArtifactsPath = artifactsCachePath.appending("runtime_\(swiftBranch)_\(availablePlatforms.linux).tar.gz")
-private let buildTimeArtifactsPath = artifactsCachePath.appending("buildtime_\(swiftBranch)_\(availablePlatforms.macOS).pkg")
-private let llvmArtifactsPath = artifactsCachePath.appending("llvm_\(llvmVersion)_\(availablePlatforms.macOS).tar.xz")
+private let runTimeArtifactsPath = artifactsCachePath
+  .appending("runtime_swift_\(swiftVersion)_\(availablePlatforms.linux).tar.gz")
+private let buildTimeArtifactsPath = artifactsCachePath
+  .appending("buildtime_swift_\(swiftVersion)_\(availablePlatforms.macOS).pkg")
+private let llvmArtifactsPath = artifactsCachePath
+  .appending("buildtime_llvm_\(llvmVersion)_\(availablePlatforms.macOS).tar.xz")
 
 extension FileSystem {
   public func generateDestinationBundle(
@@ -109,7 +112,7 @@ extension FileSystem {
   ) async throws {
     let client = HTTPClient(
       eventLoopGroupProvider: .createNew,
-      configuration: .init( redirectConfiguration: .follow(max: 5, allowCycles: false) )
+      configuration: .init(redirectConfiguration: .follow(max: 5, allowCycles: false))
     )
 
     defer {
