@@ -192,7 +192,10 @@ extension FileSystem {
     logGenerationStep("Building a Docker image with the destination environment...")
     try await buildDockerImage(
       name: imageName,
-      dockerfileDirectory: sourceRoot.appending("Dockerfiles")
+      dockerfileDirectory: sourceRoot
+        .appending("Dockerfiles")
+        .appending("Ubuntu")
+        .appending(ubuntuVersion)
     )
 
     logGenerationStep("Launching a Docker container to copy destination Swift SDK from it...")
