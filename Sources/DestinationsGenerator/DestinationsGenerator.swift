@@ -370,13 +370,54 @@ extension FileSystem {
     }
   }
 
+  private var encoder: JSONEncoder {
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = .prettyPrinted
+    return encoder
+  }
+
+  private func generateToolsetJSON() throws -> FilePath {
+    logGenerationStep("Generating destination JSON file...")
+
+    let toolsetJSONPath = destinationRootPath.appending("destination.json")
+
+    var relativeToolchainBinDir = toolchainBinDirPath
+
+    guard
+      relativeToolchainBinDir.removePrefix(destinationRootPath)
+    else {
+      fatalError(
+        "`toolchainBinDirPath` is at an unexpected location that prevents computing a relative path"
+      )
+    }
+
+    try writeFile(
+      at: toolsetJSONPath,
+      encoder.encode(
+        Toolset(
+          rootPath: relativeToolchainBinDir.string,
+          tools: [
+            .swiftCompiler: .init(
+              extraCLIOptions: ["-use-ld=lld", "-Xlinker", "-R/usr/lib/swift/linux/"]
+            ),
+            .cxxCompiler: .init(
+              extraCLIOptions: ["-lstdc++"]
+            ),
+            .linker: .init(
+              path: "ld.lld"
+            ),
+          ]
+        )
+      )
+    )
+
+    return toolsetJSONPath
+  }
+
   private func generateDestinationJSON() throws -> FilePath {
     logGenerationStep("Generating destination JSON file...")
 
     let destinationJSONPath = destinationRootPath.appending("destination.json")
-
-    let encoder = JSONEncoder()
-    encoder.outputFormatting = .prettyPrinted
 
     var relativeToolchainBinDir = toolchainBinDirPath
     var relativeSDKDir = sdkDirPath
@@ -420,9 +461,6 @@ extension FileSystem {
     logGenerationStep("Generating .artifactbundle manifest file...")
 
     let artifactBundleManifestPath = artifactBundlePath.appending("info.json")
-
-    let encoder = JSONEncoder()
-    encoder.outputFormatting = .prettyPrinted
 
     try writeFile(
       at: artifactBundleManifestPath,
