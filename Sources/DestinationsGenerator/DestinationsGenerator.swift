@@ -74,7 +74,7 @@ private let sourceRoot = FilePath(#file)
 private let artifactBundlePath = sourceRoot
   .appending("cc-destination.artifactbundle")
 
-private let artifactID = "5.7.3_ubuntu_jammy"
+private let artifactID = "\(swiftVersion)_ubuntu_\(ubuntuVersion)_\(availablePlatforms.linux.cpu)"
 
 private let destinationRootPath = artifactBundlePath
   .appending(artifactID)
@@ -170,6 +170,9 @@ extension FileSystem {
       """
       All done! Install the newly generated SDK with this command:
       swift experimental-destination install \(artifactBundlePath)
+
+      Use the newly installed SDK when building with this command:
+      swift build --experimental-destination-selector \(artifactID)
       """
     )
   }
@@ -402,14 +405,14 @@ extension FileSystem {
         Toolset(
           rootPath: relativeToolchainBinDir.string,
           swiftCompiler: .init(
-              extraCLIOptions: ["-use-ld=lld", "-Xlinker", "-R/usr/lib/swift/linux/"]
-            ),
+            extraCLIOptions: ["-use-ld=lld", "-Xlinker", "-R/usr/lib/swift/linux/"]
+          ),
           cxxCompiler: .init(
-              extraCLIOptions: ["-lstdc++"]
-            ),
+            extraCLIOptions: ["-lstdc++"]
+          ),
           linker: .init(
-              path: "ld.lld"
-            )
+            path: "ld.lld"
+          )
         )
       )
     )
@@ -424,17 +427,17 @@ extension FileSystem {
 
     var relativeToolchainBinDir = toolchainBinDirPath
     var relativeSDKDir = sdkDirPath
-      var relativeToolsetPath = toolsetPath
+    var relativeToolsetPath = toolsetPath
 
     guard
       relativeToolchainBinDir.removePrefix(destinationRootPath),
       relativeSDKDir.removePrefix(destinationRootPath),
       relativeToolsetPath.removePrefix(destinationRootPath)
     else {
-        fatalError("""
-        `toolchainBinDirPath`, `sdkDirPath`, and `toolsetPath` are at unexpected locations that prevent computing \
-        relative paths
-        """)
+      fatalError("""
+      `toolchainBinDirPath`, `sdkDirPath`, and `toolsetPath` are at unexpected locations that prevent computing \
+      relative paths
+      """)
     }
 
     try writeFile(
@@ -463,7 +466,7 @@ extension FileSystem {
         ArtifactsArchiveMetadata(
           schemaVersion: "1.0",
           artifacts: [
-            "ubuntu22.04_aarch64": .init(
+            artifactID: .init(
               type: .crossCompilationDestination,
               version: "0.0.1",
               variants: [

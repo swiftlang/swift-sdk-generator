@@ -30,14 +30,14 @@ struct Toolset: Encodable {
   /// ``DecodedToolset`` is inferred to be relative, it's resolved as absolute path relatively to `rootPath`.
   let rootPath: String?
 
-    // MARK: Tools currently known and used by SwiftPM.
+  // MARK: Tools currently known and used by SwiftPM.
 
-    var swiftCompiler: ToolProperties?
-    var cCompiler: ToolProperties?
-    var cxxCompiler: ToolProperties?
-    var linker: ToolProperties?
-    var librarian: ToolProperties?
-    var debugger: ToolProperties?
-    var testRunner: ToolProperties?
-    var xcbuild: ToolProperties?
+  var swiftCompiler: ToolProperties?
+  var cCompiler: ToolProperties?
+  var cxxCompiler: ToolProperties?
+  var linker: ToolProperties?
+  var librarian: ToolProperties?
+  var debugger: ToolProperties?
+  var testRunner: ToolProperties?
+  var xcbuild: ToolProperties?
 }
