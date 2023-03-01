@@ -162,14 +162,14 @@ extension FileSystem {
 
     let toolsetJSONPath = try generateToolsetJSON()
 
-    let destinationJSONPath = try generateDestinationJSON(toolsetPath: toolsetJSONPath)
+    try generateDestinationJSON(toolsetPath: toolsetJSONPath)
 
     try generateArtifactBundleManifest()
 
     logGenerationStep(
       """
-      All done! Use the sdk as:
-      swift build --destination \(destinationJSONPath)
+      All done! Install the newly generated SDK with this command:
+      swift experimental-destination install \(artifactBundlePath)
       """
     )
   }
@@ -382,9 +382,9 @@ extension FileSystem {
   }
 
   private func generateToolsetJSON() throws -> FilePath {
-    logGenerationStep("Generating destination JSON file...")
+    logGenerationStep("Generating toolset JSON file...")
 
-    let toolsetJSONPath = destinationRootPath.appending("destination.json")
+    let toolsetJSONPath = destinationRootPath.appending("toolset.json")
 
     var relativeToolchainBinDir = toolchainBinDirPath
 
@@ -401,17 +401,15 @@ extension FileSystem {
       encoder.encode(
         Toolset(
           rootPath: relativeToolchainBinDir.string,
-          tools: [
-            .swiftCompiler: .init(
+          swiftCompiler: .init(
               extraCLIOptions: ["-use-ld=lld", "-Xlinker", "-R/usr/lib/swift/linux/"]
             ),
-            .cxxCompiler: .init(
+          cxxCompiler: .init(
               extraCLIOptions: ["-lstdc++"]
             ),
-            .linker: .init(
+          linker: .init(
               path: "ld.lld"
-            ),
-          ]
+            )
         )
       )
     )
@@ -419,21 +417,24 @@ extension FileSystem {
     return toolsetJSONPath
   }
 
-  private func generateDestinationJSON(toolsetPath: FilePath) throws -> FilePath {
+  private func generateDestinationJSON(toolsetPath: FilePath) throws {
     logGenerationStep("Generating destination JSON file...")
 
     let destinationJSONPath = destinationRootPath.appending("destination.json")
 
     var relativeToolchainBinDir = toolchainBinDirPath
     var relativeSDKDir = sdkDirPath
+      var relativeToolsetPath = toolsetPath
 
     guard
       relativeToolchainBinDir.removePrefix(destinationRootPath),
-      relativeSDKDir.removePrefix(destinationRootPath)
+      relativeSDKDir.removePrefix(destinationRootPath),
+      relativeToolsetPath.removePrefix(destinationRootPath)
     else {
-      fatalError(
-        "`toolchainBinDirPath` and `sdkDirPath` are at unexpected locations that prevent computing relative paths"
-      )
+        fatalError("""
+        `toolchainBinDirPath`, `sdkDirPath`, and `toolsetPath` are at unexpected locations that prevent computing \
+        relative paths
+        """)
     }
 
     try writeFile(
@@ -443,14 +444,12 @@ extension FileSystem {
           runTimeTriples: [
             availablePlatforms.linux.description: .init(
               sdkRootPath: relativeSDKDir.string,
-              toolsetPaths: [toolsetPath.string]
+              toolsetPaths: [relativeToolsetPath.string]
             ),
           ]
         )
       )
     )
-
-    return destinationJSONPath
   }
 
   private func generateArtifactBundleManifest() throws {
@@ -469,8 +468,7 @@ extension FileSystem {
               version: "0.0.1",
               variants: [
                 .init(
-                  path: FilePath(artifactID)
-                    .appending(availablePlatforms.linux.description).string,
+                  path: FilePath(artifactID).appending(availablePlatforms.linux.description).string,
                   supportedTriples: [availablePlatforms.macOS.description]
                 ),
               ]

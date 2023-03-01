@@ -14,18 +14,6 @@ import Foundation
 
 /// A raw decoding of toolset configuration stored on disk.
 struct Toolset: Encodable {
-  /// Tools currently known and used by SwiftPM.
-  enum KnownTool: String, Encodable {
-    case swiftCompiler
-    case cCompiler
-    case cxxCompiler
-    case linker
-    case librarian
-    case debugger
-    case testRunner
-    case xcbuild
-  }
-
   /// Properties of a tool in a ``DecodedToolset``.
   struct ToolProperties: Encodable {
     /// Either a relative or an absolute path to the tool on the filesystem.
@@ -42,6 +30,14 @@ struct Toolset: Encodable {
   /// ``DecodedToolset`` is inferred to be relative, it's resolved as absolute path relatively to `rootPath`.
   let rootPath: String?
 
-  /// Dictionary of known tools mapped to their properties.
-  let tools: [KnownTool: ToolProperties]
+    // MARK: Tools currently known and used by SwiftPM.
+
+    var swiftCompiler: ToolProperties?
+    var cCompiler: ToolProperties?
+    var cxxCompiler: ToolProperties?
+    var linker: ToolProperties?
+    var librarian: ToolProperties?
+    var debugger: ToolProperties?
+    var testRunner: ToolProperties?
+    var xcbuild: ToolProperties?
 }
