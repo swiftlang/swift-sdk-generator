@@ -27,6 +27,7 @@ unacceptable_terms=(
     -e whitelis[t]
     -e slav[e]
     -e sanit[y]
+    -e maste[r]
 )
 
 # We have to exclude the code of conduct as it gives examples of unacceptable language.
