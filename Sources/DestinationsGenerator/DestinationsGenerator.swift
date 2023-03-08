@@ -380,8 +380,7 @@ extension FileSystem {
 
   private var encoder: JSONEncoder {
     let encoder = JSONEncoder()
-    encoder.outputFormatting = .prettyPrinted
-    encoder.outputFormatting.withoutEscapingSlashes = true
+    encoder.outputFormatting = [.prettyPrinted, .withoutEscapingSlashes]
     return encoder
   }
 
