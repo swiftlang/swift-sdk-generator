@@ -21,6 +21,9 @@ public struct CommandInfo {
 }
 
 final class Shell {
+  // FIXME: using Foundation's `Process` under the hood might not work on Linux due to these bugs:
+  // https://github.com/apple/swift-corelibs-foundation/issues/3275
+  // https://github.com/apple/swift-corelibs-foundation/issues/3276
   private let process: Process
   private let commandInfo: CommandInfo
 
