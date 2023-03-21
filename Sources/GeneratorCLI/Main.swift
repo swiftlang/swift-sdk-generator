@@ -45,7 +45,7 @@ struct Main: AsyncParsableCommand {
     let elapsed = try await ContinuousClock().measure {
       let artifactID = "\(swiftVersion)_ubuntu_\(ubuntuVersion)_\(Triple.availableTriples.linux.cpu)"
 
-      try await LocalGeneratorOperations(
+      try await LocalDestinationsGenerator(
         artifactID: artifactID,
         swiftVersion: swiftVersion,
         llvmVersion: llvmVersion,
