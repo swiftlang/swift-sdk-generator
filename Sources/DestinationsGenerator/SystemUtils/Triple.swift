@@ -16,7 +16,7 @@ public struct Triple: CustomStringConvertible {
   let os: String
   var abi: String?
 
-  public var description: String { "\(cpu)-\(vendor)-\(os)\(abi != nil ? "-\(abi!)" : "")" }
+  public var description: String { "\(self.cpu)-\(self.vendor)-\(self.os)\(self.abi != nil ? "-\(self.abi!)" : "")" }
 
   public static let availableTriples = (
     linux: Triple(

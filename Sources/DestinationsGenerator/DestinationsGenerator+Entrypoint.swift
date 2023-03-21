@@ -44,8 +44,8 @@ extension DestinationsGenerator {
     try createDirectoryIfNeeded(at: pathsConfiguration.sdkDirPath)
     try createDirectoryIfNeeded(at: pathsConfiguration.toolchainDirPath)
 
-    if try await !isCacheValid {
-      try await downloadArtifacts(
+    if try await !self.isCacheValid {
+      try await self.downloadArtifacts(
         client,
         shouldUseDocker: shouldUseDocker,
         shouldUseNightlySwift: shouldUseNightlySwift
@@ -53,22 +53,22 @@ extension DestinationsGenerator {
     }
 
     if !shouldUseDocker {
-      try await downloadUbuntuPackages(client)
+      try await self.downloadUbuntuPackages(client)
     }
 
-    try await unpackHostToolchain()
+    try await self.unpackHostToolchain()
 
     if shouldUseDocker {
-      try await copyDestinationSDKFromDocker()
+      try await self.copyDestinationSDKFromDocker()
     } else {
-      try await unpackDestinationSDKPackage()
+      try await self.unpackDestinationSDKPackage()
     }
 
-    try await unpackLLDLinker()
+    try await self.unpackLLDLinker()
 
-    try fixAbsoluteSymlinks()
+    try self.fixAbsoluteSymlinks()
 
-    try fixGlibcModuleMap(
+    try self.fixGlibcModuleMap(
       at: pathsConfiguration.toolchainDirPath
         .appending("/usr/lib/swift/linux/\(Triple.availableTriples.linux.cpu)/glibc.modulemap")
     )
@@ -334,7 +334,7 @@ extension DestinationsGenerator {
 
     try writeFile(
       at: toolsetJSONPath,
-      encoder.encode(
+      self.encoder.encode(
         Toolset(
           rootPath: relativeToolchainBinDir.string,
           swiftCompiler: .init(
@@ -375,7 +375,7 @@ extension DestinationsGenerator {
 
     try writeFile(
       at: destinationJSONPath,
-      encoder.encode(
+      self.encoder.encode(
         DestinationV3(
           runTimeTriples: [
             Triple.availableTriples.linux.description: .init(
@@ -395,7 +395,7 @@ extension DestinationsGenerator {
 
     try writeFile(
       at: artifactBundleManifestPath,
-      encoder.encode(
+      self.encoder.encode(
         ArtifactsArchiveMetadata(
           schemaVersion: "1.0",
           artifacts: [

@@ -45,7 +45,7 @@ final class Shell {
     file: String = #file,
     line: Int = #line
   ) throws {
-    commandInfo = CommandInfo(
+    self.commandInfo = CommandInfo(
       command: command,
       currentDirectory: currentDirectory,
       file: file,
@@ -60,15 +60,15 @@ final class Shell {
     process.arguments = ["-c", command]
 
     let stdinPipe = Pipe()
-    stdin = stdinPipe.fileHandleForWriting
+    self.stdin = stdinPipe.fileHandleForWriting
     process.standardInput = stdinPipe
 
     if disableIOStreams {
-      stdout = .init { $0.finish() }
-      stderr = .init { $0.finish() }
+      self.stdout = .init { $0.finish() }
+      self.stderr = .init { $0.finish() }
     } else {
-      stdout = .init(process, pipeKeyPath: \.standardOutput, commandInfo: commandInfo)
-      stderr = .init(process, pipeKeyPath: \.standardError, commandInfo: commandInfo)
+      self.stdout = .init(process, pipeKeyPath: \.standardOutput, commandInfo: self.commandInfo)
+      self.stderr = .init(process, pipeKeyPath: \.standardError, commandInfo: self.commandInfo)
     }
 
     self.process = process
@@ -79,15 +79,15 @@ final class Shell {
   }
 
   private func check(exitCode: Int32) throws {
-    guard process.terminationStatus == 0 else {
-      throw FileOperationError.nonZeroExitCode(process.terminationStatus, commandInfo)
+    guard self.process.terminationStatus == 0 else {
+      throw FileOperationError.nonZeroExitCode(self.process.terminationStatus, self.commandInfo)
     }
   }
 
   /// Wait for the process to exit in a non-blocking way.
   func waitUntilExit() async throws {
-    guard process.isRunning else {
-      return try check(exitCode: process.terminationStatus)
+    guard self.process.isRunning else {
+      return try self.check(exitCode: self.process.terminationStatus)
     }
 
     let exitCode = await withCheckedContinuation { continuation in

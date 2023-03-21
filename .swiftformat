@@ -10,4 +10,8 @@
 --funcattributes prev-line
 --varattributes prev-line
 --disable andOperator
---swiftversion 5.6
+
+# Insert explicit `self` where applicable.
+--self insert
+
+--swiftversion 5.7

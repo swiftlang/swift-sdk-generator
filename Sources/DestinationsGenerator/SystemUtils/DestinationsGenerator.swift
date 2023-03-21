@@ -23,7 +23,7 @@ public struct VersionsConfiguration {
     else { throw GeneratorError.unsupportedUbuntuVersion(ubuntuVersion) }
 
     self.swiftVersion = swiftVersion
-    swiftBranch = "swift-\(swiftVersion.lowercased())"
+    self.swiftBranch = "swift-\(swiftVersion.lowercased())"
     self.llvmVersion = llvmVersion
     self.ubuntuVersion = ubuntuVersion
     self.ubuntuRelease = ubuntuRelease
@@ -39,15 +39,15 @@ public struct VersionsConfiguration {
 public struct PathsConfiguration {
   init(sourceRoot: FilePath, artifactID: String, ubuntuRelease: String) {
     self.sourceRoot = sourceRoot
-    artifactBundlePath = sourceRoot
+    self.artifactBundlePath = sourceRoot
       .appending("cc-destination.artifactbundle")
-    artifactsCachePath = sourceRoot.appending("artifacts-cache")
-    destinationRootPath = artifactBundlePath
+    self.artifactsCachePath = sourceRoot.appending("artifacts-cache")
+    self.destinationRootPath = self.artifactBundlePath
       .appending(artifactID)
       .appending(Triple.availableTriples.linux.description)
-    sdkDirPath = destinationRootPath.appending("ubuntu-\(ubuntuRelease).sdk")
-    toolchainDirPath = destinationRootPath.appending("swift.xctoolchain")
-    toolchainBinDirPath = toolchainDirPath.appending("usr/bin")
+    self.sdkDirPath = self.destinationRootPath.appending("ubuntu-\(ubuntuRelease).sdk")
+    self.toolchainDirPath = self.destinationRootPath.appending("swift.xctoolchain")
+    self.toolchainBinDirPath = self.toolchainDirPath.appending("usr/bin")
   }
 
   let sourceRoot: FilePath

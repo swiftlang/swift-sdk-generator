@@ -26,17 +26,17 @@ public final class LocalDestinationsGenerator: DestinationsGenerator {
       .removingLastComponent()
       .removingLastComponent()
     self.artifactID = artifactID
-    versionsConfiguration = try .init(
+    self.versionsConfiguration = try .init(
       swiftVersion: swiftVersion,
       llvmVersion: llvmVersion,
       ubuntuVersion: ubuntuVersion
     )
-    pathsConfiguration = .init(
+    self.pathsConfiguration = .init(
       sourceRoot: sourceRoot,
       artifactID: artifactID,
-      ubuntuRelease: versionsConfiguration.ubuntuRelease
+      ubuntuRelease: self.versionsConfiguration.ubuntuRelease
     )
-    downloadableArtifacts = .init(versionsConfiguration, pathsConfiguration)
+    self.downloadableArtifacts = .init(self.versionsConfiguration, self.pathsConfiguration)
   }
 
   private let fileManager = FileManager.default
@@ -86,7 +86,7 @@ public final class LocalDestinationsGenerator: DestinationsGenerator {
   }
 
   public func doesFileExist(at path: FilePath) -> Bool {
-    fileManager.fileExists(atPath: path.string)
+    self.fileManager.fileExists(atPath: path.string)
   }
 
   public func writeFile(at path: FilePath, _ data: Data) throws {
@@ -102,7 +102,7 @@ public final class LocalDestinationsGenerator: DestinationsGenerator {
   }
 
   public func createSymlink(at source: FilePath, pointingTo destination: FilePath) throws {
-    try fileManager.createSymbolicLink(
+    try self.fileManager.createSymbolicLink(
       atPath: source.string,
       withDestinationPath: destination.string
     )
@@ -121,7 +121,7 @@ public final class LocalDestinationsGenerator: DestinationsGenerator {
 
       if isSymlink {
         let path = url.path
-        try result.append((FilePath(path), FilePath(fileManager.destinationOfSymbolicLink(atPath: url.path))))
+        try result.append((FilePath(path), FilePath(self.fileManager.destinationOfSymbolicLink(atPath: url.path))))
       }
     }
 
@@ -129,18 +129,18 @@ public final class LocalDestinationsGenerator: DestinationsGenerator {
   }
 
   public func copy(from source: FilePath, to destination: FilePath) throws {
-    try removeRecursively(at: destination)
-    try fileManager.copyItem(atPath: source.string, toPath: destination.string)
+    try self.removeRecursively(at: destination)
+    try self.fileManager.copyItem(atPath: source.string, toPath: destination.string)
   }
 
   public func createDirectoryIfNeeded(at directoryPath: FilePath) throws {
     var isDirectory: ObjCBool = false
 
-    if fileManager.fileExists(atPath: directoryPath.string, isDirectory: &isDirectory) {
+    if self.fileManager.fileExists(atPath: directoryPath.string, isDirectory: &isDirectory) {
       guard isDirectory.boolValue
       else { throw FileOperationError.directoryCreationFailed(directoryPath) }
     } else {
-      try fileManager.createDirectory(
+      try self.fileManager.createDirectory(
         atPath: directoryPath.string,
         withIntermediateDirectories: true
       )
@@ -151,8 +151,8 @@ public final class LocalDestinationsGenerator: DestinationsGenerator {
     // Can't use `FileManager.fileExists` here, because it isn't good enough for symlinks. It always
     // tries to
     // resolve a symlink before checking.
-    if (try? fileManager.attributesOfItem(atPath: path.string)) != nil {
-      try fileManager.removeItem(atPath: path.string)
+    if (try? self.fileManager.attributesOfItem(atPath: path.string)) != nil {
+      try self.fileManager.removeItem(atPath: path.string)
     }
   }
 
@@ -178,7 +178,7 @@ public final class LocalDestinationsGenerator: DestinationsGenerator {
   }
 
   func unpack(debFile: FilePath, into directoryPath: FilePath) async throws {
-    try await inTemporaryDirectory { _, tmp in
+    try await self.inTemporaryDirectory { _, tmp in
       try await Shell.run("ar -x \(debFile)", currentDirectory: tmp)
 
       try await Shell.run(
@@ -189,7 +189,7 @@ public final class LocalDestinationsGenerator: DestinationsGenerator {
   }
 
   func unpack(pkgFile: FilePath, into directoryPath: FilePath) async throws {
-    try await inTemporaryDirectory { _, tmp in
+    try await self.inTemporaryDirectory { _, tmp in
       try await Shell.run("xar -xf \(pkgFile)", currentDirectory: tmp)
       try await Shell.run(
         "cat \(tmp)/*.pkg/Payload | gunzip -cd | cpio -i",
@@ -202,14 +202,14 @@ public final class LocalDestinationsGenerator: DestinationsGenerator {
     switch file.extension {
     case "gz":
       if let stem = file.stem, FilePath(stem).extension == "tar" {
-        try await untar(file: file, into: directoryPath)
+        try await self.untar(file: file, into: directoryPath)
       } else {
-        try await gunzip(file: file, into: directoryPath)
+        try await self.gunzip(file: file, into: directoryPath)
       }
     case "deb":
-      try await unpack(debFile: file, into: directoryPath)
+      try await self.unpack(debFile: file, into: directoryPath)
     case "pkg":
-      try await unpack(pkgFile: file, into: directoryPath)
+      try await self.unpack(pkgFile: file, into: directoryPath)
     default:
       throw FileOperationError.unknownArchiveFormat(file.extension)
     }
@@ -221,7 +221,7 @@ public final class LocalDestinationsGenerator: DestinationsGenerator {
     let tmp = FilePath(NSTemporaryDirectory())
       .appending("cc-destination-\(UUID().uuidString.prefix(6))")
 
-    try createDirectoryIfNeeded(at: tmp)
+    try self.createDirectoryIfNeeded(at: tmp)
 
     let result = try await closure(self, tmp)
 
