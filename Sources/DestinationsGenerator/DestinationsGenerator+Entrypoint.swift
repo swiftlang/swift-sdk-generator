@@ -99,9 +99,11 @@ extension DestinationsGenerator {
 
   private func unpackDestinationSDKPackage() async throws {
     logGenerationStep("Unpacking destination Swift SDK package...")
+    let packagePath = downloadableArtifacts.runTimeTripleSwift.localPath
+    let versionsConfiguration = self.versionsConfiguration
 
     try await inTemporaryDirectory { fs, tmpDir in
-      try await fs.unpack(file: downloadableArtifacts.runTimeTripleSwift.localPath, into: tmpDir)
+      try await fs.unpack(file: packagePath, into: tmpDir)
       try await fs
         .copyDestinationSDK(
           from: tmpDir
@@ -127,6 +129,7 @@ extension DestinationsGenerator {
 
     logGenerationStep("Launching a Docker container to copy destination Swift SDK from it...")
     let containerID = try await launchDockerContainer(imageName: imageName)
+    let pathsConfiguration = self.pathsConfiguration
 
     try await inTemporaryDirectory { fs, _ in
       let sdkUsrPath = pathsConfiguration.sdkDirPath.appending("usr")
@@ -167,6 +170,8 @@ extension DestinationsGenerator {
 
   private func unpackHostToolchain() async throws {
     logGenerationStep("Unpacking and copying host toolchain...")
+    let downloadableArtifacts = self.downloadableArtifacts
+    let pathsConfiguration = self.pathsConfiguration
 
     try await inTemporaryDirectory { fs, tmpDir in
       try await fs.unpack(file: downloadableArtifacts.buildTimeTripleSwift.localPath, into: tmpDir)
@@ -176,6 +181,8 @@ extension DestinationsGenerator {
 
   private func unpackLLDLinker() async throws {
     logGenerationStep("Unpacking and copying `lld` linker...")
+    let downloadableArtifacts = self.downloadableArtifacts
+    let pathsConfiguration = self.pathsConfiguration
 
     try await inTemporaryDirectory { fs, tmpDir in
       try await fs.untar(file: downloadableArtifacts.buildTimeTripleLLVM.localPath, into: tmpDir, stripComponents: 1)
@@ -271,6 +278,8 @@ extension DestinationsGenerator {
     let urls = requiredPackages.compactMap { allPackages[$0] }
 
     print("Downloading \(urls.count) Ubuntu packages...")
+    let pathsConfiguration = self.pathsConfiguration
+
     try await inTemporaryDirectory { fs, tmpDir in
       let progress = try await client.downloadFiles(from: urls, to: tmpDir)
       report(downloadedFiles: Array(zip(urls, progress.map(\.receivedBytes))))

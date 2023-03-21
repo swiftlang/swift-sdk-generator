@@ -17,7 +17,7 @@ private let ubuntuReleases = [
   "22.04": "jammy",
 ]
 
-public struct VersionsConfiguration {
+public struct VersionsConfiguration: Sendable {
   init(swiftVersion: String, llvmVersion: String, ubuntuVersion: String) throws {
     guard let ubuntuRelease = ubuntuReleases[ubuntuVersion]
     else { throw GeneratorError.unsupportedUbuntuVersion(ubuntuVersion) }
@@ -36,7 +36,7 @@ public struct VersionsConfiguration {
   let ubuntuRelease: String
 }
 
-public struct PathsConfiguration {
+public struct PathsConfiguration: Sendable {
   init(sourceRoot: FilePath, artifactID: String, ubuntuRelease: String) {
     self.sourceRoot = sourceRoot
     self.artifactBundlePath = sourceRoot

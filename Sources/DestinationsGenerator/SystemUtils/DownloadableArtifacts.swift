@@ -13,8 +13,8 @@
 import struct Foundation.URL
 import struct SystemPackage.FilePath
 
-public struct DownloadableArtifacts {
-  public struct Item {
+public struct DownloadableArtifacts: Sendable {
+  public struct Item: Sendable {
     let remoteURL: URL
     let localPath: FilePath
     let checksum: String
