@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift open source project
 //
-// Copyright (c) 2022 Apple Inc. and the Swift project authors
+// Copyright (c) 2022-2023 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See http://swift.org/LICENSE.txt for license information
@@ -13,14 +13,67 @@
 import Foundation
 import SystemPackage
 
-public protocol FileSystem {
+private let ubuntuReleases = [
+  "22.04": "jammy",
+]
+
+public struct VersionsConfiguration {
+  init(swiftVersion: String, llvmVersion: String, ubuntuVersion: String) throws {
+    guard let ubuntuRelease = ubuntuReleases[ubuntuVersion]
+    else { throw GeneratorError.unsupportedUbuntuVersion(ubuntuVersion) }
+
+    self.swiftVersion = swiftVersion
+    swiftBranch = "swift-\(swiftVersion.lowercased())"
+    self.llvmVersion = llvmVersion
+    self.ubuntuVersion = ubuntuVersion
+    self.ubuntuRelease = ubuntuRelease
+  }
+
+  let swiftVersion: String
+  let swiftBranch: String
+  let llvmVersion: String
+  let ubuntuVersion: String
+  let ubuntuRelease: String
+}
+
+public struct PathsConfiguration {
+  init(sourceRoot: FilePath, artifactID: String, ubuntuRelease: String) {
+    self.sourceRoot = sourceRoot
+    artifactBundlePath = sourceRoot
+      .appending("cc-destination.artifactbundle")
+    artifactsCachePath = sourceRoot.appending("artifacts-cache")
+    destinationRootPath = artifactBundlePath
+      .appending(artifactID)
+      .appending(Triple.availableTriples.linux.description)
+    sdkDirPath = destinationRootPath.appending("ubuntu-\(ubuntuRelease).sdk")
+    toolchainDirPath = destinationRootPath.appending("swift.xctoolchain")
+    toolchainBinDirPath = toolchainDirPath.appending("usr/bin")
+  }
+
+  let sourceRoot: FilePath
+  let artifactBundlePath: FilePath
+  let artifactsCachePath: FilePath
+  let destinationRootPath: FilePath
+  let sdkDirPath: FilePath
+  let toolchainDirPath: FilePath
+  let toolchainBinDirPath: FilePath
+}
+
+public protocol DestinationsGenerator {
+  // MARK: configuration
+
+  var artifactID: String { get }
+  var versionsConfiguration: VersionsConfiguration { get }
+  var pathsConfiguration: PathsConfiguration { get }
+  var downloadableArtifacts: DownloadableArtifacts { get }
+
   // MARK: shell commands
 
   func untar(file: FilePath, into directoryPath: FilePath, stripComponents: Int?) async throws
   func unpack(file: FilePath, into directoryPath: FilePath) async throws
   func rsync(from source: FilePath, to destination: FilePath) async throws
 
-  static func computeChecksum(file: FilePath) async throws -> String
+  static func isChecksumValid(artifact: DownloadableArtifacts.Item) async throws -> Bool
 
   // MARK: common operations on files
 
@@ -53,9 +106,30 @@ public protocol FileSystem {
   func stopDockerContainer(id: String) async throws
 }
 
-// FIXME: make an actor?
-public final class LocalFileSystem: FileSystem {
-  public init() {}
+public final class LocalGeneratorOperations: DestinationsGenerator {
+  public let artifactID: String
+  public let versionsConfiguration: VersionsConfiguration
+  public let pathsConfiguration: PathsConfiguration
+  public let downloadableArtifacts: DownloadableArtifacts
+
+  public init(artifactID: String, swiftVersion: String, llvmVersion: String, ubuntuVersion: String) throws {
+    let sourceRoot = FilePath(#file)
+      .removingLastComponent()
+      .removingLastComponent()
+      .removingLastComponent()
+    self.artifactID = artifactID
+    versionsConfiguration = try .init(
+      swiftVersion: swiftVersion,
+      llvmVersion: llvmVersion,
+      ubuntuVersion: ubuntuVersion
+    )
+    pathsConfiguration = .init(
+      sourceRoot: sourceRoot,
+      artifactID: artifactID,
+      ubuntuRelease: versionsConfiguration.ubuntuRelease
+    )
+    downloadableArtifacts = .init(versionsConfiguration, pathsConfiguration)
+  }
 
   private let fileManager = FileManager.default
 
@@ -65,12 +139,14 @@ public final class LocalFileSystem: FileSystem {
   private static let homebrewPrefix = "/usr/local"
   #endif
 
-  public static func computeChecksum(file: FilePath) async throws -> String {
-    try await String(
-      Shell.readStdout("openssl dgst -sha256 \(file)").split(separator: "= ")[1]
+  public static func isChecksumValid(artifact: DownloadableArtifacts.Item) async throws -> Bool {
+    let checksum = try await String(
+      Shell.readStdout("openssl dgst -sha256 \(artifact.localPath)").split(separator: "= ")[1]
         // drop the trailing newline
         .dropLast()
     )
+
+    return checksum == artifact.checksum
   }
 
   public func buildDockerImage(name: String, dockerfileDirectory: FilePath) async throws {
@@ -232,7 +308,7 @@ public final class LocalFileSystem: FileSystem {
   }
 
   public func inTemporaryDirectory<T>(
-    _ closure: @Sendable (LocalFileSystem, FilePath) async throws -> T
+    _ closure: @Sendable (LocalGeneratorOperations, FilePath) async throws -> T
   ) async throws -> T {
     let tmp = FilePath(NSTemporaryDirectory())
       .appending("cc-destination-\(UUID().uuidString.prefix(6))")
@@ -247,5 +323,6 @@ public final class LocalFileSystem: FileSystem {
   }
 }
 
+// Explicitly marking `LocalGeneratorOperations` as non-`Sendable` for safety.
 @available(*, unavailable)
-extension LocalFileSystem: Sendable {}
+extension LocalGeneratorOperations: Sendable {}

@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift open source project
 //
-// Copyright (c) 2022 Apple Inc. and the Swift project authors
+// Copyright (c) 2022-2023 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See http://swift.org/LICENSE.txt for license information
@@ -54,24 +54,23 @@ public extension HTTPClient {
   }
 
   func streamDownloadProgress(
-    from url: URL,
-    to path: FilePath
+    for artifact: DownloadableArtifacts.Item
   ) -> AsyncThrowingStream<FileDownloadDelegate.Progress, any Error> {
     .init { continuation in
       do {
         let delegate = try FileDownloadDelegate(
-          path: path.string,
+          path: artifact.localPath.string,
           reportHead: {
             if $0.status != .ok {
               continuation
-                .finish(throwing: FileOperationError.downloadFailed(url, $0.status))
+                .finish(throwing: FileOperationError.downloadFailed(artifact.remoteURL, $0.status))
             }
           },
           reportProgress: {
             continuation.yield($0)
           }
         )
-        let request = try HTTPClient.Request(url: url)
+        let request = try HTTPClient.Request(url: artifact.remoteURL)
 
         execute(request: request, delegate: delegate).futureResult.whenComplete {
           switch $0 {

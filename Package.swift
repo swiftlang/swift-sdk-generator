@@ -36,13 +36,7 @@ let package = Package(
     .target(
       name: "DestinationsGenerator",
       dependencies: [
-        "FileUtils",
         .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
-      ]
-    ),
-    .target(
-      name: "FileUtils",
-      dependencies: [
         .product(name: "AsyncHTTPClient", package: "async-http-client"),
         .product(name: "SystemPackage", package: "swift-system"),
       ]
