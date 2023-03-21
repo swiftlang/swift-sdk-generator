@@ -13,10 +13,6 @@
 import ArgumentParser
 import DestinationsGenerator
 
-private let defaultSwiftVersion = "5.7.3-RELEASE"
-private let defaultLLVMVersion = "16.0.0"
-private let defaultUbuntuVersion = "22.04"
-
 @main
 struct Main: AsyncParsableCommand {
   @Flag(help: "Avoid delegating to Docker for copying files for the run-time triple.")
@@ -32,14 +28,14 @@ struct Main: AsyncParsableCommand {
   )
   var nightlySwift = false
 
-  @Option(help: "Version of Swift to supply in the bundle. Default is `\(defaultSwiftVersion)`.")
-  var swiftVersion = defaultSwiftVersion
+  @Option(help: "Version of Swift to supply in the bundle.")
+  var swiftVersion = "5.7.3-RELEASE"
 
-  @Option(help: "Version of LLVM to supply in the bundle. Default is `\(defaultLLVMVersion)`.")
-  var llvmVersion = defaultLLVMVersion
+  @Option(help: "Version of LLVM to supply in the bundle.")
+  var llvmVersion = "16.0.0"
 
-  @Option(help: "Version of Ubuntu to use when assembling the bundle. Default is `\(defaultUbuntuVersion)`.")
-  var ubuntuVersion = defaultUbuntuVersion
+  @Option(help: "Version of Ubuntu to use when assembling the bundle.")
+  var ubuntuVersion = "22.04"
 
   mutating func run() async throws {
     let elapsed = try await ContinuousClock().measure {
