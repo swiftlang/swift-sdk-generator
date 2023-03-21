@@ -18,20 +18,20 @@ private let ubuntuReleases = [
 ]
 
 public struct VersionsConfiguration: Sendable {
-  init(swiftVersion: String, llvmVersion: String, ubuntuVersion: String) throws {
+  init(swiftVersion: String, lldVersion: String, ubuntuVersion: String) throws {
     guard let ubuntuRelease = ubuntuReleases[ubuntuVersion]
     else { throw GeneratorError.unsupportedUbuntuVersion(ubuntuVersion) }
 
     self.swiftVersion = swiftVersion
     self.swiftBranch = "swift-\(swiftVersion.lowercased())"
-    self.llvmVersion = llvmVersion
+    self.lldVersion = lldVersion
     self.ubuntuVersion = ubuntuVersion
     self.ubuntuRelease = ubuntuRelease
   }
 
   let swiftVersion: String
   let swiftBranch: String
-  let llvmVersion: String
+  let lldVersion: String
   let ubuntuVersion: String
   let ubuntuRelease: String
 }
@@ -40,8 +40,9 @@ public struct PathsConfiguration: Sendable {
   init(sourceRoot: FilePath, artifactID: String, ubuntuRelease: String) {
     self.sourceRoot = sourceRoot
     self.artifactBundlePath = sourceRoot
-      .appending("cc-destination.artifactbundle")
-    self.artifactsCachePath = sourceRoot.appending("artifacts-cache")
+      .appending("Bundles")
+      .appending("\(artifactID).artifactbundle")
+    self.artifactsCachePath = sourceRoot.appending("Artifacts")
     self.destinationRootPath = self.artifactBundlePath
       .appending(artifactID)
       .appending(Triple.availableTriples.linux.description)

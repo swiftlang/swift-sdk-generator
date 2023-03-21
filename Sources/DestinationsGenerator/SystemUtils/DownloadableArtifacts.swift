@@ -42,14 +42,14 @@ public struct DownloadableArtifacts: Sendable {
       remoteURL: URL(
         string: """
         https://github.com/llvm/llvm-project/releases/download/llvmorg-\(
-          versions.llvmVersion
+          versions.lldVersion
         )/clang+llvm-\(
-          versions.llvmVersion
+          versions.lldVersion
         )-\(Triple.availableTriples.darwin.cpu)-apple-\(Triple.availableTriples.darwin.os).tar.xz
         """
       )!,
       localPath: paths.artifactsCachePath
-        .appending("buildtime_llvm_\(versions.llvmVersion)_\(Triple.availableTriples.macOS).tar.xz"),
+        .appending("buildtime_llvm_\(versions.lldVersion)_\(Triple.availableTriples.macOS).tar.xz"),
       checksum: "867c6afd41158c132ef05a8f1ddaecf476a26b91c85def8e124414f9a9ba188d"
     )
 

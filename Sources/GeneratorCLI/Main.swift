@@ -31,8 +31,8 @@ struct Main: AsyncParsableCommand {
   @Option(help: "Version of Swift to supply in the bundle.")
   var swiftVersion = "5.7.3-RELEASE"
 
-  @Option(help: "Version of LLVM to supply in the bundle.")
-  var llvmVersion = "16.0.0"
+  @Option(help: "Version of LLD linker to supply in the bundle.")
+  var lldVersion = "16.0.0"
 
   @Option(help: "Version of Ubuntu to use when assembling the bundle.")
   var ubuntuVersion = "22.04"
@@ -44,7 +44,7 @@ struct Main: AsyncParsableCommand {
       try await LocalDestinationsGenerator(
         artifactID: artifactID,
         swiftVersion: swiftVersion,
-        llvmVersion: llvmVersion,
+        lldVersion: lldVersion,
         ubuntuVersion: ubuntuVersion
       )
       .generateDestinationBundle(
