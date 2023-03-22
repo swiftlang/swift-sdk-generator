@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 import Foundation
-import SystemPackage
+import struct SystemPackage.FilePath
 
 public struct CommandInfo {
   let command: String

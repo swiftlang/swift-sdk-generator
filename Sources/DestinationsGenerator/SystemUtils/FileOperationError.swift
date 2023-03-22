@@ -10,9 +10,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-import Foundation
-import NIOHTTP1
-import SystemPackage
+import enum NIOHTTP1.HTTPResponseStatus
+import struct Foundation.URL
+import struct SystemPackage.FilePath
 
 public enum FileOperationError: Error {
   case downloadFailed(URL, HTTPResponseStatus)

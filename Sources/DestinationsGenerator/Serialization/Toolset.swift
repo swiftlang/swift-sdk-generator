@@ -10,8 +10,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-import Foundation
-
 /// A raw decoding of toolset configuration stored on disk.
 struct Toolset: Encodable {
   /// Properties of a tool in a ``DecodedToolset``.

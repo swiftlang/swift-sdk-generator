@@ -13,11 +13,26 @@
 import struct Foundation.URL
 import struct SystemPackage.FilePath
 
+private let knownUbuntuSwiftVersions = [
+    "22.04": [
+        "5.7.3-RELEASE": "312a18d0d2f207620349e3a373200f369fc1a6aad1b7f2365d55aa8a10881a59"
+    ]
+]
+
+private let knownMacOSSwiftVersions = [
+    "5.7.3-RELEASE": "ba3516845eb8f4469a8bb06a273687f05791187324a3843996af32a73a2a687d"
+]
+
+private let knownMacOSLLVMVersions = [
+    "15.0.7": "867c6afd41158c132ef05a8f1ddaecf476a26b91c85def8e124414f9a9ba188d",
+    "16.0.0": "2041587b90626a4a87f0de14a5842c14c6c3374f42c8ed12726ef017416409d9"
+]
+
 public struct DownloadableArtifacts: Sendable {
   public struct Item: Sendable {
     let remoteURL: URL
     let localPath: FilePath
-    let checksum: String
+    let checksum: String?
   }
 
   let buildTimeTripleSwift: Item
@@ -35,7 +50,7 @@ public struct DownloadableArtifacts: Sendable {
       )!,
       localPath: paths.artifactsCachePath
         .appending("buildtime_swift_\(versions.swiftVersion)_\(Triple.availableTriples.macOS).pkg"),
-      checksum: "ba3516845eb8f4469a8bb06a273687f05791187324a3843996af32a73a2a687d"
+      checksum: knownMacOSSwiftVersions[versions.swiftVersion]
     )
 
     self.buildTimeTripleLLVM = .init(
@@ -50,7 +65,7 @@ public struct DownloadableArtifacts: Sendable {
       )!,
       localPath: paths.artifactsCachePath
         .appending("buildtime_llvm_\(versions.lldVersion)_\(Triple.availableTriples.macOS).tar.xz"),
-      checksum: "867c6afd41158c132ef05a8f1ddaecf476a26b91c85def8e124414f9a9ba188d"
+      checksum: knownMacOSLLVMVersions[versions.lldVersion]
     )
 
     self.runTimeTripleSwift = .init(
@@ -63,7 +78,7 @@ public struct DownloadableArtifacts: Sendable {
       )!,
       localPath: paths.artifactsCachePath
         .appending("runtime_swift_\(versions.swiftVersion)_\(Triple.availableTriples.linux).tar.gz"),
-      checksum: "312a18d0d2f207620349e3a373200f369fc1a6aad1b7f2365d55aa8a10881a59"
+      checksum: knownUbuntuSwiftVersions[versions.ubuntuVersion]?[versions.swiftVersion]
     )
   }
 

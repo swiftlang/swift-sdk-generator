@@ -13,53 +13,6 @@
 import Foundation
 import SystemPackage
 
-private let ubuntuReleases = [
-  "22.04": "jammy",
-]
-
-public struct VersionsConfiguration: Sendable {
-  init(swiftVersion: String, lldVersion: String, ubuntuVersion: String) throws {
-    guard let ubuntuRelease = ubuntuReleases[ubuntuVersion]
-    else { throw GeneratorError.unsupportedUbuntuVersion(ubuntuVersion) }
-
-    self.swiftVersion = swiftVersion
-    self.swiftBranch = "swift-\(swiftVersion.lowercased())"
-    self.lldVersion = lldVersion
-    self.ubuntuVersion = ubuntuVersion
-    self.ubuntuRelease = ubuntuRelease
-  }
-
-  let swiftVersion: String
-  let swiftBranch: String
-  let lldVersion: String
-  let ubuntuVersion: String
-  let ubuntuRelease: String
-}
-
-public struct PathsConfiguration: Sendable {
-  init(sourceRoot: FilePath, artifactID: String, ubuntuRelease: String) {
-    self.sourceRoot = sourceRoot
-    self.artifactBundlePath = sourceRoot
-      .appending("Bundles")
-      .appending("\(artifactID).artifactbundle")
-    self.artifactsCachePath = sourceRoot.appending("Artifacts")
-    self.destinationRootPath = self.artifactBundlePath
-      .appending(artifactID)
-      .appending(Triple.availableTriples.linux.description)
-    self.sdkDirPath = self.destinationRootPath.appending("ubuntu-\(ubuntuRelease).sdk")
-    self.toolchainDirPath = self.destinationRootPath.appending("swift.xctoolchain")
-    self.toolchainBinDirPath = self.toolchainDirPath.appending("usr/bin")
-  }
-
-  let sourceRoot: FilePath
-  let artifactBundlePath: FilePath
-  let artifactsCachePath: FilePath
-  let destinationRootPath: FilePath
-  let sdkDirPath: FilePath
-  let toolchainDirPath: FilePath
-  let toolchainBinDirPath: FilePath
-}
-
 public protocol DestinationsGenerator {
   // MARK: configuration
 
