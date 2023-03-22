@@ -55,7 +55,12 @@ public struct DownloadableArtifacts: Sendable {
   let buildTimeTripleLLVM: Item
   let runTimeTripleSwift: Item
 
-  init(_ versions: VersionsConfiguration, _ paths: PathsConfiguration) {
+  init(
+    buildTimeTriple: Triple,
+    runTimeTriple: Triple,
+    _ versions: VersionsConfiguration,
+    _ paths: PathsConfiguration
+  ) throws {
     self.buildTimeTripleSwift = .init(
       remoteURL: swiftDownloadURL(
         branch: versions.swiftBranch,
@@ -65,7 +70,7 @@ public struct DownloadableArtifacts: Sendable {
         fileExtension: "pkg"
       ),
       localPath: paths.artifactsCachePath
-        .appending("buildtime_swift_\(versions.swiftVersion)_\(Triple.availableTriples.macOS).pkg"),
+        .appending("buildtime_swift_\(versions.swiftVersion)_\(buildTimeTriple).pkg"),
       checksum: knownMacOSSwiftVersions[versions.swiftVersion]
     )
 
@@ -76,11 +81,11 @@ public struct DownloadableArtifacts: Sendable {
           versions.lldVersion
         )/clang+llvm-\(
           versions.lldVersion
-        )-\(Triple.availableTriples.darwin).tar.xz
+        )-\(try buildTimeTriple.darwinFormat).tar.xz
         """
       )!,
       localPath: paths.artifactsCachePath
-        .appending("buildtime_llvm_\(versions.lldVersion)_\(Triple.availableTriples.macOS).tar.xz"),
+        .appending("buildtime_llvm_\(versions.lldVersion)_\(buildTimeTriple).tar.xz"),
       checksum: knownMacOSLLVMVersions[versions.lldVersion]
     )
 
@@ -93,7 +98,7 @@ public struct DownloadableArtifacts: Sendable {
         fileExtension: "tar.gz"
       ),
       localPath: paths.artifactsCachePath
-        .appending("runtime_swift_\(versions.swiftVersion)_\(Triple.availableTriples.linux).tar.gz"),
+        .appending("runtime_swift_\(versions.swiftVersion)_\(runTimeTriple).tar.gz"),
       checksum: knownUbuntuSwiftVersions[versions.ubuntuVersion]?[versions.swiftVersion]
     )
   }

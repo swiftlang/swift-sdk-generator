@@ -11,31 +11,77 @@
 //===----------------------------------------------------------------------===//
 
 public struct Triple: CustomStringConvertible {
-  public let cpu: String
-  let vendor: String
-  let os: String
-  var abi: String?
+  /// CPU architecture supported by the generator.
+  public enum CPU: String, Decodable {
+    case x86_64
+    case arm64
 
-  public var description: String { "\(self.cpu)-\(self.vendor)-\(self.os)\(self.abi != nil ? "-\(self.abi!)" : "")" }
+    /// Returns the value of `cpu` converted to a convention used by Linux, i.e. `arm64` becomes `aarch64`.
+    var linuxConventionName: String {
+      switch self {
+      case .arm64:
+        return "aarch64"
+      default:
+        return rawValue
+      }
+    }
+  }
 
-  public static let availableTriples = (
-    linux: Triple(
-      cpu: "aarch64",
-      vendor: "unknown",
-      os: "linux",
-      abi: "gnu"
-    ),
-    // Used to download LLVM distribution.
-    darwin: Triple(
-      cpu: "arm64",
-      vendor: "apple",
-      os: "darwin22.0"
-    ),
-    // Used to download Swift distribution.
-    macOS: Triple(
-      cpu: "arm64",
-      vendor: "apple",
-      os: "macosx13.0"
-    )
-  )
+  enum Vendor: String {
+    case apple
+    case unknown
+  }
+
+  enum OS: CustomStringConvertible {
+    case linux
+    case darwin(version: String)
+    case macosx(version: String)
+
+    var description: String {
+      switch self {
+      case .linux:
+        return "linux"
+      case let .darwin(version):
+        return "darwin\(version)"
+      case let .macosx(version):
+        return "macosx\(version)"
+      }
+    }
+  }
+
+  enum Environment {
+    case gnu
+  }
+
+  let cpu: CPU
+  let vendor: Vendor
+  let os: OS
+  var environment: Environment?
+
+  public var description: String {
+    "\(self.cpu)-\(self.vendor)-\(self.os)\(self.environment != nil ? "-\(self.environment!)" : "")"
+  }
+
+  var darwinFormat: Triple {
+    get throws {
+      let os: OS
+      switch self.os {
+      case let .macosx(macOSVersion):
+        guard let darwinVersion = macOSDarwinVersions[macOSVersion] else {
+          throw GeneratorError.unknownMacOSVersion(macOSVersion)
+        }
+
+        os = .darwin(version: darwinVersion)
+      default:
+        fatalError("\(#function) should not be called on non-Darwin triples")
+      }
+
+      return Triple(cpu: self.cpu, vendor: self.vendor, os: os)
+    }
+  }
 }
+
+/// Mapping from a macOS version to a Darwin version.
+private let macOSDarwinVersions = [
+  "13.0": "22.0",
+]

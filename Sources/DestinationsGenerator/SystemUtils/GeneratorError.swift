@@ -11,14 +11,20 @@
 //===----------------------------------------------------------------------===//
 
 enum GeneratorError: Error {
-  case unsupportedUbuntuVersion(String)
+  case unknownUbuntuVersion(String)
+  case unknownMacOSVersion(String)
+  case unknownCPUArchitecture(String)
 }
 
 extension GeneratorError: CustomStringConvertible {
   var description: String {
     switch self {
-    case let .unsupportedUbuntuVersion(version):
+    case let .unknownUbuntuVersion(version):
       return "Ubuntu Linux version `\(version)` is not supported by this generator."
+    case let .unknownMacOSVersion(version):
+      return "macOS version `\(version)` is not supported by this generator."
+    case let .unknownCPUArchitecture(cpu):
+      return "CPU architecture `\(cpu)` is not supported by this generator."
     }
   }
 }

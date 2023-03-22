@@ -16,10 +16,14 @@ import SystemPackage
 public protocol DestinationsGenerator {
   // MARK: configuration
 
+  var buildTimeTriple: Triple { get }
+  var runTimeTriple: Triple { get }
   var artifactID: String { get }
   var versionsConfiguration: VersionsConfiguration { get }
   var pathsConfiguration: PathsConfiguration { get }
   var downloadableArtifacts: DownloadableArtifacts { get }
+
+  static var currentTriple: Triple { get async throws }
 
   // MARK: shell commands
 

@@ -68,7 +68,7 @@ extension DestinationsGenerator {
 
     try self.fixGlibcModuleMap(
       at: pathsConfiguration.toolchainDirPath
-        .appending("/usr/lib/swift/linux/\(Triple.availableTriples.linux.cpu)/glibc.modulemap")
+        .appending("/usr/lib/swift/linux/\(self.runTimeTriple.cpu)/glibc.modulemap")
     )
 
     let autolinkExtractPath = pathsConfiguration.toolchainBinDirPath.appending("swift-autolink-extract")
@@ -399,7 +399,7 @@ extension DestinationsGenerator {
       self.encoder.encode(
         DestinationV3(
           runTimeTriples: [
-            Triple.availableTriples.linux.description: .init(
+            self.runTimeTriple.description: .init(
               sdkRootPath: relativeSDKDir.string,
               toolsetPaths: [relativeToolsetPath.string]
             ),
@@ -425,8 +425,8 @@ extension DestinationsGenerator {
               version: "0.0.1",
               variants: [
                 .init(
-                  path: FilePath(artifactID).appending(Triple.availableTriples.linux.description).string,
-                  supportedTriples: [Triple.availableTriples.macOS.description]
+                  path: FilePath(artifactID).appending(self.runTimeTriple.description).string,
+                  supportedTriples: [self.buildTimeTriple.description]
                 ),
               ]
             ),
@@ -447,7 +447,7 @@ extension DestinationsGenerator {
       #/\n( *header )"\/+usr\/include\//#
       Capture {
         Optionally {
-          Triple.availableTriples.linux.cpu
+          buildTimeTriple.cpu.linuxConventionName
           "-linux-gnu"
         }
       }

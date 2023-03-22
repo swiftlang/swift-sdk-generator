@@ -40,12 +40,13 @@ struct Main: AsyncParsableCommand {
   @Option(help: "Version of Ubuntu to use when assembling the bundle.")
   var ubuntuVersion = "22.04"
 
+  @Option(help: "CPU architecture of the run-time triple of the bundle. Same as build-time triple if unspecified.")
+  var cpuArchitecture: Triple.CPU? = nil
+
   mutating func run() async throws {
     let elapsed = try await ContinuousClock().measure {
-      let artifactID = "\(swiftVersion)_ubuntu_\(ubuntuVersion)_\(Triple.availableTriples.linux.cpu)"
-
       try await LocalDestinationsGenerator(
-        artifactID: artifactID,
+        runTimeCPUArchitecture: cpuArchitecture,
         swiftVersion: swiftVersion,
         swiftBranch: swiftBranch,
         lldVersion: lldVersion,
@@ -60,3 +61,5 @@ struct Main: AsyncParsableCommand {
     print("\nTime taken for this generator run: \(elapsed.formatted())")
   }
 }
+
+extension Triple.CPU: ExpressibleByArgument {}

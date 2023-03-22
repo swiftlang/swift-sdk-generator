@@ -15,23 +15,28 @@ import SystemPackage
 
 /// Implementation of ``DestinationsGenerator`` for the local file system.
 public final class LocalDestinationsGenerator: DestinationsGenerator {
+  public let buildTimeTriple: Triple
+  public let runTimeTriple: Triple
   public let artifactID: String
   public let versionsConfiguration: VersionsConfiguration
   public let pathsConfiguration: PathsConfiguration
   public let downloadableArtifacts: DownloadableArtifacts
 
   public init(
-    artifactID: String,
+    runTimeCPUArchitecture: Triple.CPU?,
     swiftVersion: String,
     swiftBranch: String?,
     lldVersion: String,
     ubuntuVersion: String
-  ) throws {
+  ) async throws {
     let sourceRoot = FilePath(#file)
       .removingLastComponent()
       .removingLastComponent()
       .removingLastComponent()
-    self.artifactID = artifactID
+    self.buildTimeTriple = try await Self.currentTriple
+    self.runTimeTriple = Triple(cpu: runTimeCPUArchitecture ?? self.buildTimeTriple.cpu, vendor: .unknown, os: .linux)
+    self.artifactID = "\(swiftVersion)_ubuntu_\(ubuntuVersion)_\(self.runTimeTriple.cpu)"
+
     self.versionsConfiguration = try .init(
       swiftVersion: swiftVersion,
       swiftBranch: swiftBranch,
@@ -40,10 +45,16 @@ public final class LocalDestinationsGenerator: DestinationsGenerator {
     )
     self.pathsConfiguration = .init(
       sourceRoot: sourceRoot,
-      artifactID: artifactID,
-      ubuntuRelease: self.versionsConfiguration.ubuntuRelease
+      artifactID: self.artifactID,
+      ubuntuRelease: self.versionsConfiguration.ubuntuRelease,
+      runTimeTriple: self.runTimeTriple
     )
-    self.downloadableArtifacts = .init(self.versionsConfiguration, self.pathsConfiguration)
+    self.downloadableArtifacts = try .init(
+      buildTimeTriple: self.buildTimeTriple,
+      runTimeTriple: self.runTimeTriple,
+      self.versionsConfiguration,
+      self.pathsConfiguration
+    )
   }
 
   private let fileManager = FileManager.default
@@ -53,6 +64,26 @@ public final class LocalDestinationsGenerator: DestinationsGenerator {
   #elseif arch(x86_64)
   private static let homebrewPrefix = "/usr/local"
   #endif
+
+  public static var currentTriple: Triple {
+    get async throws {
+      let cpuString = try await Shell.readStdout("uname -m")
+
+      guard let cpu = Triple.CPU(rawValue: cpuString) else {
+        throw GeneratorError.unknownCPUArchitecture(cpuString)
+      }
+      #if os(macOS)
+      let macOSVersion = try await Shell.readStdout("sw_vers -productVersion")
+
+      guard let majorMacOSVersion = macOSVersion.split(separator: ".").first else {
+        throw GeneratorError.unknownMacOSVersion(macOSVersion)
+      }
+      return Triple(cpu: cpu, vendor: .apple, os: .macosx(version: "\(majorMacOSVersion).0"))
+      #else
+      fatalError("Triple detection not implemented for the platform that this generator was built on.")
+      #endif
+    }
+  }
 
   public static func isChecksumValid(artifact: DownloadableArtifacts.Item) async throws -> Bool {
     let checksum = try await String(
