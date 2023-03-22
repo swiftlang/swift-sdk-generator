@@ -10,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-import enum NIOHTTP1.HTTPResponseStatus
 import struct Foundation.URL
+import enum NIOHTTP1.HTTPResponseStatus
 import struct SystemPackage.FilePath
 
 public enum FileOperationError: Error {

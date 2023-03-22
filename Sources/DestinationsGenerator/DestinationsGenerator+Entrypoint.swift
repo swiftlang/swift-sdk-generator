@@ -23,8 +23,7 @@ private let byteCountFormatter = ByteCountFormatter()
 extension DestinationsGenerator {
   public func generateDestinationBundle(
     shouldUseDocker: Bool,
-    shouldGenerateFromScratch: Bool,
-    shouldUseNightlySwift: Bool
+    shouldGenerateFromScratch: Bool
   ) async throws {
     let client = HTTPClient(
       eventLoopGroupProvider: .createNew,
@@ -47,8 +46,7 @@ extension DestinationsGenerator {
     if try await !self.isCacheValid {
       try await self.downloadArtifacts(
         client,
-        shouldUseDocker: shouldUseDocker,
-        shouldUseNightlySwift: shouldUseNightlySwift
+        shouldUseDocker: shouldUseDocker
       )
     }
 
@@ -219,8 +217,7 @@ extension DestinationsGenerator {
 
   private func downloadArtifacts(
     _ client: HTTPClient,
-    shouldUseDocker: Bool,
-    shouldUseNightlySwift: Bool
+    shouldUseDocker: Bool
   ) async throws {
     logGenerationStep("Downloading required toolchain packages...")
 
@@ -228,10 +225,15 @@ extension DestinationsGenerator {
       .removeDuplicates(by: didProgressChangeSignificantly)
     let buildTimeTripleLLVMStream = client.streamDownloadProgress(for: downloadableArtifacts.buildTimeTripleLLVM)
       .removeDuplicates(by: didProgressChangeSignificantly)
-    let runTimeTripleSwiftStream = client.streamDownloadProgress(for: downloadableArtifacts.runTimeTripleSwift)
-      .removeDuplicates(by: didProgressChangeSignificantly)
 
+    print("Using these URLs for downloads:")
+
+    // FIXME: some code duplication is necessary due to https://github.com/apple/swift-async-algorithms/issues/226
     if shouldUseDocker {
+      for artifact in [downloadableArtifacts.buildTimeTripleSwift, downloadableArtifacts.buildTimeTripleLLVM] {
+        print(artifact.remoteURL)
+      }
+
       let stream = combineLatest(buildTimeTripleSwiftStream, buildTimeTripleLLVMStream)
         .throttle(for: .seconds(1))
 
@@ -240,6 +242,16 @@ extension DestinationsGenerator {
         report(progress: llvmProgress, for: downloadableArtifacts.buildTimeTripleLLVM)
       }
     } else {
+      for artifact in [
+        downloadableArtifacts.buildTimeTripleSwift,
+        downloadableArtifacts.buildTimeTripleLLVM,
+        downloadableArtifacts.runTimeTripleSwift,
+      ] {
+        print(artifact.remoteURL)
+      }
+      let runTimeTripleSwiftStream = client.streamDownloadProgress(for: downloadableArtifacts.runTimeTripleSwift)
+        .removeDuplicates(by: didProgressChangeSignificantly)
+
       let stream = combineLatest(
         buildTimeTripleSwiftStream,
         buildTimeTripleLLVMStream,

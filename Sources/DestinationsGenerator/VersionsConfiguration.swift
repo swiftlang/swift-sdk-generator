@@ -15,12 +15,12 @@ private let ubuntuReleases = [
 ]
 
 public struct VersionsConfiguration: Sendable {
-  init(swiftVersion: String, lldVersion: String, ubuntuVersion: String) throws {
+  init(swiftVersion: String, swiftBranch: String? = nil, lldVersion: String, ubuntuVersion: String) throws {
     guard let ubuntuRelease = ubuntuReleases[ubuntuVersion]
     else { throw GeneratorError.unsupportedUbuntuVersion(ubuntuVersion) }
 
     self.swiftVersion = swiftVersion
-    self.swiftBranch = "swift-\(swiftVersion.lowercased())"
+    self.swiftBranch = swiftBranch ?? "swift-\(swiftVersion.lowercased())"
     self.lldVersion = lldVersion
     self.ubuntuVersion = ubuntuVersion
     self.ubuntuRelease = ubuntuRelease

@@ -20,7 +20,13 @@ public final class LocalDestinationsGenerator: DestinationsGenerator {
   public let pathsConfiguration: PathsConfiguration
   public let downloadableArtifacts: DownloadableArtifacts
 
-  public init(artifactID: String, swiftVersion: String, lldVersion: String, ubuntuVersion: String) throws {
+  public init(
+    artifactID: String,
+    swiftVersion: String,
+    swiftBranch: String?,
+    lldVersion: String,
+    ubuntuVersion: String
+  ) throws {
     let sourceRoot = FilePath(#file)
       .removingLastComponent()
       .removingLastComponent()
@@ -28,6 +34,7 @@ public final class LocalDestinationsGenerator: DestinationsGenerator {
     self.artifactID = artifactID
     self.versionsConfiguration = try .init(
       swiftVersion: swiftVersion,
+      swiftBranch: swiftBranch,
       lldVersion: lldVersion,
       ubuntuVersion: ubuntuVersion
     )

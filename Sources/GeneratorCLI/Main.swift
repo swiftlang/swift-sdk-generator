@@ -23,10 +23,13 @@ struct Main: AsyncParsableCommand {
   )
   var incremental: Bool = false
 
-  @Flag(
-    help: "Use latest nightly snapshot of Swift."
+  @Option(
+    help: """
+    Branch of Swift to use when downloading nightly snapshots. Specify `development` for snapshots off the `main` \
+    branch of Swift open source project repositories.
+    """
   )
-  var nightlySwift = false
+  var swiftBranch: String? = nil
 
   @Option(help: "Version of Swift to supply in the bundle.")
   var swiftVersion = "5.7.3-RELEASE"
@@ -44,13 +47,13 @@ struct Main: AsyncParsableCommand {
       try await LocalDestinationsGenerator(
         artifactID: artifactID,
         swiftVersion: swiftVersion,
+        swiftBranch: swiftBranch,
         lldVersion: lldVersion,
         ubuntuVersion: ubuntuVersion
       )
       .generateDestinationBundle(
         shouldUseDocker: !withoutDocker,
-        shouldGenerateFromScratch: !incremental,
-        shouldUseNightlySwift: nightlySwift
+        shouldGenerateFromScratch: !incremental
       )
     }
 
