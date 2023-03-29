@@ -50,12 +50,10 @@ struct Main: AsyncParsableCommand {
         swiftVersion: swiftVersion,
         swiftBranch: swiftBranch,
         lldVersion: lldVersion,
-        ubuntuVersion: ubuntuVersion
+        ubuntuVersion: ubuntuVersion,
+        shouldUseDocker: !withoutDocker
       )
-      .generateDestinationBundle(
-        shouldUseDocker: !withoutDocker,
-        shouldGenerateFromScratch: !incremental
-      )
+      .generateDestinationBundle(shouldGenerateFromScratch: !incremental)
     }
 
     print("\nTime taken for this generator run: \(elapsed.formatted())")

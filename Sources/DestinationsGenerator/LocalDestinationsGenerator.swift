@@ -21,27 +21,37 @@ public final class LocalDestinationsGenerator: DestinationsGenerator {
   public let versionsConfiguration: VersionsConfiguration
   public let pathsConfiguration: PathsConfiguration
   public let downloadableArtifacts: DownloadableArtifacts
+  public let shouldUseDocker: Bool
 
   public init(
     runTimeCPUArchitecture: Triple.CPU?,
     swiftVersion: String,
     swiftBranch: String?,
     lldVersion: String,
-    ubuntuVersion: String
+    ubuntuVersion: String,
+    shouldUseDocker: Bool
   ) async throws {
+    logGenerationStep("Looking up configuration values...")
+
     let sourceRoot = FilePath(#file)
       .removingLastComponent()
       .removingLastComponent()
       .removingLastComponent()
     self.buildTimeTriple = try await Self.currentTriple
-    self.runTimeTriple = Triple(cpu: runTimeCPUArchitecture ?? self.buildTimeTriple.cpu, vendor: .unknown, os: .linux)
-    self.artifactID = "\(swiftVersion)_ubuntu_\(ubuntuVersion)_\(self.runTimeTriple.cpu)"
+    self.runTimeTriple = Triple(
+      cpu: runTimeCPUArchitecture ?? self.buildTimeTriple.cpu,
+      vendor: .unknown,
+      os: .linux,
+      environment: .gnu
+    )
+    self.artifactID = "\(swiftVersion)_ubuntu_\(ubuntuVersion)_\(self.runTimeTriple.cpu.linuxConventionName)"
 
     self.versionsConfiguration = try .init(
       swiftVersion: swiftVersion,
       swiftBranch: swiftBranch,
       lldVersion: lldVersion,
-      ubuntuVersion: ubuntuVersion
+      ubuntuVersion: ubuntuVersion,
+      runTimeTriple: self.runTimeTriple
     )
     self.pathsConfiguration = .init(
       sourceRoot: sourceRoot,
@@ -52,9 +62,11 @@ public final class LocalDestinationsGenerator: DestinationsGenerator {
     self.downloadableArtifacts = try .init(
       buildTimeTriple: self.buildTimeTriple,
       runTimeTriple: self.runTimeTriple,
+      shouldUseDocker: shouldUseDocker,
       self.versionsConfiguration,
       self.pathsConfiguration
     )
+    self.shouldUseDocker = shouldUseDocker
   }
 
   private let fileManager = FileManager.default
@@ -67,7 +79,7 @@ public final class LocalDestinationsGenerator: DestinationsGenerator {
 
   public static var currentTriple: Triple {
     get async throws {
-      let cpuString = try await Shell.readStdout("uname -m")
+      let cpuString = try await Shell.readStdout("uname -m").trimmingCharacters(in: .whitespacesAndNewlines)
 
       guard let cpu = Triple.CPU(rawValue: cpuString) else {
         throw GeneratorError.unknownCPUArchitecture(cpuString)
@@ -86,13 +98,20 @@ public final class LocalDestinationsGenerator: DestinationsGenerator {
   }
 
   public static func isChecksumValid(artifact: DownloadableArtifacts.Item) async throws -> Bool {
-    let checksum = try await String(
+    guard let expectedChecksum = artifact.checksum else { return false }
+
+    let computedChecksum = try await String(
       Shell.readStdout("openssl dgst -sha256 \(artifact.localPath)").split(separator: "= ")[1]
         // drop the trailing newline
         .dropLast()
     )
 
-    return checksum == artifact.checksum
+    guard computedChecksum == expectedChecksum else {
+      print("SHA256 digest of file at `\(artifact.localPath)` does not match expected value: \(expectedChecksum)")
+      return false
+    }
+
+    return true
   }
 
   public func buildDockerImage(name: String, dockerfileDirectory: FilePath) async throws {

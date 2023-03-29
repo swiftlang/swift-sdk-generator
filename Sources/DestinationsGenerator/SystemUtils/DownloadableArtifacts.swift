@@ -55,9 +55,12 @@ public struct DownloadableArtifacts: Sendable {
   let buildTimeTripleLLVM: Item
   let runTimeTripleSwift: Item
 
+  let allItems: [Item]
+
   init(
     buildTimeTriple: Triple,
     runTimeTriple: Triple,
+    shouldUseDocker: Bool,
     _ versions: VersionsConfiguration,
     _ paths: PathsConfiguration
   ) throws {
@@ -89,19 +92,25 @@ public struct DownloadableArtifacts: Sendable {
       checksum: knownMacOSLLVMVersions[versions.lldVersion]
     )
 
+    let subdirectory =
+      "ubuntu\(versions.ubuntuVersion.replacingOccurrences(of: ".", with: ""))\(versions.ubuntuArchSuffix)"
     self.runTimeTripleSwift = .init(
       remoteURL: swiftDownloadURL(
         branch: versions.swiftBranch,
         version: versions.swiftVersion,
-        subdirectory: versions.ubuntuVersion.replacingOccurrences(of: ".", with: ""),
-        platform: "ubuntu\(versions.ubuntuVersion)",
+        subdirectory: subdirectory,
+        platform: "ubuntu\(versions.ubuntuVersion)\(versions.ubuntuArchSuffix)",
         fileExtension: "tar.gz"
       ),
       localPath: paths.artifactsCachePath
         .appending("runtime_swift_\(versions.swiftVersion)_\(runTimeTriple).tar.gz"),
-      checksum: knownUbuntuSwiftVersions[versions.ubuntuVersion]?[versions.swiftVersion]
+      checksum: knownUbuntuSwiftVersions[versions.ubuntuVersion]?[versions.swiftVersion]?[runTimeTriple.cpu]
     )
-  }
 
-  var allItems: [Item] { [buildTimeTripleSwift, buildTimeTripleLLVM, runTimeTripleSwift] }
+    if shouldUseDocker {
+      allItems = [buildTimeTripleSwift, buildTimeTripleLLVM]
+    } else {
+      allItems = [buildTimeTripleSwift, buildTimeTripleLLVM, runTimeTripleSwift]
+    }
+  }
 }

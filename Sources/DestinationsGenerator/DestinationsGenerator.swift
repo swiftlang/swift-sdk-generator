@@ -22,6 +22,7 @@ public protocol DestinationsGenerator {
   var versionsConfiguration: VersionsConfiguration { get }
   var pathsConfiguration: PathsConfiguration { get }
   var downloadableArtifacts: DownloadableArtifacts { get }
+  var shouldUseDocker: Bool { get }
 
   static var currentTriple: Triple { get async throws }
 

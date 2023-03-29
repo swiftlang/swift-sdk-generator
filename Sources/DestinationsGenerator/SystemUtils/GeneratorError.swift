@@ -10,10 +10,13 @@
 //
 //===----------------------------------------------------------------------===//
 
+import struct SystemPackage.FilePath
+
 enum GeneratorError: Error {
   case unknownUbuntuVersion(String)
   case unknownMacOSVersion(String)
   case unknownCPUArchitecture(String)
+  case fileDoesNotExist(FilePath)
 }
 
 extension GeneratorError: CustomStringConvertible {
@@ -25,6 +28,8 @@ extension GeneratorError: CustomStringConvertible {
       return "macOS version `\(version)` is not supported by this generator."
     case let .unknownCPUArchitecture(cpu):
       return "CPU architecture `\(cpu)` is not supported by this generator."
+    case let .fileDoesNotExist(filePath):
+      return "Expected to find a file at path `\(filePath)`"
     }
   }
 }

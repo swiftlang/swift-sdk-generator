@@ -21,10 +21,7 @@ private let ubuntuMirror = "http://gb.archive.ubuntu.com/ubuntu"
 private let byteCountFormatter = ByteCountFormatter()
 
 extension DestinationsGenerator {
-  public func generateDestinationBundle(
-    shouldUseDocker: Bool,
-    shouldGenerateFromScratch: Bool
-  ) async throws {
+  public func generateDestinationBundle(shouldGenerateFromScratch: Bool) async throws {
     let client = HTTPClient(
       eventLoopGroupProvider: .createNew,
       configuration: .init(redirectConfiguration: .follow(max: 5, allowCycles: false))
@@ -44,10 +41,7 @@ extension DestinationsGenerator {
     try createDirectoryIfNeeded(at: pathsConfiguration.toolchainDirPath)
 
     if try await !self.isCacheValid {
-      try await self.downloadArtifacts(
-        client,
-        shouldUseDocker: shouldUseDocker
-      )
+      try await self.downloadArtifacts(client)
     }
 
     if !shouldUseDocker {
@@ -68,7 +62,7 @@ extension DestinationsGenerator {
 
     try self.fixGlibcModuleMap(
       at: pathsConfiguration.toolchainDirPath
-        .appending("/usr/lib/swift/linux/\(self.runTimeTriple.cpu)/glibc.modulemap")
+        .appending("/usr/lib/swift/linux/\(self.runTimeTriple.cpu.linuxConventionName)/glibc.modulemap")
     )
 
     let autolinkExtractPath = pathsConfiguration.toolchainBinDirPath.appending("swift-autolink-extract")
@@ -106,7 +100,7 @@ extension DestinationsGenerator {
         .copyDestinationSDK(
           from: tmpDir
             .appending(
-              "swift-\(versionsConfiguration.swiftVersion)-ubuntu\(versionsConfiguration.ubuntuVersion)/usr/lib"
+              "swift-\(versionsConfiguration.swiftVersion)-ubuntu\(versionsConfiguration.ubuntuVersion)\(versionsConfiguration.ubuntuArchSuffix)/usr/lib"
             )
         )
     }
@@ -215,10 +209,7 @@ extension DestinationsGenerator {
     }
   }
 
-  private func downloadArtifacts(
-    _ client: HTTPClient,
-    shouldUseDocker: Bool
-  ) async throws {
+  private func downloadArtifacts(_ client: HTTPClient) async throws {
     logGenerationStep("Downloading required toolchain packages...")
 
     let buildTimeTripleSwiftStream = client.streamDownloadProgress(for: downloadableArtifacts.buildTimeTripleSwift)
@@ -399,7 +390,7 @@ extension DestinationsGenerator {
       self.encoder.encode(
         DestinationV3(
           runTimeTriples: [
-            self.runTimeTriple.description: .init(
+            self.runTimeTriple.linuxConventionDescription: .init(
               sdkRootPath: relativeSDKDir.string,
               toolsetPaths: [relativeToolsetPath.string]
             ),
@@ -425,7 +416,7 @@ extension DestinationsGenerator {
               version: "0.0.1",
               variants: [
                 .init(
-                  path: FilePath(artifactID).appending(self.runTimeTriple.description).string,
+                  path: FilePath(artifactID).appending(self.runTimeTriple.linuxConventionDescription).string,
                   supportedTriples: [self.buildTimeTriple.description]
                 ),
               ]
@@ -438,6 +429,10 @@ extension DestinationsGenerator {
 
   private func fixGlibcModuleMap(at path: FilePath) throws {
     logGenerationStep("Fixing absolute paths in `glibc.modulemap`...")
+
+    guard doesFileExist(at: path) else {
+      throw GeneratorError.fileDoesNotExist(path)
+    }
 
     let privateIncludesPath = path.removingLastComponent().appending("private_includes")
     try removeRecursively(at: privateIncludesPath)
@@ -571,6 +566,6 @@ private func parse(ubuntuPackagesList packages: String) -> [String: URL] {
   return result
 }
 
-private func logGenerationStep(_ message: String) {
+func logGenerationStep(_ message: String) {
   print("\n\(message)")
 }

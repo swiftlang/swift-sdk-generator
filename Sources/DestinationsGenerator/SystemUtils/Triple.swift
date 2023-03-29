@@ -58,6 +58,10 @@ public struct Triple: CustomStringConvertible {
   let os: OS
   var environment: Environment?
 
+  public var linuxConventionDescription: String {
+    "\(self.cpu.linuxConventionName)-\(self.vendor)-\(self.os)\(self.environment != nil ? "-\(self.environment!)" : "")"
+  }
+
   public var description: String {
     "\(self.cpu)-\(self.vendor)-\(self.os)\(self.environment != nil ? "-\(self.environment!)" : "")"
   }
