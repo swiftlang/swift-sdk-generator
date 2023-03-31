@@ -15,17 +15,28 @@ import struct SystemPackage.FilePath
 
 private let knownUbuntuSwiftVersions = [
   "22.04": [
-    "5.7.3-RELEASE": "312a18d0d2f207620349e3a373200f369fc1a6aad1b7f2365d55aa8a10881a59",
+    "5.7.3-RELEASE": [
+      Triple.CPU.arm64: "75003d5a995292ae3f858b767fbb89bc3edee99488f4574468a0e44341aec55b",
+    ],
   ],
 ]
 
 private let knownMacOSSwiftVersions = [
-  "5.7.3-RELEASE": "ba3516845eb8f4469a8bb06a273687f05791187324a3843996af32a73a2a687d",
+  "5.7.3-RELEASE": [
+    Triple.CPU.arm64: "ba3516845eb8f4469a8bb06a273687f05791187324a3843996af32a73a2a687d",
+  ],
+  "DEVELOPMENT-SNAPSHOT-2023-03-17-a": [
+    Triple.CPU.arm64: "6d1664a84bd95161f65feebde32213c79f5cc9b9d3b12ef658c3216c9c2980d0",
+  ],
 ]
 
 private let knownMacOSLLVMVersions = [
-  "15.0.7": "867c6afd41158c132ef05a8f1ddaecf476a26b91c85def8e124414f9a9ba188d",
-  "16.0.0": "2041587b90626a4a87f0de14a5842c14c6c3374f42c8ed12726ef017416409d9",
+  "15.0.7": [
+    Triple.CPU.arm64: "867c6afd41158c132ef05a8f1ddaecf476a26b91c85def8e124414f9a9ba188d",
+  ],
+  "16.0.0": [
+    Triple.CPU.arm64: "2041587b90626a4a87f0de14a5842c14c6c3374f42c8ed12726ef017416409d9",
+  ],
 ]
 
 private func swiftDownloadURL(
@@ -74,7 +85,7 @@ public struct DownloadableArtifacts: Sendable {
       ),
       localPath: paths.artifactsCachePath
         .appending("buildtime_swift_\(versions.swiftVersion)_\(buildTimeTriple).pkg"),
-      checksum: knownMacOSSwiftVersions[versions.swiftVersion]
+      checksum: knownMacOSSwiftVersions[versions.swiftVersion]?[buildTimeTriple.cpu]
     )
 
     self.buildTimeTripleLLVM = .init(
@@ -89,7 +100,7 @@ public struct DownloadableArtifacts: Sendable {
       )!,
       localPath: paths.artifactsCachePath
         .appending("buildtime_llvm_\(versions.lldVersion)_\(buildTimeTriple).tar.xz"),
-      checksum: knownMacOSLLVMVersions[versions.lldVersion]
+      checksum: knownMacOSLLVMVersions[versions.lldVersion]?[buildTimeTriple.cpu]
     )
 
     let subdirectory =
