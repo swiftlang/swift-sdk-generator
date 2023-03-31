@@ -100,7 +100,11 @@ extension DestinationsGenerator {
         .copyDestinationSDK(
           from: tmpDir
             .appending(
-              "swift-\(versionsConfiguration.swiftVersion)-ubuntu\(versionsConfiguration.ubuntuVersion)\(versionsConfiguration.ubuntuArchSuffix)/usr/lib"
+              """
+              swift-\(versionsConfiguration.swiftVersion)-ubuntu\(versionsConfiguration.ubuntuVersion)\(
+                versionsConfiguration.ubuntuArchSuffix
+              )/usr/lib
+              """
             )
         )
     }
@@ -108,7 +112,11 @@ extension DestinationsGenerator {
 
   private func copyDestinationSDKFromDocker() async throws {
     let imageName =
-      "swiftlang/swift-cc-destination:\(versionsConfiguration.swiftVersion.components(separatedBy: "-")[0])-\(versionsConfiguration.ubuntuRelease)"
+      """
+      swiftlang/swift-cc-destination:\(versionsConfiguration.swiftVersion.components(separatedBy: "-")[0])-\(
+        versionsConfiguration.ubuntuRelease
+      )
+      """
 
     logGenerationStep("Building a Docker image with the destination environment...")
     try await buildDockerImage(
@@ -466,14 +474,12 @@ extension DestinationsGenerator {
   }
 }
 
-/// Checks whether two given progress value are different enough from each other. Used for filtering
-/// out progress values
-/// in async streams with `removeDuplicates` operator.
+/// Checks whether two given progress value are different enough from each other. Used for filtering out progress
+/// values in async streams with `removeDuplicates` operator.
 /// - Parameters:
 ///   - previous: Preceding progress value in the stream.
 ///   - current: Currently processed progress value in the stream.
-/// - Returns: `true` if `totalBytes` value is different by any amount or if `receivedBytes` is
-/// different by amount
+/// - Returns: `true` if `totalBytes` value is different by any amount or if `receivedBytes` is different by amount
 /// larger than 1MiB. Returns `false` otherwise.
 @Sendable
 private func didProgressChangeSignificantly(
