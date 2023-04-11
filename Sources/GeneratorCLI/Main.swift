@@ -15,8 +15,8 @@ import DestinationsGenerator
 
 @main
 struct Main: AsyncParsableCommand {
-  @Flag(help: "Avoid delegating to Docker for copying files for the run-time triple.")
-  var withoutDocker: Bool = false
+  @Flag(help: "Delegate to Docker for copying files for the run-time triple.")
+  var withDocker: Bool = false
 
   @Flag(
     help: "Avoid cleaning up toolchain and SDK directories and regenerate the SDK bundle incrementally."
@@ -32,10 +32,10 @@ struct Main: AsyncParsableCommand {
   var swiftBranch: String? = nil
 
   @Option(help: "Version of Swift to supply in the bundle.")
-  var swiftVersion = "5.7.3-RELEASE"
+  var swiftVersion = "5.8-RELEASE"
 
   @Option(help: "Version of LLD linker to supply in the bundle.")
-  var lldVersion = "16.0.0"
+  var lldVersion = "16.0.1"
 
   @Option(help: "Version of Ubuntu to use when assembling the bundle.")
   var ubuntuVersion = "22.04"
@@ -51,7 +51,7 @@ struct Main: AsyncParsableCommand {
         swiftBranch: swiftBranch,
         lldVersion: lldVersion,
         ubuntuVersion: ubuntuVersion,
-        shouldUseDocker: !withoutDocker
+        shouldUseDocker: withDocker
       )
       .generateDestinationBundle(shouldGenerateFromScratch: !incremental)
     }

@@ -18,12 +18,18 @@ private let knownUbuntuSwiftVersions = [
     "5.7.3-RELEASE": [
       Triple.CPU.arm64: "75003d5a995292ae3f858b767fbb89bc3edee99488f4574468a0e44341aec55b",
     ],
+    "5.8-RELEASE": [
+      Triple.CPU.arm64: "12ea2df36f9af0aefa74f0989009683600978f62223e7dd73b627c90c7fe9273",
+    ],
   ],
 ]
 
 private let knownMacOSSwiftVersions = [
   "5.7.3-RELEASE": [
     Triple.CPU.arm64: "ba3516845eb8f4469a8bb06a273687f05791187324a3843996af32a73a2a687d",
+  ],
+  "5.8-RELEASE": [
+    Triple.CPU.arm64: "9b6cc56993652ca222c86a2d6b7b66abbd50bb92cc526efc2b23d47d40002097",
   ],
   "DEVELOPMENT-SNAPSHOT-2023-03-17-a": [
     Triple.CPU.arm64: "6d1664a84bd95161f65feebde32213c79f5cc9b9d3b12ef658c3216c9c2980d0",
@@ -36,6 +42,9 @@ private let knownMacOSLLVMVersions = [
   ],
   "16.0.0": [
     Triple.CPU.arm64: "2041587b90626a4a87f0de14a5842c14c6c3374f42c8ed12726ef017416409d9",
+  ],
+  "16.0.1": [
+    Triple.CPU.arm64: "cb487fa991f047dc79ae36430cbb9ef14621c1262075373955b1d97215c75879",
   ],
 ]
 
