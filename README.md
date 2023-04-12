@@ -35,7 +35,7 @@ swift run destinations-generator
 ```
 
 This will download required components and produce an SDK for `aarch64` Ubuntu Jammy in the `Bundles` subdirectory of 
-this project. Follow the steps printed at the end of generators output for installing the destination.
+this project. Follow the steps printed at the end of generator's output for installing the destination.
 
 After installing verify that SwiftPM detects the new destination:
 
