@@ -17,6 +17,7 @@ enum GeneratorError: Error {
   case unknownMacOSVersion(String)
   case unknownCPUArchitecture(String)
   case fileDoesNotExist(FilePath)
+  case ubuntuPackagesParsingFailure(expectedPackages: Int, actual: Int)
 }
 
 extension GeneratorError: CustomStringConvertible {
@@ -30,6 +31,8 @@ extension GeneratorError: CustomStringConvertible {
       return "CPU architecture `\(cpu)` is not supported by this generator."
     case let .fileDoesNotExist(filePath):
       return "Expected to find a file at path `\(filePath)`"
+    case let .ubuntuPackagesParsingFailure(expected, actual):
+      return "Failed to parse Ubuntu packages manifest, expected \(expected), found \(actual) packages"
     }
   }
 }

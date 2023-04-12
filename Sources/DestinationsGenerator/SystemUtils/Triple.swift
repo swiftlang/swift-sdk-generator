@@ -21,8 +21,8 @@ public struct Triple: CustomStringConvertible {
       switch self {
       case .arm64:
         return "aarch64"
-      default:
-        return rawValue
+      case .x86_64:
+        return "amd64"
       }
     }
   }

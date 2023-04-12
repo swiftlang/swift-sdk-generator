@@ -16,7 +16,8 @@ import Foundation
 import RegexBuilder
 import SystemPackage
 
-private let ubuntuMirror = "http://gb.archive.ubuntu.com/ubuntu"
+private let ubuntuAMD64Mirror = "http://gb.archive.ubuntu.com/ubuntu"
+private let ubuntuARM64Mirror = "http://ports.ubuntu.com/ubuntu-ports"
 
 private let byteCountFormatter = ByteCountFormatter()
 
@@ -273,12 +274,32 @@ extension DestinationsGenerator {
   private func downloadUbuntuPackages(_ client: HTTPClient) async throws {
     logGenerationStep("Parsing Ubuntu packages list...")
 
-    let allPackages = try await parse(
-      ubuntuPackagesList: client.downloadUbuntuPackagesList(
-        ubuntuRelease: versionsConfiguration.ubuntuRelease,
-        isVerbose: self.isVerbose
-      )
+    async let mainPackages = try await client.parseUbuntuPackagesList(
+      ubuntuRelease: versionsConfiguration.ubuntuRelease,
+      repository: "main",
+      runTimeTriple: self.runTimeTriple,
+      isVerbose: self.isVerbose
     )
+
+    async let updatesPackages = try await client.parseUbuntuPackagesList(
+      ubuntuRelease: versionsConfiguration.ubuntuRelease,
+      releaseSuffix: "-updates",
+      repository: "main",
+      runTimeTriple: self.runTimeTriple,
+      isVerbose: self.isVerbose
+    )
+
+    async let universePackages = try await client.parseUbuntuPackagesList(
+      ubuntuRelease: versionsConfiguration.ubuntuRelease,
+      releaseSuffix: "-updates",
+      repository: "universe",
+      runTimeTriple: self.runTimeTriple,
+      isVerbose: self.isVerbose
+    )
+
+    let allPackages = try await mainPackages
+      .merging(updatesPackages, uniquingKeysWith: { $1 })
+      .merging(universePackages, uniquingKeysWith: { $1 })
 
     let requiredPackages = [
       "libc6-dev",
@@ -294,6 +315,13 @@ extension DestinationsGenerator {
       "zlib1g-dev",
     ]
     let urls = requiredPackages.compactMap { allPackages[$0] }
+
+    guard urls.count == requiredPackages.count else {
+      throw GeneratorError.ubuntuPackagesParsingFailure(
+        expectedPackages: requiredPackages.count,
+        actual: urls.count
+      )
+    }
 
     print("Downloading \(urls.count) Ubuntu packages...")
     let pathsConfiguration = self.pathsConfiguration
@@ -525,11 +553,12 @@ private func report(downloadedFiles: [(URL, Int)]) {
 }
 
 extension HTTPClient {
-  func downloadUbuntuPackagesList(ubuntuRelease: String, isVerbose: Bool) async throws -> String {
-    let packagesFile = "\(ubuntuMirror)/dists/\(ubuntuRelease)/main/binary-amd64/Packages.gz"
-
-    guard let packages = try await get(url: packagesFile).get().body else {
-      throw FileOperationError.downloadFailed(URL(string: packagesFile)!)
+  private func downloadUbuntuPackagesList(
+    from url: String,
+    isVerbose: Bool
+  ) async throws -> String {
+    guard let packages = try await get(url: url).get().body else {
+      throw FileOperationError.downloadFailed(URL(string: url)!)
     }
 
     var result = ""
@@ -539,44 +568,69 @@ extension HTTPClient {
 
     return result
   }
-}
 
-private func parse(ubuntuPackagesList packages: String) -> [String: URL] {
-  let packageRef = Reference(Substring.self)
-  let pathRef = Reference(Substring.self)
-
-  let regex = Regex {
-    "Package: "
-
-    Capture(as: packageRef) {
-      OneOrMore(.anyNonNewline)
+  func parseUbuntuPackagesList(
+    ubuntuRelease: String,
+    releaseSuffix: String = "",
+    repository: String,
+    runTimeTriple: Triple,
+    isVerbose: Bool
+  ) async throws -> [String: URL] {
+    let mirrorURL: String
+    let cpuArchName: String
+    if runTimeTriple.cpu == .x86_64 {
+      mirrorURL = ubuntuAMD64Mirror
+      cpuArchName = runTimeTriple.cpu.linuxConventionName
+    } else {
+      mirrorURL = ubuntuARM64Mirror
+      cpuArchName = runTimeTriple.cpu.rawValue
     }
 
-    OneOrMore(.any, .reluctant)
+    let packagesListURL = """
+    \(mirrorURL)/dists/\(ubuntuRelease)\(releaseSuffix)/\(repository)/binary-\(cpuArchName)/Packages.gz
+    """
 
-    "Filename: "
+    let packages = try await downloadUbuntuPackagesList(
+      from: packagesListURL,
+      isVerbose: isVerbose
+    )
 
-    Capture(as: pathRef) {
-      OneOrMore(.anyNonNewline)
+    let packageRef = Reference(Substring.self)
+    let pathRef = Reference(Substring.self)
+
+    let regex = Regex {
+      "Package: "
+
+      Capture(as: packageRef) {
+        OneOrMore(.anyNonNewline)
+      }
+
+      OneOrMore(.any, .reluctant)
+
+      "Filename: "
+
+      Capture(as: pathRef) {
+        OneOrMore(.anyNonNewline)
+      }
+
+      Anchor.endOfLine
+
+      OneOrMore(.any, .reluctant)
+
+      "Description-md5: "
+
+      OneOrMore(.hexDigit)
     }
 
-    Anchor.endOfLine
+    var result = [String: URL]()
+    for match in packages.matches(of: regex) {
+      guard let url = URL(string: "\(mirrorURL)/\(match[pathRef])") else { continue }
 
-    OneOrMore(.any, .reluctant)
+      result[String(match[packageRef])] = url
+    }
 
-    "Description-md5: "
-
-    OneOrMore(.hexDigit)
+    return result
   }
-
-  var result = [String: URL]()
-  for match in packages.matches(of: regex) {
-    guard let url = URL(string: "\(ubuntuMirror)/\(match[pathRef])") else { continue }
-
-    result[String(match[packageRef])] = url
-  }
-
-  return result
 }
 
 func logGenerationStep(_ message: String) {

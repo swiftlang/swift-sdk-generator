@@ -18,7 +18,7 @@ extension FileDownloadDelegate.Progress: @unchecked Sendable {}
 
 extension FilePath: @unchecked Sendable {}
 
-public extension HTTPClient {
+extension HTTPClient {
   func downloadFile(
     from url: URL,
     to path: FilePath
