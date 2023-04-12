@@ -31,7 +31,7 @@ If all goes well it will produce no output, or a list of CC destinations in case
 Build and run with
 
 ```
-swift run destinations-generator
+swift run destinations-generator --with-docker
 ```
 
 This will download required components and produce an SDK for `aarch64` Ubuntu Jammy in the `Bundles` subdirectory of 
