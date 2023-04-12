@@ -23,8 +23,9 @@ public protocol DestinationsGenerator {
   var pathsConfiguration: PathsConfiguration { get }
   var downloadableArtifacts: DownloadableArtifacts { get }
   var shouldUseDocker: Bool { get }
+  var isVerbose: Bool { get }
 
-  static var currentTriple: Triple { get async throws }
+  static func getCurrentTriple(isVerbose: Bool) async throws -> Triple
 
   // MARK: shell commands
 
@@ -32,7 +33,7 @@ public protocol DestinationsGenerator {
   func unpack(file: FilePath, into directoryPath: FilePath) async throws
   func rsync(from source: FilePath, to destination: FilePath) async throws
 
-  static func isChecksumValid(artifact: DownloadableArtifacts.Item) async throws -> Bool
+  static func isChecksumValid(artifact: DownloadableArtifacts.Item, isVerbose: Bool) async throws -> Bool
 
   // MARK: common operations on files
 

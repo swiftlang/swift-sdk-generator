@@ -145,6 +145,10 @@ extension DestinationsGenerator {
         from: "/usr/lib",
         to: sdkUsrLibPath
       )
+
+      // Python artifacts are redundant.
+      try fs.removeRecursively(at: sdkUsrLibPath.appending("python3.10"))
+
       try fs.createSymlink(at: pathsConfiguration.sdkDirPath.appending("lib"), pointingTo: "usr/lib")
       try fs.removeRecursively(at: sdkUsrLibPath.appending("ssl"))
       try await fs.copyDestinationSDK(from: sdkUsrLibPath)
@@ -205,7 +209,7 @@ extension DestinationsGenerator {
 
       return try await withThrowingTaskGroup(of: Bool.self) { taskGroup in
         for artifact in downloadableArtifacts.allItems {
-          taskGroup.addTask { try await Self.isChecksumValid(artifact: artifact) }
+          taskGroup.addTask { try await Self.isChecksumValid(artifact: artifact, isVerbose: self.isVerbose) }
         }
 
         for try await isValid in taskGroup {
@@ -270,7 +274,10 @@ extension DestinationsGenerator {
     logGenerationStep("Parsing Ubuntu packages list...")
 
     let allPackages = try await parse(
-      ubuntuPackagesList: client.downloadUbuntuPackagesList(ubuntuRelease: versionsConfiguration.ubuntuRelease)
+      ubuntuPackagesList: client.downloadUbuntuPackagesList(
+        ubuntuRelease: versionsConfiguration.ubuntuRelease,
+        isVerbose: self.isVerbose
+      )
     )
 
     let requiredPackages = [
@@ -518,7 +525,7 @@ private func report(downloadedFiles: [(URL, Int)]) {
 }
 
 extension HTTPClient {
-  func downloadUbuntuPackagesList(ubuntuRelease: String) async throws -> String {
+  func downloadUbuntuPackagesList(ubuntuRelease: String, isVerbose: Bool) async throws -> String {
     let packagesFile = "\(ubuntuMirror)/dists/\(ubuntuRelease)/main/binary-amd64/Packages.gz"
 
     guard let packages = try await get(url: packagesFile).get().body else {
@@ -526,7 +533,7 @@ extension HTTPClient {
     }
 
     var result = ""
-    for try await chunk in try packages.unzip() {
+    for try await chunk in try packages.unzip(isVerbose: isVerbose) {
       result.append(String(data: chunk, encoding: .utf8)!)
     }
 

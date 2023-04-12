@@ -7,15 +7,15 @@ targets, but we think only small tweaks would be needed to enable those. While w
 command-line utility, for easier customization of default destinations, we also maintain a CLI option of generating a
 destination without Docker.
 
-Usage of cross-compilation destinations requires a recent trunk development snapshot. Download and install one from
-swift.org, at the time of writing [16 January 2023
-snapshot](https://download.swift.org/development/xcode/swift-DEVELOPMENT-SNAPSHOT-2023-01-16-a/swift-DEVELOPMENT-SNAPSHOT-2023-01-16-a-osx.pkg)
+Usage of cross-compilation destinations requires a recent 5.9 development snapshot. Download and install one from
+swift.org, at the time of writing [11 April 2023
+snapshot](https://download.swift.org/swift-5.9-branch/xcode/swift-5.9-DEVELOPMENT-SNAPSHOT-2023-04-11-a/swift-5.9-DEVELOPMENT-SNAPSHOT-2023-04-11-a-osx.pkg)
 has been verified to work.
 
 Enable the installed snapshot in your terminal environment:
 
 ```
-export TOOLCHAINS=org.swift.57202301161a
+export TOOLCHAINS=org.swift.59202304111a
 ```
 
 Verify that the `experimental-destination` command is available:
@@ -34,16 +34,10 @@ Build and run with
 swift run destinations-generator
 ```
 
-This will download required components and produce an SDK for `aarch64`
-Ubuntu Jammy in `cc-destination.artifactbundle` subdirectory of this project.
+This will download required components and produce an SDK for `aarch64` Ubuntu Jammy in the `Bundles` subdirectory of 
+this project. Follow the steps printed at the end of generators output for installing the destination.
 
-Move the newly produced artifact bundle to a directory where SwiftPM can find it:
-
-```
-mv cc-destination.artifactbundle ~/.swiftpm/destinations
-```
-
-Verify that SwiftPM detects the new destination:
+After installing verify that SwiftPM detects the new destination:
 
 ```
 swift experimental-destination list

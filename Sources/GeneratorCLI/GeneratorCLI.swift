@@ -14,7 +14,7 @@ import ArgumentParser
 import DestinationsGenerator
 
 @main
-struct Main: AsyncParsableCommand {
+struct GeneratorCLI: AsyncParsableCommand {
   @Flag(help: "Delegate to Docker for copying files for the run-time triple.")
   var withDocker: Bool = false
 
@@ -22,6 +22,9 @@ struct Main: AsyncParsableCommand {
     help: "Avoid cleaning up toolchain and SDK directories and regenerate the SDK bundle incrementally."
   )
   var incremental: Bool = false
+
+  @Flag(name: .shortAndLong, help: "Provide verbose logging output.")
+  var verbose = false
 
   @Option(
     help: """
@@ -51,7 +54,8 @@ struct Main: AsyncParsableCommand {
         swiftBranch: swiftBranch,
         lldVersion: lldVersion,
         ubuntuVersion: ubuntuVersion,
-        shouldUseDocker: withDocker
+        shouldUseDocker: withDocker,
+        isVerbose: verbose
       )
       .generateDestinationBundle(shouldGenerateFromScratch: !incremental)
     }

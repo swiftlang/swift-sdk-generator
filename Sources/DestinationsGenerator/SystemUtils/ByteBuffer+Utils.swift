@@ -15,8 +15,8 @@ import NIOCore
 import NIOFoundationCompat
 
 public extension ByteBuffer {
-  func unzip() throws -> AsyncThrowingStream<Data, any Error> {
-    let gzip = try Shell("gzip -cd")
+  func unzip(isVerbose: Bool) throws -> AsyncThrowingStream<Data, any Error> {
+    let gzip = try Shell("gzip -cd", shouldLogCommands: isVerbose)
     gzip.stdin.write(Data(buffer: self))
     try gzip.stdin.close()
 

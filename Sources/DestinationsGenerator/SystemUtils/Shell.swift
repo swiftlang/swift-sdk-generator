@@ -41,7 +41,8 @@ final class Shell {
   init(
     _ command: String,
     currentDirectory: FilePath? = nil,
-    disableIOStreams: Bool = false,
+    shouldDisableIOStreams: Bool = false,
+    shouldLogCommands: Bool,
     file: String = #file,
     line: Int = #line
   ) throws {
@@ -63,7 +64,7 @@ final class Shell {
     self.stdin = stdinPipe.fileHandleForWriting
     process.standardInput = stdinPipe
 
-    if disableIOStreams {
+    if shouldDisableIOStreams {
       self.stdout = .init { $0.finish() }
       self.stderr = .init { $0.finish() }
     } else {
@@ -73,7 +74,9 @@ final class Shell {
 
     self.process = process
 
-    print(command)
+    if shouldLogCommands {
+      print(command)
+    }
 
     try process.run()
   }
@@ -106,13 +109,15 @@ final class Shell {
   static func run(
     _ command: String,
     currentDirectory: FilePath? = nil,
+    shouldLogCommands: Bool,
     file: String = #file,
     line: Int = #line
   ) async throws {
     try await Shell(
       command,
       currentDirectory: currentDirectory,
-      disableIOStreams: true,
+      shouldDisableIOStreams: true,
+      shouldLogCommands: shouldLogCommands,
       file: file,
       line: line
     )
@@ -122,13 +127,15 @@ final class Shell {
   static func readStdout(
     _ command: String,
     currentDirectory: FilePath? = nil,
+    shouldLogCommands: Bool,
     file: String = #file,
     line: Int = #line
   ) async throws -> String {
     let process = try Shell(
       command,
       currentDirectory: currentDirectory,
-      disableIOStreams: false,
+      shouldDisableIOStreams: false,
+      shouldLogCommands: shouldLogCommands,
       file: file,
       line: line
     )
