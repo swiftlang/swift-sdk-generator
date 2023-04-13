@@ -60,7 +60,7 @@ extension SwiftSDKGenerator {
       try await self.downloadUbuntuPackages(client)
     }
 
-    try await self.unpackHostToolchain()
+    try await self.unpackBuildTimeTripleSwift()
 
     if shouldUseDocker {
       try await self.copyRunTimeTripleSwiftFromDocker()
@@ -179,8 +179,8 @@ extension SwiftSDKGenerator {
     }
   }
 
-  private func unpackHostToolchain() async throws {
-    logGenerationStep("Unpacking and copying host toolchain...")
+  private func unpackBuildTimeTripleSwift() async throws {
+    logGenerationStep("Unpacking and copying Swift binaries for the build-time triple...")
     let downloadableArtifacts = self.downloadableArtifacts
     let pathsConfiguration = self.pathsConfiguration
 
