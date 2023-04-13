@@ -19,18 +19,18 @@ public struct PathsConfiguration: Sendable {
       .appending("Bundles")
       .appending("\(artifactID).artifactbundle")
     self.artifactsCachePath = sourceRoot.appending("Artifacts")
-    self.destinationRootPath = self.artifactBundlePath
+    self.swiftSDKRootPath = self.artifactBundlePath
       .appending(artifactID)
       .appending(runTimeTriple.linuxConventionDescription)
-    self.sdkDirPath = self.destinationRootPath.appending("ubuntu-\(ubuntuRelease).sdk")
-    self.toolchainDirPath = self.destinationRootPath.appending("swift.xctoolchain")
+    self.sdkDirPath = self.swiftSDKRootPath.appending("ubuntu-\(ubuntuRelease).sdk")
+    self.toolchainDirPath = self.swiftSDKRootPath.appending("swift.xctoolchain")
     self.toolchainBinDirPath = self.toolchainDirPath.appending("usr/bin")
   }
 
   let sourceRoot: FilePath
   let artifactBundlePath: FilePath
   let artifactsCachePath: FilePath
-  let destinationRootPath: FilePath
+  let swiftSDKRootPath: FilePath
   let sdkDirPath: FilePath
   let toolchainDirPath: FilePath
   let toolchainBinDirPath: FilePath

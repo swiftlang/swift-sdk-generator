@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 import ArgumentParser
-import DestinationsGenerator
+import SwiftSDKGenerator
 
 @main
 struct GeneratorCLI: AsyncParsableCommand {
@@ -48,7 +48,7 @@ struct GeneratorCLI: AsyncParsableCommand {
 
   mutating func run() async throws {
     let elapsed = try await ContinuousClock().measure {
-      try await LocalDestinationsGenerator(
+      try await LocalSwiftSDKGenerator(
         runTimeCPUArchitecture: cpuArchitecture,
         swiftVersion: swiftVersion,
         swiftBranch: swiftBranch,
@@ -57,7 +57,7 @@ struct GeneratorCLI: AsyncParsableCommand {
         shouldUseDocker: withDocker,
         isVerbose: verbose
       )
-      .generateDestinationBundle(shouldGenerateFromScratch: !incremental)
+      .generateBundle(shouldGenerateFromScratch: !incremental)
     }
 
     print("\nTime taken for this generator run: \(elapsed.formatted())")

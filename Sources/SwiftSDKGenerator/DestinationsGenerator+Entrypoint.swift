@@ -32,8 +32,8 @@ private let unusedDarwinPlatforms = [
 
 private let unusedBuildTimeBinaries = ["clangd", "dsymutil", "sourcekit-lsp", "swift-package", "docc"]
 
-extension DestinationsGenerator {
-  public func generateDestinationBundle(shouldGenerateFromScratch: Bool) async throws {
+extension SwiftSDKGenerator {
+  public func generateBundle(shouldGenerateFromScratch: Bool) async throws {
     let client = HTTPClient(
       eventLoopGroupProvider: .createNew,
       configuration: .init(redirectConfiguration: .follow(max: 5, allowCycles: false))
@@ -63,9 +63,9 @@ extension DestinationsGenerator {
     try await self.unpackHostToolchain()
 
     if shouldUseDocker {
-      try await self.copyDestinationSDKFromDocker()
+      try await self.copyRunTimeTripleSwiftFromDocker()
     } else {
-      try await self.unpackDestinationSDKPackage()
+      try await self.unpackRunTimeTripleSwiftPackage()
     }
 
     try await self.unpackLLDLinker()
@@ -93,25 +93,23 @@ extension DestinationsGenerator {
     logGenerationStep(
       """
       All done! Install the newly generated SDK with this command:
-      swift experimental-destination install \(pathsConfiguration.artifactBundlePath)
+      swift experimental-sdk install \(pathsConfiguration.artifactBundlePath)
 
       Use the newly installed SDK when building with this command:
-      swift build --experimental-destination-selector \(artifactID)
+      swift build --experimental-swift-sdk \(artifactID)
       """
     )
   }
 
-  private func unpackDestinationSDKPackage() async throws {
-    logGenerationStep("Unpacking destination Swift SDK package...")
+  private func unpackRunTimeTripleSwiftPackage() async throws {
+    logGenerationStep("Unpacking Swift distribution for the run-time triple...")
     let packagePath = downloadableArtifacts.runTimeTripleSwift.localPath
     let versionsConfiguration = self.versionsConfiguration
 
     try await inTemporaryDirectory { fs, tmpDir in
       try await fs.unpack(file: packagePath, into: tmpDir)
-      try await fs
-        .copyDestinationSDK(
-          from: tmpDir
-            .appending(
+      try await fs.copyRunTimeTripleSwift(
+          from: tmpDir.appending(
               """
               swift-\(versionsConfiguration.swiftVersion)-ubuntu\(versionsConfiguration.ubuntuVersion)\(
                 versionsConfiguration.ubuntuArchSuffix
@@ -122,15 +120,15 @@ extension DestinationsGenerator {
     }
   }
 
-  private func copyDestinationSDKFromDocker() async throws {
+  private func copyRunTimeTripleSwiftFromDocker() async throws {
     let imageName =
       """
-      swiftlang/swift-cc-destination:\(versionsConfiguration.swiftVersion.components(separatedBy: "-")[0])-\(
+      swiftlang/swift-sdk:\(versionsConfiguration.swiftVersion.components(separatedBy: "-")[0])-\(
         versionsConfiguration.ubuntuRelease
       )
       """
 
-    logGenerationStep("Building a Docker image with the destination environment...")
+    logGenerationStep("Building a Docker image with the run-time triple environment...")
     try await buildDockerImage(
       name: imageName,
       dockerfileDirectory: pathsConfiguration.sourceRoot
@@ -139,7 +137,7 @@ extension DestinationsGenerator {
         .appending(versionsConfiguration.ubuntuVersion)
     )
 
-    logGenerationStep("Launching a Docker container to copy destination Swift SDK from it...")
+    logGenerationStep("Launching a Docker container to copy Swift for the run-time triple from it...")
     let containerID = try await launchDockerContainer(imageName: imageName)
     let pathsConfiguration = self.pathsConfiguration
 
@@ -163,24 +161,21 @@ extension DestinationsGenerator {
 
       try fs.createSymlink(at: pathsConfiguration.sdkDirPath.appending("lib"), pointingTo: "usr/lib")
       try fs.removeRecursively(at: sdkUsrLibPath.appending("ssl"))
-      try await fs.copyDestinationSDK(from: sdkUsrLibPath)
+      try await fs.copyRunTimeTripleSwift(from: sdkUsrLibPath)
     }
   }
 
-  private func copyDestinationSDK(from destinationPackagePath: FilePath) async throws {
-    logGenerationStep("Copying Swift core libraries into destination SDK bundle...")
+  private func copyRunTimeTripleSwift(from distributionPath: FilePath) async throws {
+    logGenerationStep("Copying Swift core libraries for the run-time triple into Swift SDK bundle...")
 
-    for (pathWithinPackage, destinationBundlePath) in [
+    for (pathWithinPackage, pathWithinSwiftSDK) in [
       ("swift/linux", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift")),
       ("swift_static/linux", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static")),
       ("swift/dispatch", pathsConfiguration.sdkDirPath.appending("usr/include")),
       ("swift/os", pathsConfiguration.sdkDirPath.appending("usr/include")),
       ("swift/CoreFoundation", pathsConfiguration.sdkDirPath.appending("usr/include")),
     ] {
-      try await rsync(
-        from: destinationPackagePath.appending(pathWithinPackage),
-        to: destinationBundlePath
-      )
+      try await rsync( from: distributionPath.appending(pathWithinPackage), to: pathWithinSwiftSDK )
     }
   }
 
@@ -189,19 +184,19 @@ extension DestinationsGenerator {
     let downloadableArtifacts = self.downloadableArtifacts
     let pathsConfiguration = self.pathsConfiguration
 
-    try await inTemporaryDirectory { fs, tmpDir in
-      try await fs.unpack(file: downloadableArtifacts.buildTimeTripleSwift.localPath, into: tmpDir)
+    try await inTemporaryDirectory { fileSystem, tmpDir in
+      try await fileSystem.unpack(file: downloadableArtifacts.buildTimeTripleSwift.localPath, into: tmpDir)
       // Remove libraries for platforms we don't intend cross-compiling to
       for platform in unusedDarwinPlatforms {
-        try fs.removeRecursively(at: tmpDir.appending("usr/lib/swift/\(platform)"))
+        try fileSystem.removeRecursively(at: tmpDir.appending("usr/lib/swift/\(platform)"))
       }
-      try fs.removeRecursively(at: tmpDir.appending("usr/lib/sourcekitd.framework"))
+      try fileSystem.removeRecursively(at: tmpDir.appending("usr/lib/sourcekitd.framework"))
 
       for binary in unusedBuildTimeBinaries {
-        try fs.removeRecursively(at: tmpDir.appending("usr/bin/\(binary)"))
+        try fileSystem.removeRecursively(at: tmpDir.appending("usr/bin/\(binary)"))
       }
 
-      try await fs.rsync(from: tmpDir.appending("usr"), to: pathsConfiguration.toolchainDirPath)
+      try await fileSystem.rsync(from: tmpDir.appending("usr"), to: pathsConfiguration.toolchainDirPath)
     }
   }
 
@@ -210,9 +205,9 @@ extension DestinationsGenerator {
     let downloadableArtifacts = self.downloadableArtifacts
     let pathsConfiguration = self.pathsConfiguration
 
-    try await inTemporaryDirectory { fs, tmpDir in
-      try await fs.untar(file: downloadableArtifacts.buildTimeTripleLLVM.localPath, into: tmpDir, stripComponents: 1)
-      try fs.copy(
+    try await inTemporaryDirectory { fileSystem, tmpDir in
+      try await fileSystem.untar(file: downloadableArtifacts.buildTimeTripleLLVM.localPath, into: tmpDir, stripComponents: 1)
+      try fileSystem.copy(
         from: tmpDir.appending("bin/lld"),
         to: pathsConfiguration.toolchainBinDirPath.appending("ld.lld")
       )
@@ -396,12 +391,12 @@ extension DestinationsGenerator {
   private func generateToolsetJSON() throws -> FilePath {
     logGenerationStep("Generating toolset JSON file...")
 
-    let toolsetJSONPath = pathsConfiguration.destinationRootPath.appending("toolset.json")
+    let toolsetJSONPath = pathsConfiguration.swiftSDKRootPath.appending("toolset.json")
 
     var relativeToolchainBinDir = pathsConfiguration.toolchainBinDirPath
 
     guard
-      relativeToolchainBinDir.removePrefix(pathsConfiguration.destinationRootPath)
+      relativeToolchainBinDir.removePrefix(pathsConfiguration.swiftSDKRootPath)
     else {
       fatalError(
         "`toolchainBinDirPath` is at an unexpected location that prevents computing a relative path"
@@ -432,16 +427,16 @@ extension DestinationsGenerator {
   private func generateDestinationJSON(toolsetPath: FilePath) throws {
     logGenerationStep("Generating destination JSON file...")
 
-    let destinationJSONPath = pathsConfiguration.destinationRootPath.appending("destination.json")
+    let destinationJSONPath = pathsConfiguration.swiftSDKRootPath.appending("destination.json")
 
     var relativeToolchainBinDir = pathsConfiguration.toolchainBinDirPath
     var relativeSDKDir = pathsConfiguration.sdkDirPath
     var relativeToolsetPath = toolsetPath
 
     guard
-      relativeToolchainBinDir.removePrefix(pathsConfiguration.destinationRootPath),
-      relativeSDKDir.removePrefix(pathsConfiguration.destinationRootPath),
-      relativeToolsetPath.removePrefix(pathsConfiguration.destinationRootPath)
+      relativeToolchainBinDir.removePrefix(pathsConfiguration.swiftSDKRootPath),
+      relativeSDKDir.removePrefix(pathsConfiguration.swiftSDKRootPath),
+      relativeToolsetPath.removePrefix(pathsConfiguration.swiftSDKRootPath)
     else {
       fatalError("""
       `toolchainBinDirPath`, `sdkDirPath`, and `toolsetPath` are at unexpected locations that prevent computing \

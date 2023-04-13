@@ -4,13 +4,12 @@
 import PackageDescription
 
 let package = Package(
-  name: "swift-cc-destinations-generator",
+  name: "swift-sdk-generator",
   platforms: [.macOS(.v13)],
   products: [
-    // Products define the executables and libraries a package produces, and make them visible to
-    // other packages.
+    // Products define the executables and libraries a package produces, and make them visible to other packages.
     .executable(
-      name: "destinations-generator",
+      name: "swift-sdk-generator",
       targets: ["GeneratorCLI"]
     ),
   ],
@@ -22,19 +21,17 @@ let package = Package(
     .package(url: "https://github.com/apple/swift-async-algorithms.git", from: "0.1.0"),
   ],
   targets: [
-    // Targets are the basic building blocks of a package. A target can define a module or a test
-    // suite.
-    // Targets can depend on other targets in this package, and on products in packages this package
-    // depends on.
+    // Targets are the basic building blocks of a package. A target can define a module or a test suite.
+    // Targets can depend on other targets in this package, and on products in packages this package depends on.
     .executableTarget(
       name: "GeneratorCLI",
       dependencies: [
-        "DestinationsGenerator",
+        "SwiftSDKGenerator",
         .product(name: "ArgumentParser", package: "swift-argument-parser"),
       ]
     ),
     .target(
-      name: "DestinationsGenerator",
+      name: "SwiftSDKGenerator",
       dependencies: [
         .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
         .product(name: "AsyncHTTPClient", package: "async-http-client"),

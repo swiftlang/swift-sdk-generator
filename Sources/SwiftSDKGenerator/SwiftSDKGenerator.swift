@@ -13,7 +13,7 @@
 import Foundation
 import SystemPackage
 
-public protocol DestinationsGenerator {
+public protocol SwiftSDKGenerator {
   // MARK: configuration
 
   var buildTimeTriple: Triple { get }

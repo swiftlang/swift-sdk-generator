@@ -1,4 +1,4 @@
-# Swift Cross-Compilation (CC) Destinations Generator
+# Swift SDK Generator
 
 ## Requirements
 

@@ -13,8 +13,8 @@
 import Foundation
 import SystemPackage
 
-/// Implementation of ``DestinationsGenerator`` for the local file system.
-public final class LocalDestinationsGenerator: DestinationsGenerator {
+/// Implementation of ``SwiftSDKGenerator`` for the local file system.
+public final class LocalSwiftSDKGenerator: SwiftSDKGenerator {
   public let buildTimeTriple: Triple
   public let runTimeTriple: Triple
   public let artifactID: String
@@ -288,10 +288,10 @@ public final class LocalDestinationsGenerator: DestinationsGenerator {
   }
 
   public func inTemporaryDirectory<T>(
-    _ closure: @Sendable (LocalDestinationsGenerator, FilePath) async throws -> T
+    _ closure: @Sendable (LocalSwiftSDKGenerator, FilePath) async throws -> T
   ) async throws -> T {
     let tmp = FilePath(NSTemporaryDirectory())
-      .appending("cc-destination-\(UUID().uuidString.prefix(6))")
+      .appending("swift-sdk-generator-\(UUID().uuidString.prefix(6))")
 
     try self.createDirectoryIfNeeded(at: tmp)
 
@@ -303,6 +303,6 @@ public final class LocalDestinationsGenerator: DestinationsGenerator {
   }
 }
 
-// Explicitly marking `LocalDestinationsGenerator` as non-`Sendable` for safety.
+// Explicitly marking `LocalSwiftSDKGenerator` as non-`Sendable` for safety.
 @available(*, unavailable)
-extension LocalDestinationsGenerator: Sendable {}
+extension LocalSwiftSDKGenerator: Sendable {}
