@@ -19,10 +19,8 @@ public struct Triple: CustomStringConvertible {
     /// Returns the value of `cpu` converted to a convention used by Linux, i.e. `arm64` becomes `aarch64`.
     var linuxConventionName: String {
       switch self {
-      case .arm64:
-        return "aarch64"
-      case .x86_64:
-        return "amd64"
+      case .arm64: "aarch64"
+      case .x86_64: "amd64"
       }
     }
   }
@@ -40,11 +38,11 @@ public struct Triple: CustomStringConvertible {
     var description: String {
       switch self {
       case .linux:
-        return "linux"
+        "linux"
       case let .darwin(version):
-        return "darwin\(version)"
+        "darwin\(version)"
       case let .macosx(version):
-        return "macosx\(version)"
+        "macosx\(version)"
       }
     }
   }

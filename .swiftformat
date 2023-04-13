@@ -14,4 +14,4 @@
 # Insert explicit `self` where applicable.
 --self insert
 
---swiftversion 5.7
+--swiftversion 5.9

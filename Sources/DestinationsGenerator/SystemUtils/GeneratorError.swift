@@ -24,15 +24,15 @@ extension GeneratorError: CustomStringConvertible {
   var description: String {
     switch self {
     case let .unknownUbuntuVersion(version):
-      return "Ubuntu Linux version `\(version)` is not supported by this generator."
+      "Ubuntu Linux version `\(version)` is not supported by this generator."
     case let .unknownMacOSVersion(version):
-      return "macOS version `\(version)` is not supported by this generator."
+      "macOS version `\(version)` is not supported by this generator."
     case let .unknownCPUArchitecture(cpu):
-      return "CPU architecture `\(cpu)` is not supported by this generator."
+      "CPU architecture `\(cpu)` is not supported by this generator."
     case let .fileDoesNotExist(filePath):
-      return "Expected to find a file at path `\(filePath)`"
+      "Expected to find a file at path `\(filePath)`"
     case let .ubuntuPackagesParsingFailure(expected, actual):
-      return "Failed to parse Ubuntu packages manifest, expected \(expected), found \(actual) packages"
+      "Failed to parse Ubuntu packages manifest, expected \(expected), found \(actual) packages"
     }
   }
 }

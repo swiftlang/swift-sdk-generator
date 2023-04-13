@@ -21,6 +21,17 @@ private let ubuntuARM64Mirror = "http://ports.ubuntu.com/ubuntu-ports"
 
 private let byteCountFormatter = ByteCountFormatter()
 
+private let unusedDarwinPlatforms = [
+  "watchsimulator",
+  "iphonesimulator",
+  "appletvsimulator",
+  "iphoneos",
+  "watchos",
+  "appletvos",
+]
+
+private let unusedBuildTimeBinaries = ["clangd", "dsymutil", "sourcekit-lsp", "swift-package", "docc"]
+
 extension DestinationsGenerator {
   public func generateDestinationBundle(shouldGenerateFromScratch: Bool) async throws {
     let client = HTTPClient(
@@ -180,6 +191,16 @@ extension DestinationsGenerator {
 
     try await inTemporaryDirectory { fs, tmpDir in
       try await fs.unpack(file: downloadableArtifacts.buildTimeTripleSwift.localPath, into: tmpDir)
+      // Remove libraries for platforms we don't intend cross-compiling to
+      for platform in unusedDarwinPlatforms {
+        try fs.removeRecursively(at: tmpDir.appending("usr/lib/swift/\(platform)"))
+      }
+      try fs.removeRecursively(at: tmpDir.appending("usr/lib/sourcekitd.framework"))
+
+      for binary in unusedBuildTimeBinaries {
+        try fs.removeRecursively(at: tmpDir.appending("usr/bin/\(binary)"))
+      }
+
       try await fs.rsync(from: tmpDir.appending("usr"), to: pathsConfiguration.toolchainDirPath)
     }
   }
