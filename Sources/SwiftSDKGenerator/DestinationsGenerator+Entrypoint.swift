@@ -30,7 +30,14 @@ private let unusedDarwinPlatforms = [
   "appletvos",
 ]
 
-private let unusedBuildTimeBinaries = ["clangd", "dsymutil", "sourcekit-lsp", "swift-package", "docc"]
+private let unusedBuildTimeBinaries = [
+    "clangd",
+    "docc",
+    "dsymutil",
+    "sourcekit-lsp",
+    "swift-package",
+    "swift-package-collection"
+]
 
 extension SwiftSDKGenerator {
   public func generateBundle(shouldGenerateFromScratch: Bool) async throws {
@@ -427,7 +434,7 @@ extension SwiftSDKGenerator {
   private func generateDestinationJSON(toolsetPath: FilePath) throws {
     logGenerationStep("Generating destination JSON file...")
 
-    let destinationJSONPath = pathsConfiguration.swiftSDKRootPath.appending("destination.json")
+    let destinationJSONPath = pathsConfiguration.swiftSDKRootPath.appending("swift-sdk.json")
 
     var relativeToolchainBinDir = pathsConfiguration.toolchainBinDirPath
     var relativeSDKDir = pathsConfiguration.sdkDirPath
@@ -471,7 +478,7 @@ extension SwiftSDKGenerator {
           schemaVersion: "1.0",
           artifacts: [
             artifactID: .init(
-              type: .crossCompilationDestination,
+              type: .swiftSDK,
               version: "0.0.1",
               variants: [
                 .init(

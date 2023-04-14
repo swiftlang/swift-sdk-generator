@@ -38,8 +38,7 @@ public struct ArtifactsArchiveMetadata: Equatable, Codable {
   }
 
   public enum ArtifactType: String, RawRepresentable, Codable {
-    case executable
-    case crossCompilationDestination
+    case swiftSDK
   }
 
   public struct Variant: Equatable, Codable {
