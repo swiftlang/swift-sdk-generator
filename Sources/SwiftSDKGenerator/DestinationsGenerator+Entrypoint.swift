@@ -31,12 +31,12 @@ private let unusedDarwinPlatforms = [
 ]
 
 private let unusedBuildTimeBinaries = [
-    "clangd",
-    "docc",
-    "dsymutil",
-    "sourcekit-lsp",
-    "swift-package",
-    "swift-package-collection"
+  "clangd",
+  "docc",
+  "dsymutil",
+  "sourcekit-lsp",
+  "swift-package",
+  "swift-package-collection",
 ]
 
 extension SwiftSDKGenerator {
@@ -116,14 +116,14 @@ extension SwiftSDKGenerator {
     try await inTemporaryDirectory { fs, tmpDir in
       try await fs.unpack(file: packagePath, into: tmpDir)
       try await fs.copyRunTimeTripleSwift(
-          from: tmpDir.appending(
-              """
-              swift-\(versionsConfiguration.swiftVersion)-ubuntu\(versionsConfiguration.ubuntuVersion)\(
-                versionsConfiguration.ubuntuArchSuffix
-              )/usr/lib
-              """
-            )
+        from: tmpDir.appending(
+          """
+          swift-\(versionsConfiguration.swiftVersion)-ubuntu\(versionsConfiguration.ubuntuVersion)\(
+            versionsConfiguration.ubuntuArchSuffix
+          )/usr/lib
+          """
         )
+      )
     }
   }
 
@@ -182,7 +182,7 @@ extension SwiftSDKGenerator {
       ("swift/os", pathsConfiguration.sdkDirPath.appending("usr/include")),
       ("swift/CoreFoundation", pathsConfiguration.sdkDirPath.appending("usr/include")),
     ] {
-      try await rsync( from: distributionPath.appending(pathWithinPackage), to: pathWithinSwiftSDK )
+      try await rsync(from: distributionPath.appending(pathWithinPackage), to: pathWithinSwiftSDK)
     }
   }
 
@@ -213,7 +213,11 @@ extension SwiftSDKGenerator {
     let pathsConfiguration = self.pathsConfiguration
 
     try await inTemporaryDirectory { fileSystem, tmpDir in
-      try await fileSystem.untar(file: downloadableArtifacts.buildTimeTripleLLVM.localPath, into: tmpDir, stripComponents: 1)
+      try await fileSystem.untar(
+        file: downloadableArtifacts.buildTimeTripleLLVM.localPath,
+        into: tmpDir,
+        stripComponents: 1
+      )
       try fileSystem.copy(
         from: tmpDir.appending("bin/lld"),
         to: pathsConfiguration.toolchainBinDirPath.appending("ld.lld")
@@ -364,9 +368,9 @@ extension SwiftSDKGenerator {
   private func fixAbsoluteSymlinks() throws {
     logGenerationStep("Fixing up absolute symlinks...")
 
-    for (source, absoluteDestination) in try findSymlinks(at: pathsConfiguration.sdkDirPath)
-      .filter({ $1.string.hasPrefix("/") })
-    {
+    for (source, absoluteDestination) in try findSymlinks(at: pathsConfiguration.sdkDirPath).filter({
+      $1.string.hasPrefix("/")
+    }) {
       var relativeSource = source
       var relativeDestination = FilePath()
 

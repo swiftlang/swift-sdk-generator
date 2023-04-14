@@ -30,10 +30,9 @@ extension HTTPClient {
       do {
         let delegate = try FileDownloadDelegate(
           path: path.string,
-          reportHead: {
-            if $0.status != .ok {
-              continuation
-                .resume(throwing: FileOperationError.downloadFailed(url, $0.status))
+          reportHead: { task, responseHead in
+            if responseHead.status != .ok {
+              task.fail(reason: GeneratorError.fileDownloadFailed(url, responseHead.status))
             }
           }
         )

@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+import struct Foundation.URL
+import enum NIOHTTP1.HTTPResponseStatus
 import struct SystemPackage.FilePath
 
 enum GeneratorError: Error {
@@ -17,6 +19,7 @@ enum GeneratorError: Error {
   case unknownMacOSVersion(String)
   case unknownCPUArchitecture(String)
   case fileDoesNotExist(FilePath)
+  case fileDownloadFailed(URL, HTTPResponseStatus)
   case ubuntuPackagesParsingFailure(expectedPackages: Int, actual: Int)
 }
 
@@ -30,9 +33,11 @@ extension GeneratorError: CustomStringConvertible {
     case let .unknownCPUArchitecture(cpu):
       "CPU architecture `\(cpu)` is not supported by this generator."
     case let .fileDoesNotExist(filePath):
-      "Expected to find a file at path `\(filePath)`"
+      "Expected to find a file at path `\(filePath)`."
+    case let .fileDownloadFailed(url, status):
+      "File could not be downloaded from a URL `\(url)`, the server returned status `\(status)`."
     case let .ubuntuPackagesParsingFailure(expected, actual):
-      "Failed to parse Ubuntu packages manifest, expected \(expected), found \(actual) packages"
+      "Failed to parse Ubuntu packages manifest, expected \(expected), found \(actual) packages."
     }
   }
 }
