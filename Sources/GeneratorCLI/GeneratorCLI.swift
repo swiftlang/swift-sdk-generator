@@ -45,16 +45,27 @@ struct GeneratorCLI: AsyncParsableCommand {
 
   @Option(
     help: """
+    CPU architecture of the build-time triple of the bundle. Defaults to a triple of the machine this generator is \
+    running on if unspecified. Available options: \(
+      Triple.CPU.allCases.map { "`\($0.rawValue)`" }.joined(separator: ", ")
+    ).
+    """
+  )
+  var buildTimeCPUArchitecture: Triple.CPU? = nil
+
+  @Option(
+    help: """
     CPU architecture of the run-time triple of the bundle. Same as build-time triple if unspecified. Available \
     options: \(Triple.CPU.allCases.map { "`\($0.rawValue)`" }.joined(separator: ", ")).
     """
   )
-  var cpuArchitecture: Triple.CPU? = nil
+  var runTimeCPUArchitecture: Triple.CPU? = nil
 
   mutating func run() async throws {
     let elapsed = try await ContinuousClock().measure {
       try await LocalSwiftSDKGenerator(
-        runTimeCPUArchitecture: cpuArchitecture,
+        buildTimeCPUArchitecture: buildTimeCPUArchitecture,
+        runTimeCPUArchitecture: runTimeCPUArchitecture,
         swiftVersion: swiftVersion,
         swiftBranch: swiftBranch,
         lldVersion: lldVersion,
@@ -65,8 +76,28 @@ struct GeneratorCLI: AsyncParsableCommand {
       .generateBundle(shouldGenerateFromScratch: !incremental)
     }
 
-    print("\nTime taken for this generator run: \(elapsed.formatted())")
+    print("\nTime taken for this generator run: \(elapsed.intervalString)")
   }
 }
 
 extension Triple.CPU: ExpressibleByArgument {}
+
+// FIXME: replace this with a call on `.formatted()` on `Duration
+import Foundation
+
+extension Duration {
+  var intervalString: String {
+    let reference = Date()
+    let date = Date(timeInterval: TimeInterval(self.components.seconds), since: reference)
+
+    let components = Calendar.current.dateComponents([.hour, .minute, .second], from: reference, to: date)
+
+    if let hours = components.hour, hours > 0 {
+      return "\(hours):\(components.minute ?? 0):\(components.second ?? 0)"
+    } else if let minutes = components.minute, minutes > 0 {
+      return "\(minutes):\(components.second ?? 0)"
+    } else {
+      return "\(components.second ?? 0) seconds"
+    }
+  }
+}

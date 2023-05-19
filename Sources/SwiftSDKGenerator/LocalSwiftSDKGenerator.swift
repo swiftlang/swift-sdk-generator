@@ -25,6 +25,7 @@ public final class LocalSwiftSDKGenerator: SwiftSDKGenerator {
   public let isVerbose: Bool
 
   public init(
+    buildTimeCPUArchitecture: Triple.CPU?,
     runTimeCPUArchitecture: Triple.CPU?,
     swiftVersion: String,
     swiftBranch: String?,
@@ -39,7 +40,14 @@ public final class LocalSwiftSDKGenerator: SwiftSDKGenerator {
       .removingLastComponent()
       .removingLastComponent()
       .removingLastComponent()
-    self.buildTimeTriple = try await Self.getCurrentTriple(isVerbose: isVerbose)
+
+    var currentTriple = try await Self.getCurrentTriple(isVerbose: isVerbose)
+    if let buildTimeCPUArchitecture {
+      currentTriple.cpu = buildTimeCPUArchitecture
+    }
+
+    self.buildTimeTriple = currentTriple
+
     self.runTimeTriple = Triple(
       cpu: runTimeCPUArchitecture ?? self.buildTimeTriple.cpu,
       vendor: .unknown,

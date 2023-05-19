@@ -51,9 +51,9 @@ public struct Triple: CustomStringConvertible {
     case gnu
   }
 
-  let cpu: CPU
-  let vendor: Vendor
-  let os: OS
+  var cpu: CPU
+  var vendor: Vendor
+  var os: OS
   var environment: Environment?
 
   public var linuxConventionDescription: String {
