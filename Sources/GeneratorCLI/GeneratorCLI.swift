@@ -38,12 +38,17 @@ struct GeneratorCLI: AsyncParsableCommand {
   var swiftVersion = "5.8-RELEASE"
 
   @Option(help: "Version of LLD linker to supply in the bundle.")
-  var lldVersion = "16.0.1"
+  var lldVersion = "16.0.4"
 
   @Option(help: "Version of Ubuntu to use when assembling the bundle.")
   var ubuntuVersion = "22.04"
 
-  @Option(help: "CPU architecture of the run-time triple of the bundle. Same as build-time triple if unspecified.")
+  @Option(
+    help: """
+    CPU architecture of the run-time triple of the bundle. Same as build-time triple if unspecified. Available \
+    options: \(Triple.CPU.allCases.map { "`\($0.rawValue)`" }.joined(separator: ", ")).
+    """
+  )
   var cpuArchitecture: Triple.CPU? = nil
 
   mutating func run() async throws {

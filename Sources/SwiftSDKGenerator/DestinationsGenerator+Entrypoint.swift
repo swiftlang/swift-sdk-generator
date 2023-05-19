@@ -79,9 +79,11 @@ extension SwiftSDKGenerator {
 
     try self.fixAbsoluteSymlinks()
 
+    let runTimeCPU = self.runTimeTriple.cpu
+    let cpuPathComponent = runTimeCPU == .arm64 ? runTimeCPU.linuxConventionName : runTimeCPU.rawValue
     try self.fixGlibcModuleMap(
       at: pathsConfiguration.toolchainDirPath
-        .appending("/usr/lib/swift/linux/\(self.runTimeTriple.cpu.linuxConventionName)/glibc.modulemap")
+        .appending("/usr/lib/swift/linux/\(cpuPathComponent)/glibc.modulemap")
     )
 
     let autolinkExtractPath = pathsConfiguration.toolchainBinDirPath.appending("swift-autolink-extract")
@@ -102,7 +104,7 @@ extension SwiftSDKGenerator {
       All done! Install the newly generated SDK with this command:
       swift experimental-sdk install \(pathsConfiguration.artifactBundlePath)
 
-      Use the newly installed SDK when building with this command:
+      After that, use the newly installed SDK when building with this command:
       swift build --experimental-swift-sdk \(artifactID)
       """
     )

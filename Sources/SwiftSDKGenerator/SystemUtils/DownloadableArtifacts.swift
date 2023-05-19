@@ -46,6 +46,9 @@ private let knownMacOSLLVMVersions = [
   "16.0.1": [
     Triple.CPU.arm64: "cb487fa991f047dc79ae36430cbb9ef14621c1262075373955b1d97215c75879",
   ],
+  "16.0.4": [
+    Triple.CPU.arm64: "429b8061d620108fee636313df55a0602ea0d14458c6d3873989e6b130a074bd",
+  ],
 ]
 
 private func swiftDownloadURL(

@@ -12,7 +12,7 @@
 
 public struct Triple: CustomStringConvertible {
   /// CPU architecture supported by the generator.
-  public enum CPU: String, Decodable {
+  public enum CPU: String, Decodable, CaseIterable {
     case x86_64
     case arm64
 
