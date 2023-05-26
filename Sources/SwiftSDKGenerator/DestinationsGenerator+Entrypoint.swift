@@ -39,6 +39,16 @@ private let unusedBuildTimeBinaries = [
   "swift-package-collection",
 ]
 
+public extension Triple.CPU {
+  /// Returns the value of `cpu` converted to a convention used in Debian package names
+  var debianConventionName: String {
+    switch self {
+    case .arm64: "arm64"
+    case .x86_64: "amd64"
+    }
+  }
+}
+
 extension SwiftSDKGenerator {
   public func generateBundle(shouldGenerateFromScratch: Bool) async throws {
     let client = HTTPClient(
@@ -80,10 +90,9 @@ extension SwiftSDKGenerator {
     try self.fixAbsoluteSymlinks()
 
     let runTimeCPU = self.runTimeTriple.cpu
-    let cpuPathComponent = runTimeCPU == .arm64 ? runTimeCPU.linuxConventionName : runTimeCPU.rawValue
     try self.fixGlibcModuleMap(
       at: pathsConfiguration.toolchainDirPath
-        .appending("/usr/lib/swift/linux/\(cpuPathComponent)/glibc.modulemap")
+        .appending("/usr/lib/swift/linux/\(runTimeCPU.linuxConventionName)/glibc.modulemap")
     )
 
     let autolinkExtractPath = pathsConfiguration.toolchainBinDirPath.appending("swift-autolink-extract")
@@ -606,17 +615,14 @@ extension HTTPClient {
     isVerbose: Bool
   ) async throws -> [String: URL] {
     let mirrorURL: String
-    let cpuArchName: String
     if runTimeTriple.cpu == .x86_64 {
       mirrorURL = ubuntuAMD64Mirror
-      cpuArchName = runTimeTriple.cpu.linuxConventionName
     } else {
       mirrorURL = ubuntuARM64Mirror
-      cpuArchName = runTimeTriple.cpu.rawValue
     }
 
     let packagesListURL = """
-    \(mirrorURL)/dists/\(ubuntuRelease)\(releaseSuffix)/\(repository)/binary-\(cpuArchName)/Packages.gz
+    \(mirrorURL)/dists/\(ubuntuRelease)\(releaseSuffix)/\(repository)/binary-\(runTimeTriple.cpu.debianConventionName)/Packages.gz
     """
 
     let packages = try await downloadUbuntuPackagesList(

@@ -38,5 +38,11 @@ let package = Package(
         .product(name: "SystemPackage", package: "swift-system"),
       ]
     ),
+    .testTarget(
+      name: "SwiftSDKGeneratorTests",
+      dependencies: [
+        .target(name: "SwiftSDKGenerator"),
+      ]
+    ),
   ]
 )

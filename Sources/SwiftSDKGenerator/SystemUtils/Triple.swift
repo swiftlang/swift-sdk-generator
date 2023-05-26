@@ -16,11 +16,11 @@ public struct Triple: CustomStringConvertible {
     case x86_64
     case arm64
 
-    /// Returns the value of `cpu` converted to a convention used by Linux, i.e. `arm64` becomes `aarch64`.
+    /// Returns the value of `cpu` converted to a convention used by Swift on Linux, i.e. `arm64` becomes `aarch64`.
     var linuxConventionName: String {
       switch self {
       case .arm64: "aarch64"
-      case .x86_64: "amd64"
+      case .x86_64: "x86_64"
       }
     }
   }
