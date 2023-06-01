@@ -68,6 +68,8 @@ public struct Triple: CustomStringConvertible {
     get throws {
       let os: OS
       switch self.os {
+      case .darwin:
+        return self
       case let .macosx(macOSVersion):
         guard let darwinVersion = macOSDarwinVersions[macOSVersion] else {
           throw GeneratorError.unknownMacOSVersion(macOSVersion)
@@ -86,4 +88,5 @@ public struct Triple: CustomStringConvertible {
 /// Mapping from a macOS version to a Darwin version.
 private let macOSDarwinVersions = [
   "13.0": "22.0",
+  "14.0": "23.0",
 ]

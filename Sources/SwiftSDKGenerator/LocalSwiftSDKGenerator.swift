@@ -224,8 +224,7 @@ public final class LocalSwiftSDKGenerator: SwiftSDKGenerator {
 
   public func removeRecursively(at path: FilePath) throws {
     // Can't use `FileManager.fileExists` here, because it isn't good enough for symlinks. It always
-    // tries to
-    // resolve a symlink before checking.
+    // tries to resolve a symlink before checking.
     if (try? self.fileManager.attributesOfItem(atPath: path.string)) != nil {
       try self.fileManager.removeItem(atPath: path.string)
     }

@@ -109,7 +109,7 @@ final class Shell {
   static func run(
     _ command: String,
     currentDirectory: FilePath? = nil,
-    shouldLogCommands: Bool,
+    shouldLogCommands: Bool = false,
     file: String = #file,
     line: Int = #line
   ) async throws {
@@ -127,7 +127,7 @@ final class Shell {
   static func readStdout(
     _ command: String,
     currentDirectory: FilePath? = nil,
-    shouldLogCommands: Bool,
+    shouldLogCommands: Bool = false,
     file: String = #file,
     line: Int = #line
   ) async throws -> String {

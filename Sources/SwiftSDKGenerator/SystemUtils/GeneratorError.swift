@@ -18,6 +18,7 @@ enum GeneratorError: Error {
   case unknownUbuntuVersion(String)
   case unknownMacOSVersion(String)
   case unknownCPUArchitecture(String)
+  case unknownLLDVersion(String)
   case fileDoesNotExist(FilePath)
   case fileDownloadFailed(URL, HTTPResponseStatus)
   case ubuntuPackagesParsingFailure(expectedPackages: Int, actual: Int)
@@ -32,6 +33,8 @@ extension GeneratorError: CustomStringConvertible {
       "macOS version `\(version)` is not supported by this generator."
     case let .unknownCPUArchitecture(cpu):
       "CPU architecture `\(cpu)` is not supported by this generator."
+    case let .unknownLLDVersion(version):
+      "LLD version `\(version)` is not supported by this generator."
     case let .fileDoesNotExist(filePath):
       "Expected to find a file at path `\(filePath)`."
     case let .fileDownloadFailed(url, status):

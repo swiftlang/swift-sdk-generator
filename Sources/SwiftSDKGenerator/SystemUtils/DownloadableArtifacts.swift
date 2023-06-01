@@ -36,19 +36,31 @@ private let knownMacOSSwiftVersions = [
   ],
 ]
 
-private let knownMacOSLLVMVersions = [
-  "15.0.7": [
-    Triple.CPU.arm64: "867c6afd41158c132ef05a8f1ddaecf476a26b91c85def8e124414f9a9ba188d",
-  ],
-  "16.0.0": [
-    Triple.CPU.arm64: "2041587b90626a4a87f0de14a5842c14c6c3374f42c8ed12726ef017416409d9",
-  ],
-  "16.0.1": [
-    Triple.CPU.arm64: "cb487fa991f047dc79ae36430cbb9ef14621c1262075373955b1d97215c75879",
-  ],
-  "16.0.4": [
-    Triple.CPU.arm64: "429b8061d620108fee636313df55a0602ea0d14458c6d3873989e6b130a074bd",
-  ],
+private let knownMacOSLLVMVersions: [String: (Triple.OS, [Triple.CPU: String])] = [
+  "15.0.7": (
+    .darwin(version: "22.0"),
+    [
+      Triple.CPU.arm64: "867c6afd41158c132ef05a8f1ddaecf476a26b91c85def8e124414f9a9ba188d",
+    ]
+  ),
+  "16.0.0": (
+    .darwin(version: "22.0"),
+    [
+      Triple.CPU.arm64: "2041587b90626a4a87f0de14a5842c14c6c3374f42c8ed12726ef017416409d9",
+    ]
+  ),
+  "16.0.1": (
+    .darwin(version: "22.0"),
+    [
+      Triple.CPU.arm64: "cb487fa991f047dc79ae36430cbb9ef14621c1262075373955b1d97215c75879",
+    ]
+  ),
+  "16.0.4": (
+    .darwin(version: "22.0"),
+    [
+      Triple.CPU.arm64: "429b8061d620108fee636313df55a0602ea0d14458c6d3873989e6b130a074bd",
+    ]
+  ),
 ]
 
 private func swiftDownloadURL(
@@ -100,6 +112,12 @@ public struct DownloadableArtifacts: Sendable {
       checksum: knownMacOSSwiftVersions[versions.swiftVersion]?[buildTimeTriple.cpu]
     )
 
+    var llvmTriple = buildTimeTriple
+    guard let llvmOS = knownMacOSLLVMVersions[versions.lldVersion]?.0 else {
+      throw GeneratorError.unknownLLDVersion(versions.lldVersion)
+    }
+    llvmTriple.os = llvmOS
+
     self.buildTimeTripleLLVM = .init(
       remoteURL: URL(
         string: """
@@ -107,12 +125,12 @@ public struct DownloadableArtifacts: Sendable {
           versions.lldVersion
         )/clang+llvm-\(
           versions.lldVersion
-        )-\(try buildTimeTriple.darwinFormat).tar.xz
+        )-\(llvmTriple).tar.xz
         """
       )!,
       localPath: paths.artifactsCachePath
-        .appending("buildtime_llvm_\(versions.lldVersion)_\(buildTimeTriple).tar.xz"),
-      checksum: knownMacOSLLVMVersions[versions.lldVersion]?[buildTimeTriple.cpu]
+        .appending("buildtime_llvm_\(versions.lldVersion)_\(llvmTriple).tar.xz"),
+      checksum: knownMacOSLLVMVersions[versions.lldVersion]?.1[buildTimeTriple.cpu]
     )
 
     let subdirectory =

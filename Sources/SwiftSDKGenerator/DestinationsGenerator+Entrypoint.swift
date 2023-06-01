@@ -622,7 +622,10 @@ extension HTTPClient {
     }
 
     let packagesListURL = """
-    \(mirrorURL)/dists/\(ubuntuRelease)\(releaseSuffix)/\(repository)/binary-\(runTimeTriple.cpu.debianConventionName)/Packages.gz
+    \(mirrorURL)/dists/\(ubuntuRelease)\(releaseSuffix)/\(repository)/binary-\(
+      runTimeTriple.cpu
+        .debianConventionName
+    )/Packages.gz
     """
 
     let packages = try await downloadUbuntuPackagesList(
