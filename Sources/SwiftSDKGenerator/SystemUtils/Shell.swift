@@ -167,10 +167,8 @@ private extension AsyncThrowingStream where Element == Data, Failure == any Erro
           continuation.yield(data)
         } else {
           if !process.isRunning && process.terminationStatus != 0 {
-            continuation
-              .finish(
-                throwing: FileOperationError
-                  .nonZeroExitCode(process.terminationStatus, commandInfo)
+            continuation .finish(
+                throwing: FileOperationError .nonZeroExitCode(process.terminationStatus, commandInfo)
               )
           } else {
             continuation.finish()

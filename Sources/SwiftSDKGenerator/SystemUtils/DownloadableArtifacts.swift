@@ -148,10 +148,10 @@ public struct DownloadableArtifacts: Sendable {
       checksum: knownUbuntuSwiftVersions[versions.ubuntuVersion]?[versions.swiftVersion]?[runTimeTriple.cpu]
     )
 
-    if shouldUseDocker {
-      allItems = [buildTimeTripleSwift, buildTimeTripleLLVM]
+    allItems = if shouldUseDocker {
+      [buildTimeTripleSwift, buildTimeTripleLLVM]
     } else {
-      allItems = [buildTimeTripleSwift, buildTimeTripleLLVM, runTimeTripleSwift]
+      [buildTimeTripleSwift, buildTimeTripleLLVM, runTimeTripleSwift]
     }
   }
 }

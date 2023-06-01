@@ -92,12 +92,12 @@ extension Duration {
 
     let components = Calendar.current.dateComponents([.hour, .minute, .second], from: reference, to: date)
 
-    if let hours = components.hour, hours > 0 {
-      return "\(hours):\(components.minute ?? 0):\(components.second ?? 0)"
+    return if let hours = components.hour, hours > 0 {
+      "\(hours):\(components.minute ?? 0):\(components.second ?? 0)"
     } else if let minutes = components.minute, minutes > 0 {
-      return "\(minutes):\(components.second ?? 0)"
+      "\(minutes):\(components.second ?? 0)"
     } else {
-      return "\(components.second ?? 0) seconds"
+      "\(components.second ?? 0) seconds"
     }
   }
 }

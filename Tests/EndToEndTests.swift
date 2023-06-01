@@ -32,11 +32,10 @@ final class EndToEndTests: XCTestCase {
       $0.contains("swift experimental-sdk install")
     })
 
-    var bundleName = try XCTUnwrap(
+    let bundleName = try XCTUnwrap(
       FilePath(String(XCTUnwrap(installCommand.split(separator: " ").last))).components.last
-    ).string
+    ).stem
 
-    bundleName = bundleName.split(separator: ".").dropLast().joined(separator: ".")
     // Make sure this bundle hasn't been installed already.
     try await Shell.run("swift experimental-sdk remove \(bundleName)")
 
