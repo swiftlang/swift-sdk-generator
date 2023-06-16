@@ -149,7 +149,7 @@ extension SwiftSDKGenerator {
     logGenerationStep("Building a Docker image with the run-time triple environment...")
     try await buildDockerImage(
       name: imageName,
-      dockerfileDirectory: pathsConfiguration.sourceRoot
+      dockerfileDirectory: FilePath(#file)
         .appending("Dockerfiles")
         .appending("Ubuntu")
         .appending(versionsConfiguration.ubuntuVersion)

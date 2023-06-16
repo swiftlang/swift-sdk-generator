@@ -36,7 +36,8 @@ let package = Package(
         .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
         .product(name: "AsyncHTTPClient", package: "async-http-client"),
         .product(name: "SystemPackage", package: "swift-system"),
-      ]
+      ],
+      exclude: ["Dockerfiles"]
     ),
     .testTarget(
       name: "SwiftSDKGeneratorTests",

@@ -43,9 +43,8 @@ final class EndToEndTests: XCTestCase {
     XCTAssertTrue(installOutput.contains("successfully installed"))
 
     let testPackageURL = FileManager.default.temporaryDirectory.appending(path: "swift-sdk-generator-test").path
-    print(testPackageURL)
     let testPackageDir = FilePath(testPackageURL)
-    try fm.removeItem(atPath: testPackageDir.string)
+    try? fm.removeItem(atPath: testPackageDir.string)
     try fm.createDirectory(atPath: testPackageDir.string, withIntermediateDirectories: true)
 
     try await Shell.run("swift package init --type executable", currentDirectory: testPackageDir)

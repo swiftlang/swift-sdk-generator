@@ -7,6 +7,6 @@ DerivedData/
 .netrc
 .swiftpm
 tmp
-Artifacts
-Bundles
+/Artifacts
+/Bundles
 .vscode

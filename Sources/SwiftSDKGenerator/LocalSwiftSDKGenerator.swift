@@ -102,6 +102,8 @@ public final class LocalSwiftSDKGenerator: SwiftSDKGenerator {
       throw GeneratorError.unknownMacOSVersion(macOSVersion)
     }
     return Triple(cpu: cpu, vendor: .apple, os: .macosx(version: "\(majorMacOSVersion).0"))
+    #elseif os(Linux)
+    return Triple(cpu: cpu, vendor: .unknown, os: .linux)
     #else
     fatalError("Triple detection not implemented for the platform that this generator was built on.")
     #endif
