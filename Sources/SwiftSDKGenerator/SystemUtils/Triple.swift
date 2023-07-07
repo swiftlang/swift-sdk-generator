@@ -18,12 +18,12 @@ public struct Triple: CustomStringConvertible {
 
     public init?(rawValue: String) {
       switch rawValue {
-        case "x86_64":
-          self = .x86_64
-        case "aarch64", "arm64":
-          self = .arm64
-        default:
-          return nil
+      case "x86_64":
+        self = .x86_64
+      case "aarch64", "arm64":
+        self = .arm64
+      default:
+        return nil
       }
     }
 

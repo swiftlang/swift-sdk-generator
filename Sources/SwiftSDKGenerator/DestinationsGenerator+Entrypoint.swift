@@ -30,7 +30,7 @@ private let unusedDarwinPlatforms = [
   "appletvos",
 ]
 
-private let unusedBuildTimeBinaries = [
+private let unusedHostBinaries = [
   "clangd",
   "docc",
   "dsymutil",
@@ -77,22 +77,22 @@ extension SwiftSDKGenerator {
       try await self.downloadUbuntuPackages(client)
     }
 
-    try await self.unpackBuildTimeTripleSwift()
+    try await self.unpackHostSwift()
 
     if shouldUseDocker {
-      try await self.copyRunTimeTripleSwiftFromDocker()
+      try await self.copyTargetSwiftFromDocker()
     } else {
-      try await self.unpackRunTimeTripleSwiftPackage()
+      try await self.unpackTargetSwiftPackage()
     }
 
     try await self.unpackLLDLinker()
 
     try self.fixAbsoluteSymlinks()
 
-    let runTimeCPU = self.runTimeTriple.cpu
+    let targetCPU = self.targetTriple.cpu
     try self.fixGlibcModuleMap(
       at: pathsConfiguration.toolchainDirPath
-        .appending("/usr/lib/swift/linux/\(runTimeCPU.linuxConventionName)/glibc.modulemap")
+        .appending("/usr/lib/swift/linux/\(targetCPU.linuxConventionName)/glibc.modulemap")
     )
 
     let autolinkExtractPath = pathsConfiguration.toolchainBinDirPath.appending("swift-autolink-extract")
@@ -119,14 +119,14 @@ extension SwiftSDKGenerator {
     )
   }
 
-  private func unpackRunTimeTripleSwiftPackage() async throws {
-    logGenerationStep("Unpacking Swift distribution for the run-time triple...")
-    let packagePath = downloadableArtifacts.runTimeTripleSwift.localPath
+  private func unpackTargetSwiftPackage() async throws {
+    logGenerationStep("Unpacking Swift distribution for the target triple...")
+    let packagePath = downloadableArtifacts.targetSwift.localPath
     let versionsConfiguration = self.versionsConfiguration
 
     try await inTemporaryDirectory { fs, tmpDir in
       try await fs.unpack(file: packagePath, into: tmpDir)
-      try await fs.copyRunTimeTripleSwift(
+      try await fs.copyTargetSwift(
         from: tmpDir.appending(
           """
           swift-\(versionsConfiguration.swiftVersion)-ubuntu\(versionsConfiguration.ubuntuVersion)\(
@@ -138,7 +138,7 @@ extension SwiftSDKGenerator {
     }
   }
 
-  private func copyRunTimeTripleSwiftFromDocker() async throws {
+  private func copyTargetSwiftFromDocker() async throws {
     let imageName =
       """
       swiftlang/swift-sdk:\(versionsConfiguration.swiftVersion.components(separatedBy: "-")[0])-\(
@@ -146,7 +146,7 @@ extension SwiftSDKGenerator {
       )
       """
 
-    logGenerationStep("Building a Docker image with the run-time triple environment...")
+    logGenerationStep("Building a Docker image with the target triple environment...")
     try await buildDockerImage(
       name: imageName,
       dockerfileDirectory: FilePath(#file)
@@ -155,7 +155,7 @@ extension SwiftSDKGenerator {
         .appending(versionsConfiguration.ubuntuVersion)
     )
 
-    logGenerationStep("Launching a Docker container to copy Swift for the run-time triple from it...")
+    logGenerationStep("Launching a Docker container to copy Swift for the target triple from it...")
     let containerID = try await launchDockerContainer(imageName: imageName)
     let pathsConfiguration = self.pathsConfiguration
 
@@ -179,12 +179,12 @@ extension SwiftSDKGenerator {
 
       try fs.createSymlink(at: pathsConfiguration.sdkDirPath.appending("lib"), pointingTo: "usr/lib")
       try fs.removeRecursively(at: sdkUsrLibPath.appending("ssl"))
-      try await fs.copyRunTimeTripleSwift(from: sdkUsrLibPath)
+      try await fs.copyTargetSwift(from: sdkUsrLibPath)
     }
   }
 
-  private func copyRunTimeTripleSwift(from distributionPath: FilePath) async throws {
-    logGenerationStep("Copying Swift core libraries for the run-time triple into Swift SDK bundle...")
+  private func copyTargetSwift(from distributionPath: FilePath) async throws {
+    logGenerationStep("Copying Swift core libraries for the target triple into Swift SDK bundle...")
 
     for (pathWithinPackage, pathWithinSwiftSDK) in [
       ("swift/linux", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift")),
@@ -197,20 +197,20 @@ extension SwiftSDKGenerator {
     }
   }
 
-  private func unpackBuildTimeTripleSwift() async throws {
-    logGenerationStep("Unpacking and copying Swift binaries for the build-time triple...")
+  private func unpackHostSwift() async throws {
+    logGenerationStep("Unpacking and copying Swift binaries for the host triple...")
     let downloadableArtifacts = self.downloadableArtifacts
     let pathsConfiguration = self.pathsConfiguration
 
     try await inTemporaryDirectory { fileSystem, tmpDir in
-      try await fileSystem.unpack(file: downloadableArtifacts.buildTimeTripleSwift.localPath, into: tmpDir)
+      try await fileSystem.unpack(file: downloadableArtifacts.hostSwift.localPath, into: tmpDir)
       // Remove libraries for platforms we don't intend cross-compiling to
       for platform in unusedDarwinPlatforms {
         try fileSystem.removeRecursively(at: tmpDir.appending("usr/lib/swift/\(platform)"))
       }
       try fileSystem.removeRecursively(at: tmpDir.appending("usr/lib/sourcekitd.framework"))
 
-      for binary in unusedBuildTimeBinaries {
+      for binary in unusedHostBinaries {
         try fileSystem.removeRecursively(at: tmpDir.appending("usr/bin/\(binary)"))
       }
 
@@ -225,7 +225,7 @@ extension SwiftSDKGenerator {
 
     try await inTemporaryDirectory { fileSystem, tmpDir in
       try await fileSystem.untar(
-        file: downloadableArtifacts.buildTimeTripleLLVM.localPath,
+        file: downloadableArtifacts.hostLLVM.localPath,
         into: tmpDir,
         stripComponents: 1
       )
@@ -263,48 +263,48 @@ extension SwiftSDKGenerator {
   private func downloadArtifacts(_ client: HTTPClient) async throws {
     logGenerationStep("Downloading required toolchain packages...")
 
-    let buildTimeTripleSwiftStream = client.streamDownloadProgress(for: downloadableArtifacts.buildTimeTripleSwift)
+    let hostSwiftProgressStream = client.streamDownloadProgress(for: downloadableArtifacts.hostSwift)
       .removeDuplicates(by: didProgressChangeSignificantly)
-    let buildTimeTripleLLVMStream = client.streamDownloadProgress(for: downloadableArtifacts.buildTimeTripleLLVM)
+    let hostLLVMProgressStream = client.streamDownloadProgress(for: downloadableArtifacts.hostLLVM)
       .removeDuplicates(by: didProgressChangeSignificantly)
 
     print("Using these URLs for downloads:")
 
     // FIXME: some code duplication is necessary due to https://github.com/apple/swift-async-algorithms/issues/226
     if shouldUseDocker {
-      for artifact in [downloadableArtifacts.buildTimeTripleSwift, downloadableArtifacts.buildTimeTripleLLVM] {
+      for artifact in [downloadableArtifacts.hostSwift, downloadableArtifacts.hostLLVM] {
         print(artifact.remoteURL)
       }
 
-      let stream = combineLatest(buildTimeTripleSwiftStream, buildTimeTripleLLVMStream)
+      let stream = combineLatest(hostSwiftProgressStream, hostLLVMProgressStream)
         .throttle(for: .seconds(1))
 
       for try await (swiftProgress, llvmProgress) in stream {
-        report(progress: swiftProgress, for: downloadableArtifacts.buildTimeTripleSwift)
-        report(progress: llvmProgress, for: downloadableArtifacts.buildTimeTripleLLVM)
+        report(progress: swiftProgress, for: downloadableArtifacts.hostSwift)
+        report(progress: llvmProgress, for: downloadableArtifacts.hostLLVM)
       }
     } else {
       for artifact in [
-        downloadableArtifacts.buildTimeTripleSwift,
-        downloadableArtifacts.buildTimeTripleLLVM,
-        downloadableArtifacts.runTimeTripleSwift,
+        downloadableArtifacts.hostSwift,
+        downloadableArtifacts.hostLLVM,
+        downloadableArtifacts.targetSwift,
       ] {
         print(artifact.remoteURL)
       }
-      let runTimeTripleSwiftStream = client.streamDownloadProgress(for: downloadableArtifacts.runTimeTripleSwift)
+      let targetSwiftProgressStream = client.streamDownloadProgress(for: downloadableArtifacts.targetSwift)
         .removeDuplicates(by: didProgressChangeSignificantly)
 
       let stream = combineLatest(
-        buildTimeTripleSwiftStream,
-        buildTimeTripleLLVMStream,
-        runTimeTripleSwiftStream
+        hostSwiftProgressStream,
+        hostLLVMProgressStream,
+        targetSwiftProgressStream
       )
       .throttle(for: .seconds(1))
 
-      for try await (buildTimeTripleSwiftProgress, buildTimeTripleLLVMProgress, runTimeTripleSwiftProgress) in stream {
-        report(progress: buildTimeTripleSwiftProgress, for: downloadableArtifacts.buildTimeTripleSwift)
-        report(progress: buildTimeTripleLLVMProgress, for: downloadableArtifacts.buildTimeTripleLLVM)
-        report(progress: runTimeTripleSwiftProgress, for: downloadableArtifacts.runTimeTripleSwift)
+      for try await (hostSwiftProgress, hostLLVMProgress, targetSwiftProgress) in stream {
+        report(progress: hostSwiftProgress, for: downloadableArtifacts.hostSwift)
+        report(progress: hostLLVMProgress, for: downloadableArtifacts.hostLLVM)
+        report(progress: targetSwiftProgress, for: downloadableArtifacts.targetSwift)
       }
     }
   }
@@ -315,7 +315,7 @@ extension SwiftSDKGenerator {
     async let mainPackages = try await client.parseUbuntuPackagesList(
       ubuntuRelease: versionsConfiguration.ubuntuRelease,
       repository: "main",
-      runTimeTriple: self.runTimeTriple,
+      targetTriple: self.targetTriple,
       isVerbose: self.isVerbose
     )
 
@@ -323,7 +323,7 @@ extension SwiftSDKGenerator {
       ubuntuRelease: versionsConfiguration.ubuntuRelease,
       releaseSuffix: "-updates",
       repository: "main",
-      runTimeTriple: self.runTimeTriple,
+      targetTriple: self.targetTriple,
       isVerbose: self.isVerbose
     )
 
@@ -331,7 +331,7 @@ extension SwiftSDKGenerator {
       ubuntuRelease: versionsConfiguration.ubuntuRelease,
       releaseSuffix: "-updates",
       repository: "universe",
-      runTimeTriple: self.runTimeTriple,
+      targetTriple: self.targetTriple,
       isVerbose: self.isVerbose
     )
 
@@ -471,7 +471,7 @@ extension SwiftSDKGenerator {
       self.encoder.encode(
         DestinationV3(
           runTimeTriples: [
-            self.runTimeTriple.linuxConventionDescription: .init(
+            self.targetTriple.linuxConventionDescription: .init(
               sdkRootPath: relativeSDKDir.string,
               toolsetPaths: [relativeToolsetPath.string]
             ),
@@ -497,8 +497,8 @@ extension SwiftSDKGenerator {
               version: "0.0.1",
               variants: [
                 .init(
-                  path: FilePath(artifactID).appending(self.runTimeTriple.linuxConventionDescription).string,
-                  supportedTriples: [self.buildTimeTriple.description]
+                  path: FilePath(artifactID).appending(self.targetTriple.linuxConventionDescription).string,
+                  supportedTriples: [self.hostTriple.description]
                 ),
               ]
             ),
@@ -523,7 +523,7 @@ extension SwiftSDKGenerator {
       #/\n( *header )"\/+usr\/include\//#
       Capture {
         Optionally {
-          buildTimeTriple.cpu.linuxConventionName
+          hostTriple.cpu.linuxConventionName
           "-linux-gnu"
         }
       }
@@ -611,11 +611,11 @@ extension HTTPClient {
     ubuntuRelease: String,
     releaseSuffix: String = "",
     repository: String,
-    runTimeTriple: Triple,
+    targetTriple: Triple,
     isVerbose: Bool
   ) async throws -> [String: URL] {
     let mirrorURL: String
-    if runTimeTriple.cpu == .x86_64 {
+    if targetTriple.cpu == .x86_64 {
       mirrorURL = ubuntuAMD64Mirror
     } else {
       mirrorURL = ubuntuARM64Mirror
@@ -623,7 +623,7 @@ extension HTTPClient {
 
     let packagesListURL = """
     \(mirrorURL)/dists/\(ubuntuRelease)\(releaseSuffix)/\(repository)/binary-\(
-      runTimeTriple.cpu
+      targetTriple.cpu
         .debianConventionName
     )/Packages.gz
     """

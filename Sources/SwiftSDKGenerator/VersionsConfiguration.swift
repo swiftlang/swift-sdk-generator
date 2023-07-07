@@ -20,7 +20,7 @@ public struct VersionsConfiguration: Sendable {
     swiftBranch: String? = nil,
     lldVersion: String,
     ubuntuVersion: String,
-    runTimeTriple: Triple
+    targetTriple: Triple
   ) throws {
     guard let ubuntuRelease = ubuntuReleases[ubuntuVersion]
     else { throw GeneratorError.unknownUbuntuVersion(ubuntuVersion) }
@@ -30,7 +30,7 @@ public struct VersionsConfiguration: Sendable {
     self.lldVersion = lldVersion
     self.ubuntuVersion = ubuntuVersion
     self.ubuntuRelease = ubuntuRelease
-    self.ubuntuArchSuffix = runTimeTriple.cpu == .arm64 ? "-\(Triple.CPU.arm64.linuxConventionName)" : ""
+    self.ubuntuArchSuffix = targetTriple.cpu == .arm64 ? "-\(Triple.CPU.arm64.linuxConventionName)" : ""
   }
 
   let swiftVersion: String

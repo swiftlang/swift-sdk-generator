@@ -68,6 +68,6 @@ struct DestinationV3: Encodable {
   /// Version of the schema used when serializing the destination file.
   let schemaVersion = "3.0"
 
-  /// Mapping of triple strings to corresponding properties of such run-time triple.
+  /// Mapping of triple strings to corresponding properties of such target triple.
   let runTimeTriples: [String: TripleProperties]
 }

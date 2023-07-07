@@ -15,8 +15,8 @@ import SystemPackage
 
 /// Implementation of ``SwiftSDKGenerator`` for the local file system.
 public final class LocalSwiftSDKGenerator: SwiftSDKGenerator {
-  public let buildTimeTriple: Triple
-  public let runTimeTriple: Triple
+  public let hostTriple: Triple
+  public let targetTriple: Triple
   public let artifactID: String
   public let versionsConfiguration: VersionsConfiguration
   public let pathsConfiguration: PathsConfiguration
@@ -25,8 +25,8 @@ public final class LocalSwiftSDKGenerator: SwiftSDKGenerator {
   public let isVerbose: Bool
 
   public init(
-    buildTimeCPUArchitecture: Triple.CPU?,
-    runTimeCPUArchitecture: Triple.CPU?,
+    hostCPUArchitecture: Triple.CPU?,
+    targetCPUArchitecture: Triple.CPU?,
     swiftVersion: String,
     swiftBranch: String?,
     lldVersion: String,
@@ -42,36 +42,36 @@ public final class LocalSwiftSDKGenerator: SwiftSDKGenerator {
       .removingLastComponent()
 
     var currentTriple = try await Self.getCurrentTriple(isVerbose: isVerbose)
-    if let buildTimeCPUArchitecture {
-      currentTriple.cpu = buildTimeCPUArchitecture
+    if let hostCPUArchitecture {
+      currentTriple.cpu = hostCPUArchitecture
     }
 
-    self.buildTimeTriple = currentTriple
+    self.hostTriple = currentTriple
 
-    self.runTimeTriple = Triple(
-      cpu: runTimeCPUArchitecture ?? self.buildTimeTriple.cpu,
+    self.targetTriple = Triple(
+      cpu: targetCPUArchitecture ?? self.hostTriple.cpu,
       vendor: .unknown,
       os: .linux,
       environment: .gnu
     )
-    self.artifactID = "\(swiftVersion)_ubuntu_\(ubuntuVersion)_\(self.runTimeTriple.cpu.linuxConventionName)"
+    self.artifactID = "\(swiftVersion)_ubuntu_\(ubuntuVersion)_\(self.targetTriple.cpu.linuxConventionName)"
 
     self.versionsConfiguration = try .init(
       swiftVersion: swiftVersion,
       swiftBranch: swiftBranch,
       lldVersion: lldVersion,
       ubuntuVersion: ubuntuVersion,
-      runTimeTriple: self.runTimeTriple
+      targetTriple: self.targetTriple
     )
     self.pathsConfiguration = .init(
       sourceRoot: sourceRoot,
       artifactID: self.artifactID,
       ubuntuRelease: self.versionsConfiguration.ubuntuRelease,
-      runTimeTriple: self.runTimeTriple
+      targetTriple: self.targetTriple
     )
     self.downloadableArtifacts = try .init(
-      buildTimeTriple: self.buildTimeTriple,
-      runTimeTriple: self.runTimeTriple,
+      hostTriple: self.hostTriple,
+      targetTriple: self.targetTriple,
       shouldUseDocker: shouldUseDocker,
       self.versionsConfiguration,
       self.pathsConfiguration

@@ -16,8 +16,8 @@ import SystemPackage
 public protocol SwiftSDKGenerator {
   // MARK: configuration
 
-  var buildTimeTriple: Triple { get }
-  var runTimeTriple: Triple { get }
+  var hostTriple: Triple { get }
+  var targetTriple: Triple { get }
   var artifactID: String { get }
   var versionsConfiguration: VersionsConfiguration { get }
   var pathsConfiguration: PathsConfiguration { get }

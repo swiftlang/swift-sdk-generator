@@ -15,7 +15,7 @@ import SwiftSDKGenerator
 
 @main
 struct GeneratorCLI: AsyncParsableCommand {
-  @Flag(help: "Delegate to Docker for copying files for the run-time triple.")
+  @Flag(help: "Delegate to Docker for copying files for the target triple.")
   var withDocker: Bool = false
 
   @Flag(
@@ -45,27 +45,27 @@ struct GeneratorCLI: AsyncParsableCommand {
 
   @Option(
     help: """
-    CPU architecture of the build-time triple of the bundle. Defaults to a triple of the machine this generator is \
+    CPU architecture of the host triple of the bundle. Defaults to a triple of the machine this generator is \
     running on if unspecified. Available options: \(
       Triple.CPU.allCases.map { "`\($0.rawValue)`" }.joined(separator: ", ")
     ).
     """
   )
-  var buildTimeCPUArchitecture: Triple.CPU? = nil
+  var hostCPUArchitecture: Triple.CPU? = nil
 
   @Option(
     help: """
-    CPU architecture of the run-time triple of the bundle. Same as build-time triple if unspecified. Available \
-    options: \(Triple.CPU.allCases.map { "`\($0.rawValue)`" }.joined(separator: ", ")).
+    CPU architecture of the target triple of the bundle. Same as the host triple CPU architecture if unspecified. \
+    Available options: \(Triple.CPU.allCases.map { "`\($0.rawValue)`" }.joined(separator: ", ")).
     """
   )
-  var runTimeCPUArchitecture: Triple.CPU? = nil
+  var targetCPUArchitecture: Triple.CPU? = nil
 
   mutating func run() async throws {
     let elapsed = try await ContinuousClock().measure {
       try await LocalSwiftSDKGenerator(
-        buildTimeCPUArchitecture: buildTimeCPUArchitecture,
-        runTimeCPUArchitecture: runTimeCPUArchitecture,
+        hostCPUArchitecture: hostCPUArchitecture,
+        targetCPUArchitecture: targetCPUArchitecture,
         swiftVersion: swiftVersion,
         swiftBranch: swiftBranch,
         lldVersion: lldVersion,
