@@ -36,7 +36,8 @@ private let knownMacOSSwiftVersions = [
   ],
 ]
 
-private let knownMacOSLLVMVersions: [String: (Triple.OS, [Triple.CPU: String])] = [
+#if os(macOS)
+private let knownLLVMVersions: [String: (Triple.OS, [Triple.CPU: String])] = [
   "15.0.7": (
     .darwin(version: "22.0"),
     [
@@ -62,6 +63,9 @@ private let knownMacOSLLVMVersions: [String: (Triple.OS, [Triple.CPU: String])] 
     ]
   ),
 ]
+#else
+private let knownLLVMVersions: [String: (Triple.OS, [Triple.CPU: String])] = [:]
+#endif
 
 private func swiftDownloadURL(
   branch: String,
@@ -82,24 +86,25 @@ private func swiftDownloadURL(
 public struct DownloadableArtifacts: Sendable {
   public struct Item: Sendable {
     let remoteURL: URL
-    let localPath: FilePath
+    var localPath: FilePath
     let checksum: String?
+    let isPrebuilt: Bool
   }
 
-  let buildTimeTripleSwift: Item
-  let buildTimeTripleLLVM: Item
-  let runTimeTripleSwift: Item
+  let hostSwift: Item
+  let hostLLVM: Item
+  let targetSwift: Item
 
   let allItems: [Item]
 
   init(
-    buildTimeTriple: Triple,
-    runTimeTriple: Triple,
+    hostTriple: Triple,
+    targetTriple: Triple,
     shouldUseDocker: Bool,
     _ versions: VersionsConfiguration,
     _ paths: PathsConfiguration
   ) throws {
-    self.buildTimeTripleSwift = .init(
+    self.hostSwift = .init(
       remoteURL: swiftDownloadURL(
         branch: versions.swiftBranch,
         version: versions.swiftVersion,
@@ -108,34 +113,51 @@ public struct DownloadableArtifacts: Sendable {
         fileExtension: "pkg"
       ),
       localPath: paths.artifactsCachePath
-        .appending("buildtime_swift_\(versions.swiftVersion)_\(buildTimeTriple).pkg"),
-      checksum: knownMacOSSwiftVersions[versions.swiftVersion]?[buildTimeTriple.cpu]
+        .appending("host_swift_\(versions.swiftVersion)_\(hostTriple).pkg"),
+      checksum: knownMacOSSwiftVersions[versions.swiftVersion]?[hostTriple.cpu],
+      isPrebuilt: true
     )
 
-    var llvmTriple = buildTimeTriple
-    guard let llvmOS = knownMacOSLLVMVersions[versions.lldVersion]?.0 else {
-      throw GeneratorError.unknownLLDVersion(versions.lldVersion)
+    var llvmTriple = hostTriple
+    if let llvmOS = knownLLVMVersions[versions.lldVersion]?.0 {
+      llvmTriple.os = llvmOS
+
+      self.hostLLVM = .init(
+        remoteURL: URL(
+          string: """
+          https://github.com/llvm/llvm-project/releases/download/llvmorg-\(
+            versions.lldVersion
+          )/clang+llvm-\(
+            versions.lldVersion
+          )-\(llvmTriple).tar.xz
+          """
+        )!,
+        localPath: paths.artifactsCachePath
+          .appending("host_llvm_\(versions.lldVersion)_\(llvmTriple).tar.xz"),
+        checksum: knownLLVMVersions[versions.lldVersion]?.1[hostTriple.cpu],
+        isPrebuilt: true
+      )
+    } else {
+      self.hostLLVM = .init(
+        remoteURL: URL(
+          string: """
+          https://github.com/llvm/llvm-project/releases/download/llvmorg-\(
+            versions.lldVersion
+          )/clang+llvm-\(
+            versions.lldVersion
+          )-\(llvmTriple).tar.xz
+          """
+        )!,
+        localPath: paths.artifactsCachePath
+          .appending("host_llvm_\(versions.lldVersion)_\(llvmTriple).tar.xz"),
+        checksum: knownLLVMVersions[versions.lldVersion]?.1[hostTriple.cpu],
+        isPrebuilt: false
+      )
     }
-    llvmTriple.os = llvmOS
-
-    self.buildTimeTripleLLVM = .init(
-      remoteURL: URL(
-        string: """
-        https://github.com/llvm/llvm-project/releases/download/llvmorg-\(
-          versions.lldVersion
-        )/clang+llvm-\(
-          versions.lldVersion
-        )-\(llvmTriple).tar.xz
-        """
-      )!,
-      localPath: paths.artifactsCachePath
-        .appending("buildtime_llvm_\(versions.lldVersion)_\(llvmTriple).tar.xz"),
-      checksum: knownMacOSLLVMVersions[versions.lldVersion]?.1[buildTimeTriple.cpu]
-    )
 
     let subdirectory =
       "ubuntu\(versions.ubuntuVersion.replacingOccurrences(of: ".", with: ""))\(versions.ubuntuArchSuffix)"
-    self.runTimeTripleSwift = .init(
+    self.targetSwift = .init(
       remoteURL: swiftDownloadURL(
         branch: versions.swiftBranch,
         version: versions.swiftVersion,
@@ -144,14 +166,15 @@ public struct DownloadableArtifacts: Sendable {
         fileExtension: "tar.gz"
       ),
       localPath: paths.artifactsCachePath
-        .appending("runtime_swift_\(versions.swiftVersion)_\(runTimeTriple).tar.gz"),
-      checksum: knownUbuntuSwiftVersions[versions.ubuntuVersion]?[versions.swiftVersion]?[runTimeTriple.cpu]
+        .appending("target_swift_\(versions.swiftVersion)_\(targetTriple).tar.gz"),
+      checksum: knownUbuntuSwiftVersions[versions.ubuntuVersion]?[versions.swiftVersion]?[targetTriple.cpu],
+      isPrebuilt: true
     )
 
     allItems = if shouldUseDocker {
-      [buildTimeTripleSwift, buildTimeTripleLLVM]
+      [hostSwift, hostLLVM]
     } else {
-      [buildTimeTripleSwift, buildTimeTripleLLVM, runTimeTripleSwift]
+      [hostSwift, hostLLVM, targetSwift]
     }
   }
 }
