@@ -36,8 +36,12 @@ final class EndToEndTests: XCTestCase {
       FilePath(String(XCTUnwrap(installCommand.split(separator: " ").last))).components.last
     ).stem
 
+    let installedSDKs = try await Shell.readStdout("swift experimental-sdk list").components(separatedBy: "\n")
+
     // Make sure this bundle hasn't been installed already.
-    try await Shell.run("swift experimental-sdk remove \(bundleName)")
+    if installedSDKs.contains(bundleName) {
+      try await Shell.run("swift experimental-sdk remove \(bundleName)")
+    }
 
     let installOutput = try await Shell.readStdout(String(installCommand))
     XCTAssertTrue(installOutput.contains("successfully installed"))

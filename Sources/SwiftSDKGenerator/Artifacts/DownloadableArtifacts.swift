@@ -13,8 +13,8 @@
 import struct Foundation.URL
 import struct SystemPackage.FilePath
 
-private let knownUbuntuSwiftVersions = [
-  "22.04": [
+private let knownLinuxSwiftVersions = [
+  LinuxDistribution.ubuntu(.jammy): [
     "5.7.3-RELEASE": [
       Triple.CPU.arm64: "75003d5a995292ae3f858b767fbb89bc3edee99488f4574468a0e44341aec55b",
     ],
@@ -62,26 +62,16 @@ private let knownLLVMVersions: [String: (Triple.OS, [Triple.CPU: String])] = [
       Triple.CPU.arm64: "429b8061d620108fee636313df55a0602ea0d14458c6d3873989e6b130a074bd",
     ]
   ),
+  "16.0.5": (
+    .darwin(version: "22.0"),
+    [
+      Triple.CPU.arm64: "1aed0787417dd915f0101503ce1d2719c8820a2c92d4a517bfc4044f72035bcc",
+    ]
+  ),
 ]
 #else
 private let knownLLVMVersions: [String: (Triple.OS, [Triple.CPU: String])] = [:]
 #endif
-
-private func swiftDownloadURL(
-  branch: String,
-  version: String,
-  subdirectory: String,
-  platform: String,
-  fileExtension: String
-) -> URL {
-  URL(
-    string: """
-    https://download.swift.org/\(
-      branch
-    )/\(subdirectory)/swift-\(version)/swift-\(version)-\(platform).\(fileExtension)
-    """
-  )!
-}
 
 public struct DownloadableArtifacts: Sendable {
   public struct Item: Sendable {
@@ -105,9 +95,7 @@ public struct DownloadableArtifacts: Sendable {
     _ paths: PathsConfiguration
   ) throws {
     self.hostSwift = .init(
-      remoteURL: swiftDownloadURL(
-        branch: versions.swiftBranch,
-        version: versions.swiftVersion,
+      remoteURL: versions.swiftDownloadURL(
         subdirectory: "xcode",
         platform: "osx",
         fileExtension: "pkg"
@@ -155,19 +143,11 @@ public struct DownloadableArtifacts: Sendable {
       )
     }
 
-    let subdirectory =
-      "ubuntu\(versions.ubuntuVersion.replacingOccurrences(of: ".", with: ""))\(versions.ubuntuArchSuffix)"
     self.targetSwift = .init(
-      remoteURL: swiftDownloadURL(
-        branch: versions.swiftBranch,
-        version: versions.swiftVersion,
-        subdirectory: subdirectory,
-        platform: "ubuntu\(versions.ubuntuVersion)\(versions.ubuntuArchSuffix)",
-        fileExtension: "tar.gz"
-      ),
+      remoteURL: versions.swiftDownloadURL(),
       localPath: paths.artifactsCachePath
         .appending("target_swift_\(versions.swiftVersion)_\(targetTriple).tar.gz"),
-      checksum: knownUbuntuSwiftVersions[versions.ubuntuVersion]?[versions.swiftVersion]?[targetTriple.cpu],
+      checksum: knownLinuxSwiftVersions[versions.linuxDistribution]?[versions.swiftVersion]?[targetTriple.cpu],
       isPrebuilt: true
     )
 

@@ -122,16 +122,13 @@ extension SwiftSDKGenerator {
   private func unpackTargetSwiftPackage() async throws {
     logGenerationStep("Unpacking Swift distribution for the target triple...")
     let packagePath = downloadableArtifacts.targetSwift.localPath
-    let versionsConfiguration = self.versionsConfiguration
 
     try await inTemporaryDirectory { fs, tmpDir in
       try await fs.unpack(file: packagePath, into: tmpDir)
       try await fs.copyTargetSwift(
         from: tmpDir.appending(
           """
-          swift-\(versionsConfiguration.swiftVersion)-ubuntu\(versionsConfiguration.ubuntuVersion)\(
-            versionsConfiguration.ubuntuArchSuffix
-          )/usr/lib
+          \(self.versionsConfiguration.swiftDistributionName())/usr/lib
           """
         )
       )
@@ -142,7 +139,7 @@ extension SwiftSDKGenerator {
     let imageName =
       """
       swiftlang/swift-sdk:\(versionsConfiguration.swiftVersion.components(separatedBy: "-")[0])-\(
-        versionsConfiguration.ubuntuRelease
+        versionsConfiguration.linuxDistribution.release
       )
       """
 
@@ -152,7 +149,7 @@ extension SwiftSDKGenerator {
       dockerfileDirectory: FilePath(#file)
         .appending("Dockerfiles")
         .appending("Ubuntu")
-        .appending(versionsConfiguration.ubuntuVersion)
+        .appending(versionsConfiguration.linuxDistribution.release)
     )
 
     logGenerationStep("Launching a Docker container to copy Swift for the target triple from it...")
@@ -313,14 +310,14 @@ extension SwiftSDKGenerator {
     logGenerationStep("Parsing Ubuntu packages list...")
 
     async let mainPackages = try await client.parseUbuntuPackagesList(
-      ubuntuRelease: versionsConfiguration.ubuntuRelease,
+      ubuntuRelease: versionsConfiguration.linuxDistribution.release,
       repository: "main",
       targetTriple: self.targetTriple,
       isVerbose: self.isVerbose
     )
 
     async let updatesPackages = try await client.parseUbuntuPackagesList(
-      ubuntuRelease: versionsConfiguration.ubuntuRelease,
+      ubuntuRelease: versionsConfiguration.linuxDistribution.release,
       releaseSuffix: "-updates",
       repository: "main",
       targetTriple: self.targetTriple,
@@ -328,7 +325,7 @@ extension SwiftSDKGenerator {
     )
 
     async let universePackages = try await client.parseUbuntuPackagesList(
-      ubuntuRelease: versionsConfiguration.ubuntuRelease,
+      ubuntuRelease: versionsConfiguration.linuxDistribution.release,
       releaseSuffix: "-updates",
       repository: "universe",
       targetTriple: self.targetTriple,

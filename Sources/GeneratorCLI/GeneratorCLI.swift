@@ -38,10 +38,13 @@ struct GeneratorCLI: AsyncParsableCommand {
   var swiftVersion = "5.8-RELEASE"
 
   @Option(help: "Version of LLD linker to supply in the bundle.")
-  var lldVersion = "16.0.4"
+  var lldVersion = "16.0.5"
 
-  @Option(help: "Version of Ubuntu to use when assembling the bundle.")
-  var ubuntuVersion = "22.04"
+  @Option(help: "Linux distribution to use if the target platform is Linux. Available options: `ubuntu`, `ubi`.")
+  var linuxDistribution = "ubuntu"
+
+  @Option(help: "Version of the Linux distribution used as a target platform.")
+  var linuxDistributionVersion = "22.04"
 
   @Option(
     help: """
@@ -62,6 +65,8 @@ struct GeneratorCLI: AsyncParsableCommand {
   var targetCPUArchitecture: Triple.CPU? = nil
 
   mutating func run() async throws {
+    let linuxDistrubution = try LinuxDistribution(name: linuxDistribution, version: linuxDistributionVersion)
+
     let elapsed = try await ContinuousClock().measure {
       try await LocalSwiftSDKGenerator(
         hostCPUArchitecture: hostCPUArchitecture,
@@ -69,7 +74,7 @@ struct GeneratorCLI: AsyncParsableCommand {
         swiftVersion: swiftVersion,
         swiftBranch: swiftBranch,
         lldVersion: lldVersion,
-        ubuntuVersion: ubuntuVersion,
+        linuxDistribution: linuxDistrubution,
         shouldUseDocker: withDocker,
         isVerbose: verbose
       )
@@ -82,7 +87,7 @@ struct GeneratorCLI: AsyncParsableCommand {
 
 extension Triple.CPU: ExpressibleByArgument {}
 
-// FIXME: replace this with a call on `.formatted()` on `Duration
+// FIXME: replace this with a call on `.formatted()` on `Duration` when it's available in swift-foundation.
 import Foundation
 
 extension Duration {

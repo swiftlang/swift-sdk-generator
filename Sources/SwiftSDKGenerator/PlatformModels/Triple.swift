@@ -88,7 +88,7 @@ public struct Triple: CustomStringConvertible {
 
         os = .darwin(version: darwinVersion)
       default:
-        fatalError("\(#function) should not be called on non-Darwin triples")
+        fatalError("\(#function) should not be called for non-Darwin triples")
       }
 
       return Triple(cpu: self.cpu, vendor: self.vendor, os: os)

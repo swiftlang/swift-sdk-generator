@@ -13,7 +13,7 @@
 import struct SystemPackage.FilePath
 
 public struct PathsConfiguration: Sendable {
-  init(sourceRoot: FilePath, artifactID: String, ubuntuRelease: String, targetTriple: Triple) {
+  init(sourceRoot: FilePath, artifactID: String, linuxDistribution: LinuxDistribution, targetTriple: Triple) {
     self.sourceRoot = sourceRoot
     self.artifactBundlePath = sourceRoot
       .appending("Bundles")
@@ -22,7 +22,7 @@ public struct PathsConfiguration: Sendable {
     self.swiftSDKRootPath = self.artifactBundlePath
       .appending(artifactID)
       .appending(targetTriple.linuxConventionDescription)
-    self.sdkDirPath = self.swiftSDKRootPath.appending("ubuntu-\(ubuntuRelease).sdk")
+    self.sdkDirPath = self.swiftSDKRootPath.appending("\(linuxDistribution.name)-\(linuxDistribution.release).sdk")
     self.toolchainDirPath = self.swiftSDKRootPath.appending("swift.xctoolchain")
     self.toolchainBinDirPath = self.toolchainDirPath.appending("usr/bin")
   }

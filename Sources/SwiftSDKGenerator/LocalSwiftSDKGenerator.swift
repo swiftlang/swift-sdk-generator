@@ -30,7 +30,7 @@ public final class LocalSwiftSDKGenerator: SwiftSDKGenerator {
     swiftVersion: String,
     swiftBranch: String?,
     lldVersion: String,
-    ubuntuVersion: String,
+    linuxDistribution: LinuxDistribution,
     shouldUseDocker: Bool,
     isVerbose: Bool
   ) async throws {
@@ -54,19 +54,23 @@ public final class LocalSwiftSDKGenerator: SwiftSDKGenerator {
       os: .linux,
       environment: .gnu
     )
-    self.artifactID = "\(swiftVersion)_ubuntu_\(ubuntuVersion)_\(self.targetTriple.cpu.linuxConventionName)"
+    self.artifactID = """
+    \(swiftVersion)_\(linuxDistribution.name)_\(linuxDistribution.release)_\(
+      self.targetTriple.cpu.linuxConventionName
+    )
+    """
 
     self.versionsConfiguration = try .init(
       swiftVersion: swiftVersion,
       swiftBranch: swiftBranch,
       lldVersion: lldVersion,
-      ubuntuVersion: ubuntuVersion,
+      linuxDistribution: linuxDistribution,
       targetTriple: self.targetTriple
     )
     self.pathsConfiguration = .init(
       sourceRoot: sourceRoot,
       artifactID: self.artifactID,
-      ubuntuRelease: self.versionsConfiguration.ubuntuRelease,
+      linuxDistribution: self.versionsConfiguration.linuxDistribution,
       targetTriple: self.targetTriple
     )
     self.downloadableArtifacts = try .init(

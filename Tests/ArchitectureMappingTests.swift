@@ -55,7 +55,7 @@ class ArchitectureMappingTest: XCTestCase {
       swiftVersion: "5.8-RELEASE",
       swiftBranch: nil,
       lldVersion: "16.0.4",
-      ubuntuVersion: "22.04",
+      linuxDistribution: .ubuntu(.jammy),
       shouldUseDocker: false,
       isVerbose: false
     )
@@ -109,11 +109,11 @@ class ArchitectureMappingTest: XCTestCase {
     try await self.verifySDKSpec(
       hostCPUArchitecture: .x86_64,
       targetCPUArchitecture: .x86_64,
-      artifactID: "5.8-RELEASE_ubuntu_22.04_x86_64",
+      artifactID: "5.8-RELEASE_ubuntu_jammy_x86_64",
       hostLLVMDownloadURL: "https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.4/clang+llvm-16.0.4-x86_64-apple-darwin22.0.tar.xz",
       targetSwiftDownloadURL: "https://download.swift.org/swift-5.8-release/ubuntu2204/swift-5.8-RELEASE/swift-5.8-RELEASE-ubuntu22.04.tar.gz",
-      artifactBundlePathSuffix: "/Bundles/5.8-RELEASE_ubuntu_22.04_x86_64.artifactbundle",
-      sdkDirPathSuffix: "/5.8-RELEASE_ubuntu_22.04_x86_64/x86_64-unknown-linux-gnu/ubuntu-jammy.sdk"
+      artifactBundlePathSuffix: "/Bundles/5.8-RELEASE_ubuntu_jammy_x86_64.artifactbundle",
+      sdkDirPathSuffix: "/5.8-RELEASE_ubuntu_jammy_x86_64/x86_64-unknown-linux-gnu/ubuntu-jammy.sdk"
     )
   }
 
@@ -121,11 +121,11 @@ class ArchitectureMappingTest: XCTestCase {
     try await self.verifySDKSpec(
       hostCPUArchitecture: .x86_64,
       targetCPUArchitecture: .arm64,
-      artifactID: "5.8-RELEASE_ubuntu_22.04_aarch64",
+      artifactID: "5.8-RELEASE_ubuntu_jammy_aarch64",
       hostLLVMDownloadURL: "https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.4/clang+llvm-16.0.4-x86_64-apple-darwin22.0.tar.xz",
       targetSwiftDownloadURL: "https://download.swift.org/swift-5.8-release/ubuntu2204-aarch64/swift-5.8-RELEASE/swift-5.8-RELEASE-ubuntu22.04-aarch64.tar.gz",
-      artifactBundlePathSuffix: "/Bundles/5.8-RELEASE_ubuntu_22.04_aarch64.artifactbundle",
-      sdkDirPathSuffix: "/5.8-RELEASE_ubuntu_22.04_aarch64/aarch64-unknown-linux-gnu/ubuntu-jammy.sdk"
+      artifactBundlePathSuffix: "/Bundles/5.8-RELEASE_ubuntu_jammy_aarch64.artifactbundle",
+      sdkDirPathSuffix: "/5.8-RELEASE_ubuntu_jammy_aarch64/aarch64-unknown-linux-gnu/ubuntu-jammy.sdk"
     )
   }
 
@@ -133,11 +133,11 @@ class ArchitectureMappingTest: XCTestCase {
     try await self.verifySDKSpec(
       hostCPUArchitecture: .arm64,
       targetCPUArchitecture: .arm64,
-      artifactID: "5.8-RELEASE_ubuntu_22.04_aarch64",
+      artifactID: "5.8-RELEASE_ubuntu_jammy_aarch64",
       hostLLVMDownloadURL: "https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.4/clang+llvm-16.0.4-arm64-apple-darwin22.0.tar.xz",
       targetSwiftDownloadURL: "https://download.swift.org/swift-5.8-release/ubuntu2204-aarch64/swift-5.8-RELEASE/swift-5.8-RELEASE-ubuntu22.04-aarch64.tar.gz",
-      artifactBundlePathSuffix: "/Bundles/5.8-RELEASE_ubuntu_22.04_aarch64.artifactbundle",
-      sdkDirPathSuffix: "/5.8-RELEASE_ubuntu_22.04_aarch64/aarch64-unknown-linux-gnu/ubuntu-jammy.sdk"
+      artifactBundlePathSuffix: "/Bundles/5.8-RELEASE_ubuntu_jammy_aarch64.artifactbundle",
+      sdkDirPathSuffix: "/5.8-RELEASE_ubuntu_jammy_aarch64/aarch64-unknown-linux-gnu/ubuntu-jammy.sdk"
     )
   }
 
@@ -145,11 +145,11 @@ class ArchitectureMappingTest: XCTestCase {
     try await self.verifySDKSpec(
       hostCPUArchitecture: .arm64,
       targetCPUArchitecture: .x86_64,
-      artifactID: "5.8-RELEASE_ubuntu_22.04_x86_64",
+      artifactID: "5.8-RELEASE_ubuntu_jammy_x86_64",
       hostLLVMDownloadURL: "https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.4/clang+llvm-16.0.4-arm64-apple-darwin22.0.tar.xz",
       targetSwiftDownloadURL: "https://download.swift.org/swift-5.8-release/ubuntu2204/swift-5.8-RELEASE/swift-5.8-RELEASE-ubuntu22.04.tar.gz",
-      artifactBundlePathSuffix: "/Bundles/5.8-RELEASE_ubuntu_22.04_x86_64.artifactbundle",
-      sdkDirPathSuffix: "/5.8-RELEASE_ubuntu_22.04_x86_64/x86_64-unknown-linux-gnu/ubuntu-jammy.sdk"
+      artifactBundlePathSuffix: "/Bundles/5.8-RELEASE_ubuntu_jammy_x86_64.artifactbundle",
+      sdkDirPathSuffix: "/5.8-RELEASE_ubuntu_jammy_x86_64/x86_64-unknown-linux-gnu/ubuntu-jammy.sdk"
     )
   }
 }
