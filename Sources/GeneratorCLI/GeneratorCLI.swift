@@ -19,7 +19,7 @@ struct GeneratorCLI: AsyncParsableCommand {
   var withDocker: Bool = false
 
   @Flag(
-    help: "Avoid cleaning up toolchain and SDK directories and regenerate the SDK bundle incrementally."
+    help: "Experimental: avoid cleaning up toolchain and SDK directories and regenerate the SDK bundle incrementally."
   )
   var incremental: Bool = false
 
@@ -41,7 +41,7 @@ struct GeneratorCLI: AsyncParsableCommand {
   var lldVersion = "16.0.5"
 
   @Option(help: "Linux distribution to use if the target platform is Linux. Available options: `ubuntu`, `ubi`.")
-  var linuxDistribution = "ubuntu"
+  var linuxDistributionName = "ubuntu"
 
   @Option(help: "Version of the Linux distribution used as a target platform.")
   var linuxDistributionVersion = "22.04"
@@ -65,7 +65,7 @@ struct GeneratorCLI: AsyncParsableCommand {
   var targetCPUArchitecture: Triple.CPU? = nil
 
   mutating func run() async throws {
-    let linuxDistrubution = try LinuxDistribution(name: linuxDistribution, version: linuxDistributionVersion)
+    let linuxDistribution = try LinuxDistribution(name: linuxDistributionName, version: linuxDistributionVersion)
 
     let elapsed = try await ContinuousClock().measure {
       try await LocalSwiftSDKGenerator(
@@ -74,7 +74,7 @@ struct GeneratorCLI: AsyncParsableCommand {
         swiftVersion: swiftVersion,
         swiftBranch: swiftBranch,
         lldVersion: lldVersion,
-        linuxDistribution: linuxDistrubution,
+        linuxDistribution: linuxDistribution,
         shouldUseDocker: withDocker,
         isVerbose: verbose
       )
@@ -97,12 +97,13 @@ extension Duration {
 
     let components = Calendar.current.dateComponents([.hour, .minute, .second], from: reference, to: date)
 
-    return if let hours = components.hour, hours > 0 {
-      "\(hours):\(components.minute ?? 0):\(components.second ?? 0)"
+    if let hours = components.hour, hours > 0 {
+      return String(format: "%02d:%02d:%02d", hours, components.minute ?? 0, components.second ?? 0)
     } else if let minutes = components.minute, minutes > 0 {
-      "\(minutes):\(components.second ?? 0)"
+      let seconds = components.second ?? 0
+      return "\(minutes) minute\(minutes != 1 ? "s" : "") \(seconds) second\(seconds != 1 ? "s" : "")"
     } else {
-      "\(components.second ?? 0) seconds"
+      return "\(components.second ?? 0) seconds"
     }
   }
 }

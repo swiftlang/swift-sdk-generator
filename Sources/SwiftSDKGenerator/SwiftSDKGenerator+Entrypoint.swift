@@ -136,47 +136,72 @@ extension SwiftSDKGenerator {
   }
 
   private func copyTargetSwiftFromDocker() async throws {
-    let imageName =
-      """
-      swiftlang/swift-sdk:\(versionsConfiguration.swiftVersion.components(separatedBy: "-")[0])-\(
-        versionsConfiguration.linuxDistribution.release
-      )
-      """
+    logGenerationStep("Building a Docker image for the target environment...")
+    // FIXME: launch Swift base image directly instead of building a new empty image
+    let imageName = try await buildDockerImage(baseImage: self.versionsConfiguration.swiftBaseDockerImage)
 
-    logGenerationStep("Building a Docker image with the target triple environment...")
-    try await buildDockerImage(
-      name: imageName,
-      dockerfileDirectory: FilePath(#file)
-        .appending("Dockerfiles")
-        .appending("Ubuntu")
-        .appending(versionsConfiguration.linuxDistribution.release)
-    )
-
-    logGenerationStep("Launching a Docker container to copy Swift for the target triple from it...")
+    logGenerationStep("Launching a Docker container to copy Swift SDK for the target triple from it...")
     let containerID = try await launchDockerContainer(imageName: imageName)
-    let pathsConfiguration = self.pathsConfiguration
+    do {
+      let pathsConfiguration = self.pathsConfiguration
 
-    try await inTemporaryDirectory { fs, _ in
-      let sdkUsrPath = pathsConfiguration.sdkDirPath.appending("usr")
-      let sdkUsrLibPath = sdkUsrPath.appending("lib")
-      try fs.createDirectoryIfNeeded(at: sdkUsrPath)
-      try await fs.copyFromDockerContainer(
-        id: containerID,
-        from: "/usr/include",
-        to: sdkUsrPath.appending("include")
-      )
-      try await fs.copyFromDockerContainer(
-        id: containerID,
-        from: "/usr/lib",
-        to: sdkUsrLibPath
-      )
+      try await inTemporaryDirectory { generator, _ in
+        let sdkUsrPath = pathsConfiguration.sdkDirPath.appending("usr")
+        let sdkUsrLibPath = sdkUsrPath.appending("lib")
+        try generator.createDirectoryIfNeeded(at: sdkUsrPath)
+        try await generator.copyFromDockerContainer(
+          id: containerID,
+          from: "/usr/include",
+          to: sdkUsrPath.appending("include")
+        )
 
-      // Python artifacts are redundant.
-      try fs.removeRecursively(at: sdkUsrLibPath.appending("python3.10"))
+        if case .rhel = self.versionsConfiguration.linuxDistribution {
+          try await generator.runOnDockerContainer(
+            id: containerID,
+            command: #"""
+            sh -c '
+                chmod +w /usr/lib64
+                cd /usr/lib64
+                for n in *; do
+                    destination=$(readlink $n)
+                    echo $destination | grep "\.\." && \
+                        rm -f $n && \
+                        ln -s $(basename $destination) $n
+                done
+                rm -rf pm-utils
+            '
+            """#
+          )
 
-      try fs.createSymlink(at: pathsConfiguration.sdkDirPath.appending("lib"), pointingTo: "usr/lib")
-      try fs.removeRecursively(at: sdkUsrLibPath.appending("ssl"))
-      try await fs.copyTargetSwift(from: sdkUsrLibPath)
+          let sdkUsrLib64Path = sdkUsrPath.appending("lib64")
+          try await generator.copyFromDockerContainer(
+            id: containerID,
+            from: FilePath("/usr/lib64"),
+            to: sdkUsrLib64Path
+          )
+
+          try createSymlink(at: pathsConfiguration.sdkDirPath.appending("lib64"), pointingTo: "./usr/lib64")
+        }
+
+        try generator.createDirectoryIfNeeded(at: sdkUsrLibPath)
+        for subpath in ["clang", "gcc", "swift", "swift_static"] {
+          try await generator.copyFromDockerContainer(
+            id: containerID,
+            from: FilePath("/usr/lib").appending(subpath),
+            to: sdkUsrLibPath.appending(subpath)
+          )
+        }
+
+        // Python artifacts are redundant.
+        try generator.removeRecursively(at: sdkUsrLibPath.appending("python3.10"))
+
+        try generator.createSymlink(at: pathsConfiguration.sdkDirPath.appending("lib"), pointingTo: "usr/lib")
+        try generator.removeRecursively(at: sdkUsrLibPath.appending("ssl"))
+        try await generator.copyTargetSwift(from: sdkUsrLibPath)
+        try await generator.stopDockerContainer(id: containerID)
+      }
+    } catch {
+      try await stopDockerContainer(id: containerID)
     }
   }
 
@@ -379,6 +404,10 @@ extension SwiftSDKGenerator {
     for (source, absoluteDestination) in try findSymlinks(at: pathsConfiguration.sdkDirPath).filter({
       $1.string.hasPrefix("/")
     }) {
+      guard !absoluteDestination.string.hasPrefix("/etc") else {
+        try removeFile(at: source)
+        continue
+      }
       var relativeSource = source
       var relativeDestination = FilePath()
 
@@ -392,7 +421,7 @@ extension SwiftSDKGenerator {
       try removeRecursively(at: source)
       try createSymlink(at: source, pointingTo: relativeDestination)
 
-      guard FileManager.default.fileExists(atPath: source.string) else {
+      guard doesFileExist(at: source) else {
         throw FileOperationError.symlinkFixupFailed(
           source: source,
           destination: absoluteDestination

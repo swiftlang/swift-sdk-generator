@@ -68,4 +68,17 @@ public struct VersionsConfiguration: Sendable {
       """
     )!
   }
+
+  var swiftBareSemVer: String {
+    self.swiftVersion.components(separatedBy: "-")[0]
+  }
+
+  /// Name of a Docker image containing the Swift toolchain and SDK for this Linux distribution.
+  var swiftBaseDockerImage: String {
+    if self.swiftVersion.hasSuffix("-RELEASE") {
+      "swift:\(self.swiftBareSemVer)-\(self.linuxDistribution.swiftDockerImageSuffix)"
+    } else {
+      fatalError()
+    }
+  }
 }

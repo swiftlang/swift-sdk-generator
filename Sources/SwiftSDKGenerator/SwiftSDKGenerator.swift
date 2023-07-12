@@ -39,6 +39,7 @@ public protocol SwiftSDKGenerator {
 
   func doesFileExist(at path: FilePath) -> Bool
   func copy(from source: FilePath, to destination: FilePath) throws
+  func removeFile(at path: FilePath) throws
 
   // MARK: common operations on directories
 
@@ -60,8 +61,9 @@ public protocol SwiftSDKGenerator {
 
   // MARK: Docker operations
 
-  func buildDockerImage(name: String, dockerfileDirectory: FilePath) async throws
+  func buildDockerImage(baseImage: String) async throws -> String
   func launchDockerContainer(imageName: String) async throws -> String
+  func runOnDockerContainer(id: String, command: String) async throws
   func copyFromDockerContainer(id: String, from containerPath: FilePath, to localPath: FilePath) async throws
   func stopDockerContainer(id: String) async throws
 }

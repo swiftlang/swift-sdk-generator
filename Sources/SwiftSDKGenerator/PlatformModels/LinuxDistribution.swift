@@ -48,6 +48,7 @@ public enum LinuxDistribution: Hashable, Sendable {
         throw GeneratorError.unknownLinuxDistribution(name: name, version: version)
       }
       self = .rhel(version)
+
     case "ubuntu":
       self = .ubuntu(try Ubuntu(version: version))
 
@@ -65,8 +66,15 @@ public enum LinuxDistribution: Hashable, Sendable {
 
   var release: String {
     switch self {
-    case let .rhel(version): version.rawValue
-    case let .ubuntu(version): version.rawValue
+    case let .rhel(rhel): rhel.rawValue
+    case let .ubuntu(ubuntu): ubuntu.rawValue
+    }
+  }
+
+  var swiftDockerImageSuffix: String {
+    switch self {
+    case let .rhel(rhel): "rhel-\(rhel.rawValue)"
+    case let .ubuntu(ubuntu): ubuntu.rawValue
     }
   }
 }

@@ -92,6 +92,10 @@ public final class LocalSwiftSDKGenerator: SwiftSDKGenerator {
   private static let homebrewPrefix = "/usr/local"
   #endif
 
+  private static let homebrewPath = "PATH='/bin:/usr/bin:\(LocalSwiftSDKGenerator.homebrewPrefix)/bin'"
+
+  private static let dockerCommand = "\(LocalSwiftSDKGenerator.homebrewPath) docker"
+
   public static func getCurrentTriple(isVerbose: Bool) async throws -> Triple {
     let cpuString = try await Shell.readStdout("uname -m", shouldLogCommands: isVerbose)
       .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -131,21 +135,53 @@ public final class LocalSwiftSDKGenerator: SwiftSDKGenerator {
     return true
   }
 
-  public func buildDockerImage(name: String, dockerfileDirectory: FilePath) async throws {
+  private func buildDockerImage(name: String, dockerfileDirectory: FilePath) async throws {
     try await Shell.run(
-      "PATH='/bin:/usr/bin:\(Self.homebrewPrefix)/bin' docker build . -t \(name)",
+      "\(Self.dockerCommand) build . -t \(name)",
       currentDirectory: dockerfileDirectory,
       shouldLogCommands: self.isVerbose
     )
   }
 
+  public func buildDockerImage(baseImage: String) async throws -> String {
+    try await self.inTemporaryDirectory { generator, tmp in
+      try generator.writeFile(
+        at: tmp.appending("Dockerfile"),
+        Data(
+          """
+          FROM \(baseImage)
+          """.utf8
+        )
+      )
+
+      let versions = generator.versionsConfiguration
+      let imageName =
+        """
+        swiftlang/swift-sdk:\(versions.swiftBareSemVer)-\(versions.linuxDistribution.name)-\(
+          versions.linuxDistribution.release
+        )
+        """
+
+      try await generator.buildDockerImage(name: imageName, dockerfileDirectory: tmp)
+
+      return imageName
+    }
+  }
+
   public func launchDockerContainer(imageName: String) async throws -> String {
     try await Shell
       .readStdout(
-        "PATH='/bin:/usr/bin:\(Self.homebrewPrefix)/bin' docker create \(imageName)",
+        "\(Self.dockerCommand) run -d \(imageName) tail -f /dev/null",
         shouldLogCommands: self.isVerbose
       )
       .trimmingCharacters(in: .whitespacesAndNewlines)
+  }
+
+  public func runOnDockerContainer(id: String, command: String) async throws {
+    try await Shell.run(
+      "\(Self.dockerCommand) exec \(id) \(command)",
+      shouldLogCommands: self.isVerbose
+    )
   }
 
   public func copyFromDockerContainer(
@@ -154,20 +190,27 @@ public final class LocalSwiftSDKGenerator: SwiftSDKGenerator {
     to localPath: FilePath
   ) async throws {
     try await Shell.run(
-      "PATH='/bin:/usr/bin:\(Self.homebrewPrefix)/bin' docker cp \(id):\(containerPath) \(localPath)",
+      "\(Self.dockerCommand) cp \(id):\(containerPath) \(localPath)",
       shouldLogCommands: self.isVerbose
     )
   }
 
   public func stopDockerContainer(id: String) async throws {
     try await Shell.run(
-      "PATH='/bin:/usr/bin:\(Self.homebrewPrefix)/bin' docker rm -v \(id)",
+      """
+      \(Self.dockerCommand) stop \(id) && \
+      \(Self.dockerCommand) rm -v \(id)
+      """,
       shouldLogCommands: self.isVerbose
     )
   }
 
   public func doesFileExist(at path: FilePath) -> Bool {
     self.fileManager.fileExists(atPath: path.string)
+  }
+
+  public func removeFile(at path: FilePath) throws {
+    try self.fileManager.removeItem(atPath: path.string)
   }
 
   public func writeFile(at path: FilePath, _ data: Data) throws {
