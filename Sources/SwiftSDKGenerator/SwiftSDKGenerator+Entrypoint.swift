@@ -181,6 +181,11 @@ extension SwiftSDKGenerator {
           )
 
           try createSymlink(at: pathsConfiguration.sdkDirPath.appending("lib64"), pointingTo: "./usr/lib64")
+
+          // `libc.so` is a linker script with absolute paths on RHEL, replace with a relative symlink
+          let libcSO = sdkUsrLib64Path.appending("libc.so")
+          try removeFile(at: libcSO)
+          try createSymlink(at: libcSO, pointingTo: "libc.so.6")
         }
 
         try generator.createDirectoryIfNeeded(at: sdkUsrLibPath)
@@ -211,6 +216,7 @@ extension SwiftSDKGenerator {
     for (pathWithinPackage, pathWithinSwiftSDK) in [
       ("swift/linux", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift")),
       ("swift_static/linux", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static")),
+      ("swift_static/shims", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static")),
       ("swift/dispatch", pathsConfiguration.sdkDirPath.appending("usr/include")),
       ("swift/os", pathsConfiguration.sdkDirPath.appending("usr/include")),
       ("swift/CoreFoundation", pathsConfiguration.sdkDirPath.appending("usr/include")),

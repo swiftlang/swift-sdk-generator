@@ -23,40 +23,51 @@ final class EndToEndTests: XCTestCase {
     packageDirectory.removeLastComponent()
     packageDirectory.removeLastComponent()
 
-    let generatorOutput = try await Shell.readStdout(
-      "swift run swift-sdk-generator",
-      currentDirectory: packageDirectory
-    )
+    // Do multiple runs with different sets of arguments.
+    for runArguments in ["", "--with-docker --linux-distribution-name rhel --linux-distribution-version ubi9"] {
+      let generatorOutput = try await Shell.readStdout(
+        "swift run swift-sdk-generator \(runArguments)",
+        currentDirectory: packageDirectory
+      )
 
-    let installCommand = try XCTUnwrap(generatorOutput.split(separator: "\n").first {
-      $0.contains("swift experimental-sdk install")
-    })
+      let installCommand = try XCTUnwrap(generatorOutput.split(separator: "\n").first {
+        $0.contains("swift experimental-sdk install")
+      })
 
-    let bundleName = try XCTUnwrap(
-      FilePath(String(XCTUnwrap(installCommand.split(separator: " ").last))).components.last
-    ).stem
+      let bundleName = try XCTUnwrap(
+        FilePath(String(XCTUnwrap(installCommand.split(separator: " ").last))).components.last
+      ).stem
 
-    let installedSDKs = try await Shell.readStdout("swift experimental-sdk list").components(separatedBy: "\n")
+      let installedSDKs = try await Shell.readStdout("swift experimental-sdk list").components(separatedBy: "\n")
 
-    // Make sure this bundle hasn't been installed already.
-    if installedSDKs.contains(bundleName) {
-      try await Shell.run("swift experimental-sdk remove \(bundleName)")
+      // Make sure this bundle hasn't been installed already.
+      if installedSDKs.contains(bundleName) {
+        try await Shell.run("swift experimental-sdk remove \(bundleName)")
+      }
+
+      let installOutput = try await Shell.readStdout(String(installCommand))
+      XCTAssertTrue(installOutput.contains("successfully installed"))
+
+      let testPackageURL = FileManager.default.temporaryDirectory.appending(path: "swift-sdk-generator-test").path
+      let testPackageDir = FilePath(testPackageURL)
+      try? fm.removeItem(atPath: testPackageDir.string)
+      try fm.createDirectory(atPath: testPackageDir.string, withIntermediateDirectories: true)
+
+      try await Shell.run("swift package init --type executable", currentDirectory: testPackageDir)
+
+      var buildOutput = try await Shell.readStdout(
+        "swift build --experimental-swift-sdk \(bundleName)",
+        currentDirectory: testPackageDir
+      )
+      XCTAssertTrue(buildOutput.contains("Build complete!"))
+
+      try await Shell.run("rm -rf .build", currentDirectory: testPackageDir)
+
+      buildOutput = try await Shell.readStdout(
+        "swift build --experimental-swift-sdk \(bundleName) --static-swift-stdlib",
+        currentDirectory: testPackageDir
+      )
+      XCTAssertTrue(buildOutput.contains("Build complete!"))
     }
-
-    let installOutput = try await Shell.readStdout(String(installCommand))
-    XCTAssertTrue(installOutput.contains("successfully installed"))
-
-    let testPackageURL = FileManager.default.temporaryDirectory.appending(path: "swift-sdk-generator-test").path
-    let testPackageDir = FilePath(testPackageURL)
-    try? fm.removeItem(atPath: testPackageDir.string)
-    try fm.createDirectory(atPath: testPackageDir.string, withIntermediateDirectories: true)
-
-    try await Shell.run("swift package init --type executable", currentDirectory: testPackageDir)
-
-    let buildOutput = try await Shell.readStdout(
-      "swift build --experimental-swift-sdk \(bundleName)",
-      currentDirectory: testPackageDir
-    )
-    XCTAssertTrue(buildOutput.contains("Build complete!"))
   }
 }
