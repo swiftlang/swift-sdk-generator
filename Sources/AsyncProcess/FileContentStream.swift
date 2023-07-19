@@ -101,9 +101,9 @@ internal struct FileContentStream: AsyncSequence {
         .channelInitializer { channel in
           channel.pipeline.addHandler(ReadIntoAsyncChannelHandler(sink: asyncChannel))
         }
-        .withPipes(
-          inputDescriptor: dupedFD,
-          outputDescriptor: dup(deadPipe.fileHandleForWriting.fileDescriptor)
+        .takingOwnershipOfDescriptors(
+          input: dupedFD,
+          output: dup(deadPipe.fileHandleForWriting.fileDescriptor)
         )
         .whenSuccess { channel in
           channel.close(mode: .output, promise: nil)

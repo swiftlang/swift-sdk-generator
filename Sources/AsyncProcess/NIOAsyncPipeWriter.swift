@@ -26,9 +26,9 @@ struct NIOAsyncPipeWriter<Chunks: AsyncSequence & Sendable> where Chunks.Element
     let channel = try await NIOPipeBootstrap(group: eventLoop)
       .channelOption(ChannelOptions.allowRemoteHalfClosure, value: true)
       .channelOption(ChannelOptions.autoRead, value: false)
-      .withPipes(
-        inputDescriptor: dup(deadPipe.fileHandleForReading.fileDescriptor),
-        outputDescriptor: dup(fd)
+      .takingOwnershipOfDescriptors(
+        input: dup(deadPipe.fileHandleForReading.fileDescriptor),
+        output: dup(fd)
       ).get()
     channel.close(mode: .input, promise: nil)
     try! deadPipe.fileHandleForReading.close()
