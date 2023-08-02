@@ -470,6 +470,9 @@ extension SwiftSDKGenerator {
           ),
           linker: .init(
             path: "ld.lld"
+          ),
+          librarian: .init(
+            path: "llvm-ar"
           )
         )
       )
