@@ -104,12 +104,7 @@ public final class LocalSwiftSDKGenerator: SwiftSDKGenerator {
       throw GeneratorError.unknownCPUArchitecture(cpuString)
     }
     #if os(macOS)
-    let macOSVersion = try await Shell.readStdout("sw_vers -productVersion", shouldLogCommands: isVerbose)
-
-    guard let majorMacOSVersion = macOSVersion.split(separator: ".").first else {
-      throw GeneratorError.unknownMacOSVersion(macOSVersion)
-    }
-    return Triple(cpu: cpu, vendor: .apple, os: .macosx(version: "\(majorMacOSVersion).0"))
+    return Triple(cpu: cpu, vendor: .apple, os: .macosx(version: "13.0"))
     #elseif os(Linux)
     return Triple(cpu: cpu, vendor: .unknown, os: .linux)
     #else
