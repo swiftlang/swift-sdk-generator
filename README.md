@@ -2,6 +2,7 @@
 
 ## Requirements
 
+
 This project assumes you're running macOS 13 Ventura on Apple Silicon. It hasn't been tested with `x86_64` hosts and
 targets, but we think only small tweaks would be needed to enable those. While we recommend presence of `docker`
 command-line utility for easier customization of Swift SDKs, we also maintain a CLI option of generating a
