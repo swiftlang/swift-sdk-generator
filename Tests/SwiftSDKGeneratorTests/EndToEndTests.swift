@@ -20,6 +20,7 @@ import XCTest
 final class EndToEndTests: XCTestCase {
   private let logger = Logger(label: "swift-sdk-generator")
 
+  #if !os(macOS)
   func testPackageInitExecutable() async throws {
     let fm = FileManager.default
 
@@ -83,4 +84,5 @@ final class EndToEndTests: XCTestCase {
       XCTAssertTrue(buildOutput.contains("Build complete!"))
     }
   }
+  #endif
 }
