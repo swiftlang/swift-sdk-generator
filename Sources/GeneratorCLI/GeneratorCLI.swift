@@ -69,16 +69,16 @@ struct GeneratorCLI: AsyncParsableCommand {
 
     let elapsed = try await ContinuousClock().measure {
       try await LocalSwiftSDKGenerator(
-        hostCPUArchitecture: hostCPUArchitecture,
-        targetCPUArchitecture: targetCPUArchitecture,
-        swiftVersion: swiftVersion,
-        swiftBranch: swiftBranch,
-        lldVersion: lldVersion,
+        hostCPUArchitecture: self.hostCPUArchitecture,
+        targetCPUArchitecture: self.targetCPUArchitecture,
+        swiftVersion: self.swiftVersion,
+        swiftBranch: self.swiftBranch,
+        lldVersion: self.lldVersion,
         linuxDistribution: linuxDistribution,
-        shouldUseDocker: withDocker,
-        isVerbose: verbose
+        shouldUseDocker: self.withDocker,
+        isVerbose: self.verbose
       )
-      .generateBundle(shouldGenerateFromScratch: !incremental)
+      .generateBundle(shouldGenerateFromScratch: !self.incremental)
     }
 
     print("\nTime taken for this generator run: \(elapsed.intervalString)")

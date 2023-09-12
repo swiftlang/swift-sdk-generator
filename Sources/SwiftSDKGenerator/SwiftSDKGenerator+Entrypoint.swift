@@ -649,11 +649,10 @@ extension HTTPClient {
     targetTriple: Triple,
     isVerbose: Bool
   ) async throws -> [String: URL] {
-    let mirrorURL: String
-    if targetTriple.cpu == .x86_64 {
-      mirrorURL = ubuntuAMD64Mirror
+    let mirrorURL: String = if targetTriple.cpu == .x86_64 {
+      ubuntuAMD64Mirror
     } else {
-      mirrorURL = ubuntuARM64Mirror
+      ubuntuARM64Mirror
     }
 
     let packagesListURL = """

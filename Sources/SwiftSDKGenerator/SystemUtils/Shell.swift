@@ -82,8 +82,8 @@ final class Shell {
   }
 
   private func check(exitCode: Int32) throws {
-    guard self.process.terminationStatus == 0 else {
-      throw FileOperationError.nonZeroExitCode(self.process.terminationStatus, self.commandInfo)
+    guard exitCode == 0 else {
+      throw FileOperationError.nonZeroExitCode(exitCode, self.commandInfo)
     }
   }
 
@@ -94,7 +94,7 @@ final class Shell {
     }
 
     let exitCode = await withCheckedContinuation { continuation in
-      process.terminationHandler = {
+      self.process.terminationHandler = {
         continuation.resume(returning: $0.terminationStatus)
       }
     }

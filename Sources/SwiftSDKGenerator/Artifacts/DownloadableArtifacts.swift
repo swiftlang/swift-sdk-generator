@@ -151,10 +151,10 @@ public struct DownloadableArtifacts: Sendable {
       isPrebuilt: true
     )
 
-    allItems = if shouldUseDocker {
-      [hostSwift, hostLLVM]
+    self.allItems = if shouldUseDocker {
+      [self.hostSwift, self.hostLLVM]
     } else {
-      [hostSwift, hostLLVM, targetSwift]
+      [self.hostSwift, self.hostLLVM, self.targetSwift]
     }
   }
 }

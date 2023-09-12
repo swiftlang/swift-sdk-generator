@@ -50,7 +50,7 @@ public enum LinuxDistribution: Hashable, Sendable {
       self = .rhel(version)
 
     case "ubuntu":
-      self = .ubuntu(try Ubuntu(version: version))
+      self = try .ubuntu(Ubuntu(version: version))
 
     default:
       throw GeneratorError.unknownLinuxDistribution(name: name, version: version)

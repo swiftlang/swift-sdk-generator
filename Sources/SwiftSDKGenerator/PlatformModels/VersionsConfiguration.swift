@@ -64,7 +64,7 @@ public struct VersionsConfiguration: Sendable {
         self.swiftBranch
       )/\(
         subdirectory ?? computedSubdirectory
-      )/swift-\(self.swiftVersion)/\(swiftDistributionName(platform: platform)).\(fileExtension)
+      )/swift-\(self.swiftVersion)/\(self.swiftDistributionName(platform: platform)).\(fileExtension)
       """
     )!
   }
