@@ -222,6 +222,7 @@ public final class LocalSwiftSDKGenerator: SwiftSDKGenerator {
   }
 
   public func rsync(from source: FilePath, to destination: FilePath) async throws {
+    try createDirectoryIfNeeded(at: destination)
     try await Shell.run("rsync -a \(source) \(destination)", shouldLogCommands: self.isVerbose)
   }
 
