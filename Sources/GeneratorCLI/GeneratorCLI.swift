@@ -15,6 +15,8 @@ import SwiftSDKGenerator
 
 @main
 struct GeneratorCLI: AsyncParsableCommand {
+  static let configuration = CommandConfiguration(commandName: "swift-sdk-generator")
+
   @Flag(help: "Delegate to Docker for copying files for the target triple.")
   var withDocker: Bool = false
 
@@ -40,11 +42,22 @@ struct GeneratorCLI: AsyncParsableCommand {
   @Option(help: "Version of LLD linker to supply in the bundle.")
   var lldVersion = "16.0.5"
 
-  @Option(help: "Linux distribution to use if the target platform is Linux. Available options: `ubuntu`, `ubi`.")
-  var linuxDistributionName = "ubuntu"
+  @Option(
+    help: """
+    Linux distribution to use if the target platform is Linux. Available options: `ubuntu`, `rhel`. Default is `ubuntu`.
+    """,
+    transform: LinuxDistribution.Name.init(nameString:)
+  )
+  var linuxDistributionName = LinuxDistribution.Name.ubuntu
 
-  @Option(help: "Version of the Linux distribution used as a target platform.")
-  var linuxDistributionVersion = "22.04"
+  @Option(
+    help: """
+    Version of the Linux distribution used as a target platform. Available options for Ubuntu: `18.04`, `20.04`, \
+    `22.04` (default when `--linux-distribution-name` is `ubuntu`). Available options for RHEL: `ubi9` (default when \
+    `--linux-distribution-name` is `rhel`.
+    """
+  )
+  var linuxDistributionVersion: String?
 
   @Option(
     help: """
@@ -65,6 +78,12 @@ struct GeneratorCLI: AsyncParsableCommand {
   var targetCPUArchitecture: Triple.CPU? = nil
 
   mutating func run() async throws {
+    let linuxDistributionVersion = switch self.linuxDistributionName {
+    case .rhel:
+      "ubi9"
+    case .ubuntu:
+      "22.04"
+    }
     let linuxDistribution = try LinuxDistribution(name: linuxDistributionName, version: linuxDistributionVersion)
 
     let elapsed = try await ContinuousClock().measure {
@@ -81,7 +100,7 @@ struct GeneratorCLI: AsyncParsableCommand {
       .generateBundle(shouldGenerateFromScratch: !self.incremental)
     }
 
-    print("\nTime taken for this generator run: \(elapsed.intervalString)")
+    print("\nTime taken for this generator run: \(elapsed.intervalString).")
   }
 }
 

@@ -15,7 +15,7 @@ import enum NIOHTTP1.HTTPResponseStatus
 import struct SystemPackage.FilePath
 
 enum GeneratorError: Error {
-  case unknownLinuxDistribution(name: String, version: String)
+  case unknownLinuxDistribution(name: String, version: String?)
   case unknownMacOSVersion(String)
   case unknownCPUArchitecture(String)
   case unknownLLDVersion(String)
@@ -28,7 +28,7 @@ extension GeneratorError: CustomStringConvertible {
   var description: String {
     switch self {
     case let .unknownLinuxDistribution(name, version):
-      "Linux distribution `\(name)` with version `\(version)` is not supported by this generator."
+      "Linux distribution `\(name)`\(version.map { " with version \($0)" } ?? "")` is not supported by this generator."
     case let .unknownMacOSVersion(version):
       "macOS version `\(version)` is not supported by this generator."
     case let .unknownCPUArchitecture(cpu):
