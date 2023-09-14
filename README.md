@@ -1,50 +1,61 @@
 # Swift SDK Generator
 
+## Overview
+
+This repository provides a command-line utility for generation of Swift SDKs as specified in [SE-0387](https://github.com/apple/swift-evolution/blob/main/proposals/0387-cross-compilation-destinations.md)
+Swift Evolution proposal.
+
 ## Requirements
 
-This project assumes you're running macOS 13 Ventura on Apple Silicon. It hasn't been tested with `x86_64` hosts and
-targets, but we think only small tweaks would be needed to enable those. While we recommend presence of `docker`
-command-line utility for easier customization of Swift SDKs, we also maintain a CLI option of generating a
-a Swift SDK without Docker.
+Usage of Swift SDKs requires Swift 5.9, follow [installation instructions on swift.org](https://www.swift.org/install/) to install it first.
 
-Usage of Swift SDKs requires a recent 5.9 development snapshot. Download and install one from
-http://swift.org/download, at the time of writing [11 April 2023
-snapshot](https://download.swift.org/swift-5.9-branch/xcode/swift-5.9-DEVELOPMENT-SNAPSHOT-2023-04-11-a/swift-5.9-DEVELOPMENT-SNAPSHOT-2023-04-11-a-osx.pkg)
-has been verified to work.
-
-Enable the installed snapshot in your terminal environment:
-
-```
-export TOOLCHAINS=org.swift.59202304111a
-```
-
-Verify that the `experimental-sdk` command is available:
+After that, verify that the `experimental-sdk` command is available:
 
 ```
 swift experimental-sdk list
 ```
 
-If all goes well it will output a message saying no Swift SDKs are available, or a list of those you previously had 
-installed.
+The output will either state that no Swift SDKs are available, or produce a list of those you previously had 
+installed if you've used the `swift experimental-sdk install` subcommand before.
+
+## Supported platforms and minimum versions
+
+The generator supports generation of Swift SDKs with macOS as a host platform and a few Linux distributions as target platforms.
+Supporting Linux as a host platform is being developed. The end goal is to support cross-compiling between any Linux distributions
+officially supported by the Swift project.
+
+| Platform | Host | Target |
+| -: | :- | :- |
+| macOS            | ✅ macOS 13.0+    | ❌     |
+| Ubuntu | ⚠️ (WIP) | ✅ 20.04/22.04    |
+| RHEL |  ⚠️ (WIP) | ✅ UBI9    |
 
 ## How to use it
 
-Build and run with
+Clone this repository into a directory of your choice and make it the current directory. Build and run it with this command:
 
 ```
 swift run swift-sdk-generator
 ```
 
-This will download required components and produce an SDK for `aarch64` Ubuntu Jammy in the `Bundles` subdirectory of 
+This will download required components and produce a Swift SDK for Ubuntu Jammy in the `Bundles` subdirectory of 
 this project. Follow the steps printed at the end of generator's output for installing the newly generated Swift SDK.
 
-After installing verify that SwiftPM detects the new SDK:
+Additional command-line options are available for specifying target platform features, such as a Linux distribution name,
+version, and target CPU architecture. Pass `--help` flag to see all of the available options:
+
+```
+swift run swift-sdk-generator --help
+```
+
+After installing a Swift SDK, verify that it's available to SwiftPM:
 
 ```
 swift experimental-sdk list
 ```
 
-The output of the last command should contain `ubuntu22.04_aarch64`.
+The output of the last command should contain `ubuntu22.04`. Not the full Swift SDK ID in the output, we'll refer to it
+subsequently as `<generated_sdk_id>`.
 
 Create a new project to verify that the SDK works:
 
@@ -57,7 +68,7 @@ swift package init --type executable
 Build this project with the SDK:
 
 ```
-swift build --experimental-swift-sdk ubuntu22.04_aarch64
+swift build --experimental-swift-sdk <generated_sdk_id>
 ```
 
 Verify that the produced binary is compatible with Linux:
@@ -72,3 +83,34 @@ That should produce output similar to this:
 .build/debug/cross-compilation-test: ELF 64-bit LSB pie executable, ARM aarch64, version 1 (SYSV), 
 dynamically linked, interpreter /lib/ld-linux-aarch64.so.1, for GNU/Linux 3.7.0, with debug_info, not stripped
 ```
+
+## Swift SDK distribution
+
+The `.artifactbundle` directory produced in the previous section can be packaged as a `.tar.gz` archive and redistributed
+in this form. Users of such Swift SDK bundle archive can easily install it with `swift experimental-sdk install`
+command, which supports both local file system paths and public `http://` and `https://` URLs as an argument.
+
+
+## Contributing
+
+There are several ways to contribute to Swift SDK Generator. To learn about the policies, best practices that govern contributions to the Swift project and instructions for setting up the development environment please read the [Contributor Guide](CONTRIBUTING.md).
+
+
+## Reporting issues
+
+If you have any trouble with the Swift SDK Generator, help is available. We recommend:
+
+* Generator's [bug tracker](https://github.com/apple/swift-sdk-generator/issues);
+* The [Swift Forums](https://forums.swift.org/c/development/swiftpm/).
+
+When reporting an issue please follow the bug reporting guidelines, they can be found in [contribution guide](./CONTRIBUTING.md#reporting-issues).
+
+If you’re not comfortable sharing your question with the list, contact details for the code owners can be found in [CODEOWNERS](CODEOWNERS); however, the mailing list is usually the best place to go for help.
+
+## License
+
+Copyright 2022 - 2023 Apple Inc. and the Swift project authors. Licensed under Apache License v2.0 with Runtime Library Exception.
+
+See [https://swift.org/LICENSE.txt](https://swift.org/LICENSE.txt) for license information.
+
+See [https://swift.org/CONTRIBUTORS.txt](https://swift.org/CONTRIBUTORS.txt) for Swift project authors.
