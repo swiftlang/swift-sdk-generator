@@ -85,6 +85,11 @@ That should produce output similar to this:
 dynamically linked, interpreter /lib/ld-linux-aarch64.so.1, for GNU/Linux 3.7.0, with debug_info, not stripped
 ```
 
+You can then copy this binary to a Docker image that has Swift runtime libraries installed. For example,
+for Ubuntu Jammy and Swift 5.9 this would be `swift:5.9-jammy-slim`. If you'd like to copy the binary to
+an arbitrary Ubuntu Jammy system, make sure you pass `--static-swift-stdlib` flag to `swift build`, in addition
+to the `--experimental-swift-sdk` option.
+
 ## Swift SDK distribution
 
 The `.artifactbundle` directory produced in the previous section can be packaged as a `.tar.gz` archive and redistributed
