@@ -25,11 +25,11 @@ macOS as a host platform and a few Linux distributions as target platforms are s
 Support for Linux as a host platform is currently in development. Eventually, the generator will allow cross-compiling between any
 Linux distributions officially supported by the Swift project.
 
-| Platform | Host | Target |
-| -: | :- | :- |
-| macOS            | ✅ macOS 13.0+    | ❌     |
-| Ubuntu | ⚠️ (WIP) | ✅ 20.04 / 22.04    |
-| RHEL |  ⚠️ (WIP) | ✅ UBI 9    |
+| Platform | Supported Version as Host | Supported Version as Target |
+| -:       | :-                        | :-                          |
+| macOS    | ✅ macOS 13.0+            | ❌                         |
+| Ubuntu   | ⚠️ (WIP)                  | ✅ 20.04 / 22.04           |
+| RHEL     | ⚠️ (WIP)                  | ✅ UBI 9                   |
 
 ## How to use it
 
