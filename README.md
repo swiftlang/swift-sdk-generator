@@ -2,7 +2,8 @@
 
 ## Overview
 
-This repository provides a command-line utility for generation of Swift SDKs as specified in [SE-0387](https://github.com/apple/swift-evolution/blob/main/proposals/0387-cross-compilation-destinations.md)
+This repository provides a command-line utility for generation of Swift SDKs for cross-compilation,
+as specified in [SE-0387](https://github.com/apple/swift-evolution/blob/main/proposals/0387-cross-compilation-destinations.md)
 Swift Evolution proposal.
 
 ## Requirements
@@ -16,19 +17,19 @@ swift experimental-sdk list
 ```
 
 The output will either state that no Swift SDKs are available, or produce a list of those you previously had 
-installed if you've used the `swift experimental-sdk install` subcommand before.
+installed, in case you've used the `swift experimental-sdk install` command before.
 
 ## Supported platforms and minimum versions
 
-The generator supports generation of Swift SDKs with macOS as a host platform and a few Linux distributions as target platforms.
-Supporting Linux as a host platform is being developed. The end goal is to support cross-compiling between any Linux distributions
+macOS as a host platform and a few Linux distributions as target platforms are supported by the generator.
+Support for Linux as a host platform is currently in development. The end goal is to support cross-compiling between any Linux distributions
 officially supported by the Swift project.
 
 | Platform | Host | Target |
 | -: | :- | :- |
 | macOS            | ✅ macOS 13.0+    | ❌     |
-| Ubuntu | ⚠️ (WIP) | ✅ 20.04/22.04    |
-| RHEL |  ⚠️ (WIP) | ✅ UBI9    |
+| Ubuntu | ⚠️ (WIP) | ✅ 20.04 / 22.04    |
+| RHEL |  ⚠️ (WIP) | ✅ UBI 9    |
 
 ## How to use it
 
@@ -38,10 +39,10 @@ Clone this repository into a directory of your choice and make it the current di
 swift run swift-sdk-generator
 ```
 
-This will download required components and produce a Swift SDK for Ubuntu Jammy in the `Bundles` subdirectory of 
-this project. Follow the steps printed at the end of generator's output for installing the newly generated Swift SDK.
+This will download required components and produce a Swift SDK for Ubuntu Jammy in the `Bundles` subdirectory. Follow the steps
+printed at the end of generator's output for installing the newly generated Swift SDK.
 
-Additional command-line options are available for specifying target platform features, such as a Linux distribution name,
+Additional command-line options are available for specifying target platform features, such as Linux distribution name,
 version, and target CPU architecture. Pass `--help` flag to see all of the available options:
 
 ```
@@ -54,7 +55,7 @@ After installing a Swift SDK, verify that it's available to SwiftPM:
 swift experimental-sdk list
 ```
 
-The output of the last command should contain `ubuntu22.04`. Not the full Swift SDK ID in the output, we'll refer to it
+The output of the last command should contain `ubuntu22.04`. Note the full Swift SDK ID in the output, we'll refer to it
 subsequently as `<generated_sdk_id>`.
 
 Create a new project to verify that the SDK works:
@@ -93,7 +94,7 @@ command, which supports both local file system paths and public `http://` and `h
 
 ## Contributing
 
-There are several ways to contribute to Swift SDK Generator. To learn about the policies, best practices that govern contributions to the Swift project and instructions for setting up the development environment please read the [Contributor Guide](CONTRIBUTING.md).
+There are several ways to contribute to Swift SDK Generator. To learn about the policies, best practices that govern contributions to the Swift project, and instructions for setting up the development environment please read the [Contributor Guide](CONTRIBUTING.md).
 
 
 ## Reporting issues
@@ -103,9 +104,9 @@ If you have any trouble with the Swift SDK Generator, help is available. We reco
 * Generator's [bug tracker](https://github.com/apple/swift-sdk-generator/issues);
 * The [Swift Forums](https://forums.swift.org/c/development/swiftpm/).
 
-When reporting an issue please follow the bug reporting guidelines, they can be found in [contribution guide](./CONTRIBUTING.md#reporting-issues).
+When reporting an issue please follow the bug reporting guidelines, they can be found in [contribution guide](./CONTRIBUTING.md#how-to-submit-a-bug-report).
 
-If you’re not comfortable sharing your question with the list, contact details for the code owners can be found in [CODEOWNERS](CODEOWNERS); however, the mailing list is usually the best place to go for help.
+If you’re not comfortable sharing your question with the list, contact details for the code owners can be found in [CODEOWNERS](.github/CODEOWNERS); however, Swift Forums is usually the best place to go for help.
 
 ## License
 
