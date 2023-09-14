@@ -19,7 +19,7 @@ import NIO
 // - Known issues:
 //   - no tests
 //   - most configurations have never run
-internal struct FileContentStream: AsyncSequence {
+struct FileContentStream: AsyncSequence {
   public typealias Element = ByteBuffer
   typealias Underlying = AsyncThrowingChannel<Element, Error>
 
@@ -184,11 +184,11 @@ private final class ReadIntoAsyncChannelHandler: ChannelDuplexHandler {
   private var shouldRead: Bool {
     switch self.state {
     case .idle:
-      return true
+      true
     case .error:
-      return false
+      false
     case .sending:
-      return false
+      false
     }
   }
 
@@ -306,7 +306,7 @@ public struct AsyncByteBufferLineSequence<Base: Sendable>: AsyncSequence & Senda
 
     struct Buffer {
       private var buffer: [ByteBuffer] = []
-      internal private(set) var byteCount: Int = 0
+      private(set) var byteCount: Int = 0
 
       mutating func append(_ buffer: ByteBuffer) {
         self.buffer.append(buffer)
@@ -351,7 +351,7 @@ public struct AsyncByteBufferLineSequence<Base: Sendable>: AsyncSequence & Senda
       }
     }
 
-    internal init(
+    init(
       underlying: Base.AsyncIterator,
       dropTerminator: Bool,
       maximumAllowableBufferSize: Int,

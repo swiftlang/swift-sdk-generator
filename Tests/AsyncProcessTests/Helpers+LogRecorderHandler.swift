@@ -13,8 +13,8 @@
 import Logging
 import NIOConcurrencyHelpers
 
-internal final class LogRecorderHandler: LogHandler {
-  internal let state = NIOLockedValueBox<State>(State())
+final class LogRecorderHandler: LogHandler {
+  let state = NIOLockedValueBox<State>(State())
 
   struct FullLogMessage: Equatable {
     var level: Logger.Level

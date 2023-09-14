@@ -223,9 +223,9 @@ final class IntegrationTests: XCTestCase {
     try await withThrowingTaskGroup(of: Void.self) { group in
       group.addTask {
         var allOutput: [String] = []
-        for try await (stream, line) in merge(
-          await exe.standardOutput.splitIntoLines(dropTerminator: true).map { ("stdout", $0) },
-          await exe.standardError.splitIntoLines(dropTerminator: true).map { ("stderr", $0) }
+        for try await (stream, line) in await merge(
+          exe.standardOutput.splitIntoLines(dropTerminator: true).map { ("stdout", $0) },
+          exe.standardError.splitIntoLines(dropTerminator: true).map { ("stderr", $0) }
         ) {
           let formattedOutput = "\(String(buffer: line)) [\(stream)]"
           allOutput.append(formattedOutput)
@@ -378,13 +378,13 @@ final class IntegrationTests: XCTestCase {
 
     let file = tempDir.appendingPathComponent("file")
 
-    let exe = ProcessExecutor(
+    let exe = try ProcessExecutor(
       group: self.group,
       executable: "/bin/dd",
       ["if=/dev/zero", "bs=\(1024 * 1024)", "count=3", "status=none"],
       standardInput: EOFSequence(),
       standardOutput: .fileDescriptor(
-        takingOwnershipOf: try .open(
+        takingOwnershipOf: .open(
           .init(file.path.removingPercentEncoding!),
           .writeOnly,
           options: .create,
@@ -769,13 +769,13 @@ extension ProcessExecutor {
   func runGetAllOutput() async throws -> AllOfAProcess {
     try await withThrowingTaskGroup(of: What.self, returning: AllOfAProcess.self) { group in
       group.addTask {
-        .exit(try await self.run())
+        try await .exit(self.run())
       }
       group.addTask {
-        .stdout(try await self.standardOutput.pullAllOfIt())
+        try await .stdout(self.standardOutput.pullAllOfIt())
       }
       group.addTask {
-        .stderr(try await self.standardError.pullAllOfIt())
+        try await .stderr(self.standardError.pullAllOfIt())
       }
 
       var exitReason: ProcessExitReason?
