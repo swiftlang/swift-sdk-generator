@@ -22,8 +22,8 @@ installed, in case you've used the `swift experimental-sdk install` command befo
 ## Supported platforms and minimum versions
 
 macOS as a host platform and a few Linux distributions as target platforms are supported by the generator.
-Support for Linux as a host platform is currently in development. The end goal is to support cross-compiling between any Linux distributions
-officially supported by the Swift project.
+Support for Linux as a host platform is currently in development. Eventually, the generator will allow cross-compiling between any
+Linux distributions officially supported by the Swift project.
 
 | Platform | Host | Target |
 | -: | :- | :- |
