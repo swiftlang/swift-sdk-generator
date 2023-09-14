@@ -19,6 +19,7 @@ enum GeneratorError: Error {
   case unknownMacOSVersion(String)
   case unknownCPUArchitecture(String)
   case unknownLLDVersion(String)
+  case distributionSupportsOnlyDockerGenerator(LinuxDistribution)
   case fileDoesNotExist(FilePath)
   case fileDownloadFailed(URL, HTTPResponseStatus)
   case ubuntuPackagesParsingFailure(expectedPackages: Int, actual: Int)
@@ -35,6 +36,11 @@ extension GeneratorError: CustomStringConvertible {
       "CPU architecture `\(cpu)` is not supported by this generator."
     case let .unknownLLDVersion(version):
       "LLD version `\(version)` is not supported by this generator."
+    case let .distributionSupportsOnlyDockerGenerator(linuxDistribution):
+      """
+      Target Linux distribution \(linuxDistribution) supports Swift SDK generation only when `--with-docker` flag is \
+      passed.
+      """
     case let .fileDoesNotExist(filePath):
       "Expected to find a file at path `\(filePath)`."
     case let .fileDownloadFailed(url, status):

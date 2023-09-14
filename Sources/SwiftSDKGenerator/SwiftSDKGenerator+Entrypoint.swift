@@ -74,7 +74,11 @@ extension SwiftSDKGenerator {
     }
 
     if !shouldUseDocker {
-      try await self.downloadUbuntuPackages(client)
+      guard case let .ubuntu(version) = versionsConfiguration.linuxDistribution else {
+        throw GeneratorError.distributionSupportsOnlyDockerGenerator(versionsConfiguration.linuxDistribution)
+      }
+
+      try await self.downloadUbuntuPackages(client, requiredPackages: version.requiredPackages)
     }
 
     try await self.unpackHostSwift()
@@ -337,7 +341,7 @@ extension SwiftSDKGenerator {
     }
   }
 
-  private func downloadUbuntuPackages(_ client: HTTPClient) async throws {
+  private func downloadUbuntuPackages(_ client: HTTPClient, requiredPackages: [String]) async throws {
     logGenerationStep("Parsing Ubuntu packages list...")
 
     async let mainPackages = try await client.parseUbuntuPackagesList(
@@ -367,19 +371,6 @@ extension SwiftSDKGenerator {
       .merging(updatesPackages, uniquingKeysWith: { $1 })
       .merging(universePackages, uniquingKeysWith: { $1 })
 
-    let requiredPackages = [
-      "libc6-dev",
-      "linux-libc-dev",
-      "libicu70",
-      "libgcc-12-dev",
-      "libicu-dev",
-      "libc6",
-      "libgcc-s1",
-      "libstdc++-12-dev",
-      "libstdc++6",
-      "zlib1g",
-      "zlib1g-dev",
-    ]
     let urls = requiredPackages.compactMap { allPackages[$0] }
 
     guard urls.count == requiredPackages.count else {

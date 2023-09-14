@@ -25,14 +25,11 @@ public enum LinuxDistribution: Hashable, Sendable {
   }
 
   public enum Ubuntu: String, Sendable {
-    case bionic
     case focal
     case jammy
 
     init(version: String) throws {
       self = switch version {
-      case "18.04":
-        .bionic
       case "20.04":
         .focal
       case "22.04":
@@ -44,9 +41,40 @@ public enum LinuxDistribution: Hashable, Sendable {
 
     var version: String {
       switch self {
-      case .bionic: "18.04"
       case .focal: "20.04"
       case .jammy: "22.04"
+      }
+    }
+
+    public var requiredPackages: [String] {
+      switch self {
+      case .focal: [
+          "libc6",
+          "libc6-dev",
+          "libgcc-s1",
+          "libgcc-10-dev",
+          "libicu66",
+          "libicu-dev",
+          "libstdc++-10-dev",
+          "libstdc++6",
+          "linux-libc-dev",
+          "zlib1g",
+          "zlib1g-dev",
+          "libc6",
+        ]
+      case .jammy: [
+          "libc6",
+          "libc6-dev",
+          "libgcc-s1",
+          "libgcc-12-dev",
+          "libicu70",
+          "libicu-dev",
+          "libstdc++-12-dev",
+          "libstdc++6",
+          "linux-libc-dev",
+          "zlib1g",
+          "zlib1g-dev",
+        ]
       }
     }
   }
@@ -67,10 +95,10 @@ public enum LinuxDistribution: Hashable, Sendable {
     }
   }
 
-  var name: String {
+  var name: Name {
     switch self {
-    case .rhel: "rhel"
-    case .ubuntu: "ubuntu"
+    case .rhel: .rhel
+    case .ubuntu: .ubuntu
     }
   }
 
@@ -95,5 +123,27 @@ public extension LinuxDistribution.Name {
       throw GeneratorError.unknownLinuxDistribution(name: nameString, version: nil)
     }
     self = name
+  }
+}
+
+extension LinuxDistribution: CustomStringConvertible {
+  public var description: String {
+    let versionComponent = switch self {
+    case .rhel:
+      self.release.uppercased()
+    case .ubuntu:
+      self.release.capitalized
+    }
+
+    return "\(self.name) \(versionComponent)"
+  }
+}
+
+extension LinuxDistribution.Name: CustomStringConvertible {
+  public var description: String {
+    switch self {
+    case .rhel: "RHEL"
+    case .ubuntu: "Ubuntu"
+    }
   }
 }
