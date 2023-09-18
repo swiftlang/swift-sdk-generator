@@ -2,9 +2,17 @@
 
 ## Overview
 
-This repository provides a command-line utility for generation of Swift SDKs for cross-compilation,
-as specified in [SE-0387](https://github.com/apple/swift-evolution/blob/main/proposals/0387-cross-compilation-destinations.md)
-Swift Evolution proposal.
+With Swift supporting many different platforms, cross-compilation can boost developer productivity. In certain cases it's
+the only way to build a Swift package.
+
+[SE-0387](https://github.com/apple/swift-evolution/blob/main/proposals/0387-cross-compilation-destinations.md) proposal
+introduces Swift SDKs, which bundle together all components required for cross-compilation in a single archive, and
+make cross builds as easy as running a single command.
+
+Swift SDK authors can assemble such archive manually, but the goal of Swift SDK Generator developed in this repository
+is to automate this task as much as possible. If you're a platform maintainer, or someone who would like to make
+cross-compiling easy to your favorite platform, you can tailor the generator source code to your needs and publish
+a newly generated Swift SDK for users to install.
 
 ## Requirements
 
@@ -101,6 +109,7 @@ command, which supports both local file system paths and public `http://` and `h
 
 There are several ways to contribute to Swift SDK Generator. To learn about the policies, best practices that govern contributions to the Swift project, and instructions for setting up the development environment please read the [Contributor Guide](CONTRIBUTING.md).
 
+If you're interested in adding support for a new platform, please open an issue on this repository first so that the best implementation strategy can be discussed before proceeding with an implementation. 
 
 ## Reporting issues
 
