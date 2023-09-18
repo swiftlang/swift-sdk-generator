@@ -55,7 +55,7 @@ public final class LocalSwiftSDKGenerator: SwiftSDKGenerator {
       environment: .gnu
     )
     self.artifactID = """
-    \(swiftVersion)_\(linuxDistribution.name)_\(linuxDistribution.release)_\(
+    \(swiftVersion)_\(linuxDistribution.name.rawValue)_\(linuxDistribution.release)_\(
       self.targetTriple.cpu.linuxConventionName
     )
     """

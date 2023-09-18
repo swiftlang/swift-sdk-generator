@@ -13,7 +13,7 @@
 @testable import SwiftSDKGenerator
 import XCTest
 
-class ArchitectureMappingTest: XCTestCase {
+final class ArchitectureMappingTests: XCTestCase {
   /// Swift on macOS, Swift on Linux and Debian packages all use
   /// different names for the x86 and Arm architectures:
   ///
