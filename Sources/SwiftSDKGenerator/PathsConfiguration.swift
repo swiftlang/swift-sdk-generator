@@ -22,7 +22,7 @@ public struct PathsConfiguration: Sendable {
     self.swiftSDKRootPath = self.artifactBundlePath
       .appending(artifactID)
       .appending(targetTriple.linuxConventionDescription)
-    self.sdkDirPath = self.swiftSDKRootPath.appending("\(linuxDistribution.name)-\(linuxDistribution.release).sdk")
+      self.sdkDirPath = self.swiftSDKRootPath.appending("\(linuxDistribution.name.rawValue)-\(linuxDistribution.release).sdk")
     self.toolchainDirPath = self.swiftSDKRootPath.appending("swift.xctoolchain")
     self.toolchainBinDirPath = self.toolchainDirPath.appending("usr/bin")
   }
