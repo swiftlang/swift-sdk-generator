@@ -1,7 +1,6 @@
 # Swift SDK Generator
 
 ## Overview
-
 With Swift supporting many different platforms, cross-compilation can boost developer productivity. In certain cases it's
 the only way to build a Swift package.
 
