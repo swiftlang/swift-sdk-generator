@@ -495,8 +495,8 @@ extension SwiftSDKGenerator {
     try writeFile(
       at: destinationJSONPath,
       self.encoder.encode(
-        DestinationV3(
-          runTimeTriples: [
+        SwiftSDKMetadataV4(
+          targetTriples: [
             self.targetTriple.linuxConventionDescription: .init(
               sdkRootPath: relativeSDKDir.string,
               toolsetPaths: [relativeToolsetPath.string]

@@ -13,17 +13,22 @@
 import struct Foundation.URL
 import struct SystemPackage.FilePath
 
-private let knownLinuxSwiftVersions = [
+/// SHA256 hashes of Swift packages for Linux known to the generator.
+private let knownLinuxSwiftVersions: [LinuxDistribution: [String: [Triple.CPU: String]]] = [
   LinuxDistribution.ubuntu(.jammy): [
     "5.7.3-RELEASE": [
-      Triple.CPU.arm64: "75003d5a995292ae3f858b767fbb89bc3edee99488f4574468a0e44341aec55b",
+      .arm64: "75003d5a995292ae3f858b767fbb89bc3edee99488f4574468a0e44341aec55b",
     ],
     "5.8-RELEASE": [
-      Triple.CPU.arm64: "12ea2df36f9af0aefa74f0989009683600978f62223e7dd73b627c90c7fe9273",
+      .arm64: "12ea2df36f9af0aefa74f0989009683600978f62223e7dd73b627c90c7fe9273",
     ],
+    "5.9-RELEASE": [
+      .arm64: "30b289e02f7e03c380744ea97fdf0e96985dff504b0f09de23e098fdaf6513f3"
+    ]
   ],
 ]
 
+/// SHA256 hashes of Swift packages for macOS known to the generator.
 private let knownMacOSSwiftVersions = [
   "5.7.3-RELEASE": [
     Triple.CPU.arm64: "ba3516845eb8f4469a8bb06a273687f05791187324a3843996af32a73a2a687d",
@@ -31,12 +36,13 @@ private let knownMacOSSwiftVersions = [
   "5.8-RELEASE": [
     Triple.CPU.arm64: "9b6cc56993652ca222c86a2d6b7b66abbd50bb92cc526efc2b23d47d40002097",
   ],
-  "DEVELOPMENT-SNAPSHOT-2023-03-17-a": [
-    Triple.CPU.arm64: "6d1664a84bd95161f65feebde32213c79f5cc9b9d3b12ef658c3216c9c2980d0",
-  ],
+  "5.9-RELEASE": [
+    Triple.CPU.arm64: "3cf7a4b2f3efcfcb4fef42b6588a7b1c54f7b0f2d0a479f41c3e1620b045f48e",
+  ]
 ]
 
 #if os(macOS)
+/// SHA256 hashes of LLMV packages for macOS known to the generator.
 private let knownLLVMVersions: [String: (Triple.OS, [Triple.CPU: String])] = [
   "15.0.7": (
     .darwin(version: "22.0"),
