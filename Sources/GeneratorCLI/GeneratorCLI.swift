@@ -67,7 +67,7 @@ struct GeneratorCLI: AsyncParsableCommand {
     ).
     """
   )
-  var hostCPUArchitecture: Triple.CPU? = nil
+  var hostArch: Triple.CPU? = nil
 
   @Option(
     help: """
@@ -75,7 +75,7 @@ struct GeneratorCLI: AsyncParsableCommand {
     Available options: \(Triple.CPU.allCases.map { "`\($0.rawValue)`" }.joined(separator: ", ")).
     """
   )
-  var targetCPUArchitecture: Triple.CPU? = nil
+  var targetArch: Triple.CPU? = nil
 
   mutating func run() async throws {
     let linuxDistributionVersion = switch self.linuxDistributionName {
@@ -88,8 +88,8 @@ struct GeneratorCLI: AsyncParsableCommand {
 
     let elapsed = try await ContinuousClock().measure {
       try await LocalSwiftSDKGenerator(
-        hostCPUArchitecture: self.hostCPUArchitecture,
-        targetCPUArchitecture: self.targetCPUArchitecture,
+        hostCPUArchitecture: self.hostArch,
+        targetCPUArchitecture: self.targetArch,
         swiftVersion: self.swiftVersion,
         swiftBranch: self.swiftBranch,
         lldVersion: self.lldVersion,
