@@ -20,7 +20,7 @@ public final class LocalSwiftSDKGenerator: SwiftSDKGenerator {
   public let artifactID: String
   public let versionsConfiguration: VersionsConfiguration
   public let pathsConfiguration: PathsConfiguration
-  public let downloadableArtifacts: DownloadableArtifacts
+  public var downloadableArtifacts: DownloadableArtifacts
   public let shouldUseDocker: Bool
   public let isVerbose: Bool
 
@@ -37,6 +37,7 @@ public final class LocalSwiftSDKGenerator: SwiftSDKGenerator {
     logGenerationStep("Looking up configuration values...")
 
     let sourceRoot = FilePath(#file)
+      .removingLastComponent()
       .removingLastComponent()
       .removingLastComponent()
       .removingLastComponent()
@@ -222,7 +223,7 @@ public final class LocalSwiftSDKGenerator: SwiftSDKGenerator {
   }
 
   public func rsync(from source: FilePath, to destination: FilePath) async throws {
-    try createDirectoryIfNeeded(at: destination)
+    try self.createDirectoryIfNeeded(at: destination)
     try await Shell.run("rsync -a \(source) \(destination)", shouldLogCommands: self.isVerbose)
   }
 
