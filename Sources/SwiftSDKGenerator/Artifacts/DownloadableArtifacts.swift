@@ -13,7 +13,8 @@
 import struct Foundation.URL
 import struct SystemPackage.FilePath
 
-enum ArtifactOS: Hashable {
+/// Information about the OS for which the artifact is built, if it's downloaded as prebuilt.
+private enum ArtifactOS: Hashable {
   init(_ tripleOS: Triple.OS, _ versions: VersionsConfiguration) {
     switch tripleOS {
     case .linux:
@@ -25,6 +26,8 @@ enum ArtifactOS: Hashable {
 
   case linux(LinuxDistribution)
   case macOS
+
+  /// No specific OS required for this artifact, it's not binary and is distributed in the source form.
   case source
 
   var llvmBinaryURLSuffix: String {
