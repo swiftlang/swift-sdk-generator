@@ -13,7 +13,8 @@
 import Foundation
 import SystemPackage
 
-public protocol SwiftSDKGenerator {
+/// This protocol abstracts over possible generators, which allows creating a mock generator for testing purposes.
+public protocol SwiftSDKGenerator: AnyObject {
   // MARK: configuration
 
   var hostTriple: Triple { get }
@@ -21,7 +22,7 @@ public protocol SwiftSDKGenerator {
   var artifactID: String { get }
   var versionsConfiguration: VersionsConfiguration { get }
   var pathsConfiguration: PathsConfiguration { get }
-  var downloadableArtifacts: DownloadableArtifacts { get }
+  var downloadableArtifacts: DownloadableArtifacts { get set }
   var shouldUseDocker: Bool { get }
   var isVerbose: Bool { get }
 
