@@ -133,25 +133,21 @@ public struct DownloadableArtifacts: Sendable {
       isPrebuilt: true
     )
 
-    if let llvmArtifact = knownLLVMBinariesVersions[hostArtifactsOS]?[versions.lldVersion]?[hostTriple.cpu] {
-      self.hostLLVM = .init(
-        remoteURL: URL(
-          string: """
-          https://github.com/llvm/llvm-project/releases/download/llvmorg-\(
-            versions.lldVersion
-          )/clang+llvm-\(
-            versions.lldVersion
-          )-\(hostTriple.cpu)-\(hostArtifactsOS.llvmBinaryURLSuffix).tar.xz
-          """
-        )!,
-        localPath: paths.artifactsCachePath
-          .appending("host_llvm_\(versions.lldVersion)_\(hostTriple).tar.xz"),
-        checksum: llvmArtifact,
-        isPrebuilt: true
-      )
-    } else {
-      self.hostLLVM = Self.llvmSources(versions, paths)
-    }
+    self.hostLLVM = .init(
+      remoteURL: URL(
+        string: """
+        https://github.com/llvm/llvm-project/releases/download/llvmorg-\(
+          versions.lldVersion
+        )/clang+llvm-\(
+          versions.lldVersion
+        )-\(hostTriple.cpu)-\(hostArtifactsOS.llvmBinaryURLSuffix).tar.xz
+        """
+      )!,
+      localPath: paths.artifactsCachePath
+        .appending("host_llvm_\(versions.lldVersion)_\(hostTriple).tar.xz"),
+      checksum: knownLLVMBinariesVersions[hostArtifactsOS]?[versions.lldVersion]?[hostTriple.cpu],
+      isPrebuilt: true
+    )
 
     let targetArtifactsOS = ArtifactOS(targetTriple.os, versions)
     self.targetSwift = .init(
@@ -170,23 +166,19 @@ public struct DownloadableArtifacts: Sendable {
   }
 
   mutating func useLLVMSources() {
-    self.hostLLVM = Self.llvmSources(self.versions, self.paths)
-  }
-
-  static func llvmSources(_ versions: VersionsConfiguration, _ paths: PathsConfiguration) -> Item {
-    .init(
+    self.hostLLVM = .init(
       remoteURL: URL(
         string: """
         https://github.com/llvm/llvm-project/releases/download/llvmorg-\(
-          versions.lldVersion
+          self.versions.lldVersion
         )/llvm-project-\(
-          versions.lldVersion
+          self.versions.lldVersion
         ).src.tar.xz
         """
       )!,
-      localPath: paths.artifactsCachePath
-        .appending("llvm_\(versions.lldVersion).src.tar.xz"),
-      checksum: knownLLVMSourcesVersions[versions.lldVersion],
+      localPath: self.paths.artifactsCachePath
+        .appending("llvm_\(self.versions.lldVersion).src.tar.xz"),
+      checksum: knownLLVMSourcesVersions[self.versions.lldVersion],
       isPrebuilt: false
     )
   }
