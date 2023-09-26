@@ -60,7 +60,6 @@ struct GeneratorCLI: AsyncParsableCommand {
   var linuxDistributionVersion: String?
 
   @Option(
-    name: .shortAndLong,
     help: """
     CPU architecture of the host triple of the bundle. Defaults to a triple of the machine this generator is \
     running on if unspecified. Available options: \(
@@ -68,16 +67,15 @@ struct GeneratorCLI: AsyncParsableCommand {
     ).
     """
   )
-  var hostCPUArchitecture: Triple.CPU? = nil
+  var hostArch: Triple.CPU? = nil
 
   @Option(
-    name: .shortAndLong,
     help: """
     CPU architecture of the target triple of the bundle. Same as the host triple CPU architecture if unspecified. \
     Available options: \(Triple.CPU.allCases.map { "`\($0.rawValue)`" }.joined(separator: ", ")).
     """
   )
-  var targetCPUArchitecture: Triple.CPU? = nil
+  var targetArch: Triple.CPU? = nil
 
   mutating func run() async throws {
     let linuxDistributionVersion = switch self.linuxDistributionName {
@@ -90,8 +88,8 @@ struct GeneratorCLI: AsyncParsableCommand {
 
     let elapsed = try await ContinuousClock().measure {
       try await LocalSwiftSDKGenerator(
-        hostCPUArchitecture: self.hostCPUArchitecture,
-        targetCPUArchitecture: self.targetCPUArchitecture,
+        hostCPUArchitecture: self.hostArch,
+        targetCPUArchitecture: self.targetArch,
         swiftVersion: self.swiftVersion,
         swiftBranch: self.swiftBranch,
         lldVersion: self.lldVersion,
