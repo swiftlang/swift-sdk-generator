@@ -31,6 +31,10 @@ extension SwiftSDKGenerator {
     let isLLVMBinaryArtifactAvailable = try await client.execute(headRequest, deadline: .distantFuture)
       .status == .ok
 
+    if !isLLVMBinaryArtifactAvailable {
+      downloadableArtifacts.useLLVMSources()
+    }
+
     let hostSwiftProgressStream = client.streamDownloadProgress(for: downloadableArtifacts.hostSwift)
       .removeDuplicates(by: didProgressChangeSignificantly)
     let hostLLVMProgressStream = client.streamDownloadProgress(for: downloadableArtifacts.hostLLVM)

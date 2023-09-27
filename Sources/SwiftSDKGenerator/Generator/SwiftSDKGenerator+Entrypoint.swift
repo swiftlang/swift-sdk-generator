@@ -116,11 +116,15 @@ extension SwiftSDKGenerator {
 
       return try await withThrowingTaskGroup(of: Bool.self) { taskGroup in
         for artifact in downloadableArtifacts.allItems {
-          taskGroup.addTask { try await Self.isChecksumValid(artifact: artifact, isVerbose: self.isVerbose) }
+          taskGroup.addTask {
+            try await Self.isChecksumValid(artifact: artifact, isVerbose: self.isVerbose)
+          }
         }
 
         for try await isValid in taskGroup {
-          guard isValid else { return false }
+          guard isValid else {
+            return false
+          }
         }
 
         return true

@@ -22,7 +22,7 @@ public protocol SwiftSDKGenerator: AnyObject {
   var artifactID: String { get }
   var versionsConfiguration: VersionsConfiguration { get }
   var pathsConfiguration: PathsConfiguration { get }
-  var downloadableArtifacts: DownloadableArtifacts { get }
+  var downloadableArtifacts: DownloadableArtifacts { get set }
   var shouldUseDocker: Bool { get }
   var isVerbose: Bool { get }
 
