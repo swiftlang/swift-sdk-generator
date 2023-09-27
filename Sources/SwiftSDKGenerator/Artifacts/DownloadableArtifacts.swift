@@ -27,14 +27,10 @@ private enum ArtifactOS: Hashable {
   case linux(LinuxDistribution)
   case macOS
 
-  /// No specific OS required for this artifact, it's not binary and is distributed in the source form.
-  case source
-
   var llvmBinaryURLSuffix: String {
     switch self {
     case .linux: "linux-gnu"
     case .macOS: "apple-darwin22.0"
-    case .source: fatalError()
     }
   }
 }
