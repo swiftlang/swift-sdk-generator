@@ -33,6 +33,7 @@ public protocol SwiftSDKGenerator: AnyObject {
   func untar(file: FilePath, into directoryPath: FilePath, stripComponents: Int?) async throws
   func unpack(file: FilePath, into directoryPath: FilePath) async throws
   func rsync(from source: FilePath, to destination: FilePath) async throws
+  func buildCMakeProject(_ projectPath: FilePath) async throws -> FilePath
 
   static func isChecksumValid(artifact: DownloadableArtifacts.Item, isVerbose: Bool) async throws -> Bool
 
