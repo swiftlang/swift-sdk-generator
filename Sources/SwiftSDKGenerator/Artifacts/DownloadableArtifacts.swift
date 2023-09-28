@@ -14,7 +14,7 @@ import struct Foundation.URL
 import struct SystemPackage.FilePath
 
 /// Information about the OS for which the artifact is built, if it's downloaded as prebuilt.
-private enum ArtifactOS: Hashable {
+enum ArtifactOS: Hashable {
   init(_ tripleOS: Triple.OS, _ versions: VersionsConfiguration) {
     switch tripleOS {
     case .linux:
@@ -24,7 +24,7 @@ private enum ArtifactOS: Hashable {
     case .wasi:
       self = .wasi
     case .win32:
-        self = .windows
+      self = .windows
     }
   }
 

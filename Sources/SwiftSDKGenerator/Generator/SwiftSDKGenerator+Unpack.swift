@@ -70,16 +70,34 @@ extension SwiftSDKGenerator {
     logGenerationStep("Unpacking and copying `lld` linker...")
     let downloadableArtifacts = self.downloadableArtifacts
     let pathsConfiguration = self.pathsConfiguration
+    let targetOS = self.targetTriple.os
 
     try await inTemporaryDirectory { fileSystem, tmpDir in
+      let llvmArtifact = downloadableArtifacts.hostLLVM
       try await fileSystem.untar(
-        file: downloadableArtifacts.hostLLVM.localPath,
+        file: llvmArtifact.localPath,
         into: tmpDir,
         stripComponents: 1
       )
+
+      let unpackedLLDPath = if llvmArtifact.isPrebuilt {
+        tmpDir.appending("bin/lld")
+      } else {
+        try await self.buildLLD(llvmSourcesDirectory: tmpDir)
+      }
+
+      let toolchainLLDPath = switch targetOS {
+      case .linux:
+        pathsConfiguration.toolchainBinDirPath.appending("ld.lld")
+      case .wasi:
+        pathsConfiguration.toolchainBinDirPath.appending("wasm-ld")
+      default:
+        fatalError()
+      }
+
       try fileSystem.copy(
-        from: tmpDir.appending("bin/lld"),
-        to: pathsConfiguration.toolchainBinDirPath.appending("ld.lld")
+        from: unpackedLLDPath,
+        to: toolchainLLDPath
       )
     }
   }
