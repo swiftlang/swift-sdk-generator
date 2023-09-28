@@ -14,7 +14,10 @@ import SystemPackage
 
 extension SwiftSDKGenerator {
   func buildLLD(llvmSourcesDirectory: FilePath) async throws -> FilePath {
-    let buildDirectory = try await self.buildCMakeProject(llvmSourcesDirectory)
+    let buildDirectory = try await self.buildCMakeProject(
+      llvmSourcesDirectory,
+      options: "-DLLVM_ENABLE_PROJECTS=lld -DLLVM_TARGETS_TO_BUILD=\(self.targetTriple.cpu.llvmTargetConventionName)"
+    )
 
     return buildDirectory.appending("bin").appending("lld")
   }

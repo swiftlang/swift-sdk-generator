@@ -34,6 +34,14 @@ public struct Triple: CustomStringConvertible {
       case .x86_64: "x86_64"
       }
     }
+
+    /// Returns the value of `cpu` converted to a convention used by `LLVM_TARGETS_TO_BUILD` CMake setting.
+    var llvmTargetConventionName: String {
+      switch self {
+      case .x86_64: "X86"
+      case .arm64: "AArch64"
+      }
+    }
   }
 
   enum Vendor: String {

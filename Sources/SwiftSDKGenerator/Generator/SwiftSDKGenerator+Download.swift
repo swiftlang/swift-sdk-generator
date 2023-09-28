@@ -42,12 +42,12 @@ extension SwiftSDKGenerator {
 
     print("Using these URLs for downloads:")
 
+    for artifact in downloadableArtifacts.allItems {
+      print(artifact.remoteURL)
+    }
+
     // FIXME: some code duplication is necessary due to https://github.com/apple/swift-async-algorithms/issues/226
     if shouldUseDocker {
-      for artifact in [downloadableArtifacts.hostSwift, downloadableArtifacts.hostLLVM] {
-        print(artifact.remoteURL)
-      }
-
       let stream = combineLatest(hostSwiftProgressStream, hostLLVMProgressStream)
         .throttle(for: .seconds(1))
 
@@ -56,13 +56,6 @@ extension SwiftSDKGenerator {
         report(progress: llvmProgress, for: downloadableArtifacts.hostLLVM)
       }
     } else {
-      for artifact in [
-        downloadableArtifacts.hostSwift,
-        downloadableArtifacts.hostLLVM,
-        downloadableArtifacts.targetSwift,
-      ] {
-        print(artifact.remoteURL)
-      }
       let targetSwiftProgressStream = client.streamDownloadProgress(for: downloadableArtifacts.targetSwift)
         .removeDuplicates(by: didProgressChangeSignificantly)
 

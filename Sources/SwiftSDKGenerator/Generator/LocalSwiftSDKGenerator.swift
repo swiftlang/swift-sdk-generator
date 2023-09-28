@@ -344,11 +344,11 @@ public final class LocalSwiftSDKGenerator: SwiftSDKGenerator {
     }
   }
 
-  public func buildCMakeProject(_ projectPath: FilePath) async throws -> FilePath {
+  public func buildCMakeProject(_ projectPath: FilePath, options: String) async throws -> FilePath {
     try await Shell.run(
       """
       PATH='/bin:/usr/bin:\(Self.homebrewPrefix)/bin' \
-      cmake -B build -G Ninja -S llvm -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_PROJECTS=lld
+      cmake -B build -G Ninja -S llvm -DCMAKE_BUILD_TYPE=Release \(options)
       """,
       currentDirectory: projectPath
     )
