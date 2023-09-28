@@ -46,6 +46,7 @@ public struct Triple: CustomStringConvertible {
     case darwin(version: String)
     case macosx(version: String)
     case wasi
+    case win32
 
     var description: String {
       switch self {
@@ -57,6 +58,8 @@ public struct Triple: CustomStringConvertible {
         "macosx\(version)"
       case .wasi:
         "wasi"
+      case .win32:
+        "win32"
       }
     }
   }
