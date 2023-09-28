@@ -21,16 +21,24 @@ private enum ArtifactOS: Hashable {
       self = .linux(versions.linuxDistribution)
     case .macosx, .darwin:
       self = .macOS
+    case .wasi:
+      self = .wasi
+    case .win32:
+        self = .windows
     }
   }
 
   case linux(LinuxDistribution)
   case macOS
+  case wasi
+  case windows
 
   var llvmBinaryURLSuffix: String {
     switch self {
     case .linux: "linux-gnu"
     case .macOS: "apple-darwin22.0"
+    case .wasi: fatalError()
+    case .windows: fatalError()
     }
   }
 }
