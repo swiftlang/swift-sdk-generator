@@ -32,7 +32,7 @@ extension SwiftSDKGenerator {
     // Workaround an issue with github.com returning 400 instead of 404 status to HEAD requests from AHC.
     configuration.httpVersion = .http1Only
     let client = HTTPClient(
-      eventLoopGroupProvider: .createNew,
+      eventLoopGroupProvider: .singleton,
       configuration: configuration
     )
 
