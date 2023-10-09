@@ -6,7 +6,7 @@ import PackageDescription
 
 let package = Package(
   name: "swift-sdk-generator",
-  platforms: [.macOS(.v13)],
+  platforms: [.macOS("13.3")],
   products: [
     // Products define the executables and libraries a package produces, and make them visible to other packages.
     .executable(
@@ -28,6 +28,7 @@ let package = Package(
     .package(url: "https://github.com/apple/swift-log.git", from: "1.5.3"),
     .package(url: "https://github.com/swift-server/swift-service-lifecycle.git", from: "2.3.0"),
     .package(url: "https://github.com/apple/swift-syntax.git", from: "509.0.2"),
+    .package(url: "https://github.com/apple/swift-foundation.git", revision: "62500a5"),
   ],
   targets: [
     // Targets are the basic building blocks of a package. A target can define a module or a test suite.
