@@ -78,12 +78,13 @@ struct GeneratorCLI: AsyncParsableCommand {
   var targetArch: Triple.CPU? = nil
 
   mutating func run() async throws {
-    let linuxDistributionVersion = switch self.linuxDistributionName {
+    let linuxDistributionDefaultVersion = switch self.linuxDistributionName {
     case .rhel:
       "ubi9"
     case .ubuntu:
       "22.04"
     }
+    let linuxDistributionVersion = self.linuxDistributionVersion ?? linuxDistributionDefaultVersion
     let linuxDistribution = try LinuxDistribution(name: linuxDistributionName, version: linuxDistributionVersion)
 
     let elapsed = try await ContinuousClock().measure {
