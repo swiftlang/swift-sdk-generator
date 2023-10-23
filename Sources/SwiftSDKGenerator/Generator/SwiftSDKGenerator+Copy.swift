@@ -26,14 +26,14 @@ extension SwiftSDKGenerator {
       try await inTemporaryDirectory { generator, _ in
         let sdkUsrPath = pathsConfiguration.sdkDirPath.appending("usr")
         let sdkUsrLibPath = sdkUsrPath.appending("lib")
-        try generator.createDirectoryIfNeeded(at: sdkUsrPath)
+        try await generator.createDirectoryIfNeeded(at: sdkUsrPath)
         try await generator.copyFromDockerContainer(
           id: containerID,
           from: "/usr/include",
           to: sdkUsrPath.appending("include")
         )
 
-        if case .rhel = self.versionsConfiguration.linuxDistribution {
+        if case .rhel = await self.versionsConfiguration.linuxDistribution {
           try await generator.runOnDockerContainer(
             id: containerID,
             command: #"""
@@ -58,15 +58,15 @@ extension SwiftSDKGenerator {
             to: sdkUsrLib64Path
           )
 
-          try createSymlink(at: pathsConfiguration.sdkDirPath.appending("lib64"), pointingTo: "./usr/lib64")
+          try await createSymlink(at: pathsConfiguration.sdkDirPath.appending("lib64"), pointingTo: "./usr/lib64")
 
           // `libc.so` is a linker script with absolute paths on RHEL, replace with a relative symlink
           let libcSO = sdkUsrLib64Path.appending("libc.so")
-          try removeFile(at: libcSO)
-          try createSymlink(at: libcSO, pointingTo: "libc.so.6")
+          try await removeFile(at: libcSO)
+          try await createSymlink(at: libcSO, pointingTo: "libc.await so.6")
         }
 
-        try generator.createDirectoryIfNeeded(at: sdkUsrLibPath)
+        try await generator.createDirectoryIfNeeded(at: sdkUsrLibPath)
         for subpath in ["clang", "gcc", "swift", "swift_static"] {
           try await generator.copyFromDockerContainer(
             id: containerID,
@@ -76,10 +76,10 @@ extension SwiftSDKGenerator {
         }
 
         // Python artifacts are redundant.
-        try generator.removeRecursively(at: sdkUsrLibPath.appending("python3.10"))
+        try await generator.removeRecursively(at: sdkUsrLibPath.appending("python3.10"))
 
-        try generator.createSymlink(at: pathsConfiguration.sdkDirPath.appending("lib"), pointingTo: "usr/lib")
-        try generator.removeRecursively(at: sdkUsrLibPath.appending("ssl"))
+        try await generator.createSymlink(at: pathsConfiguration.sdkDirPath.appending("lib"), pointingTo: "usr/lib")
+        try await generator.removeRecursively(at: sdkUsrLibPath.appending("ssl"))
         try await generator.copyTargetSwift(from: sdkUsrLibPath)
         try await generator.stopDockerContainer(id: containerID)
       }

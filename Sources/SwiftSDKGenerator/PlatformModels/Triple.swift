@@ -10,9 +10,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-public struct Triple: CustomStringConvertible {
+public struct Triple: Sendable, CustomStringConvertible {
   /// CPU architecture supported by the generator.
-  public enum CPU: String, Decodable, CaseIterable {
+  public enum CPU: String, Sendable, Decodable, CaseIterable {
     case x86_64
     case arm64
 

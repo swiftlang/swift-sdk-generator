@@ -13,7 +13,7 @@
 import Foundation
 import struct SystemPackage.FilePath
 
-public struct CommandInfo {
+public struct CommandInfo: Sendable {
   let command: String
   let currentDirectory: FilePath?
   let file: String

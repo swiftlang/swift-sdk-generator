@@ -14,7 +14,7 @@ import Foundation
 import SystemPackage
 
 /// Implementation of ``SwiftSDKGenerator`` for the local file system.
-public final class LocalSwiftSDKGenerator: SwiftSDKGenerator {
+public actor LocalSwiftSDKGenerator: SwiftSDKGenerator {
   public let hostTriple: Triple
   public let targetTriple: Triple
   public let artifactID: String
@@ -146,7 +146,7 @@ public final class LocalSwiftSDKGenerator: SwiftSDKGenerator {
 
   public func buildDockerImage(baseImage: String) async throws -> String {
     try await self.inTemporaryDirectory { generator, tmp in
-      try generator.writeFile(
+      try await generator.writeFile(
         at: tmp.appending("Dockerfile"),
         Data(
           """
@@ -359,7 +359,7 @@ public final class LocalSwiftSDKGenerator: SwiftSDKGenerator {
     return buildDirectory
   }
 
-  public func inTemporaryDirectory<T>(
+  public func inTemporaryDirectory<T: Sendable>(
     _ closure: @Sendable (LocalSwiftSDKGenerator, FilePath) async throws -> T
   ) async throws -> T {
     let tmp = FilePath(NSTemporaryDirectory())
@@ -374,7 +374,3 @@ public final class LocalSwiftSDKGenerator: SwiftSDKGenerator {
     return result
   }
 }
-
-// Explicitly marking `LocalSwiftSDKGenerator` as non-`Sendable` for safety.
-@available(*, unavailable)
-extension LocalSwiftSDKGenerator: Sendable {}

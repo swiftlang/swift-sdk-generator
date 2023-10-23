@@ -78,14 +78,14 @@ extension SwiftSDKGenerator {
     logGenerationStep("Parsing Ubuntu packages list...")
 
     async let mainPackages = try await client.parseUbuntuPackagesList(
-      ubuntuRelease: versionsConfiguration.linuxDistribution.release,
+      ubuntuRelease: self.versionsConfiguration.linuxDistribution.release,
       repository: "main",
       targetTriple: self.targetTriple,
       isVerbose: self.isVerbose
     )
 
     async let updatesPackages = try await client.parseUbuntuPackagesList(
-      ubuntuRelease: versionsConfiguration.linuxDistribution.release,
+      ubuntuRelease: self.versionsConfiguration.linuxDistribution.release,
       releaseSuffix: "-updates",
       repository: "main",
       targetTriple: self.targetTriple,
