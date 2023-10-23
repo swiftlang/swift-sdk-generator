@@ -60,10 +60,11 @@ final class ArchitectureMappingTests: XCTestCase {
       isVerbose: false
     )
 
-    XCTAssertEqual(sdk.artifactID, artifactID, "Unexpected artifactID")
+    let sdkArtifactID = await sdk.artifactID
+    XCTAssertEqual(sdkArtifactID, artifactID, "Unexpected artifactID")
 
     // Verify download URLs
-    let artifacts = sdk.downloadableArtifacts
+    let artifacts = await sdk.downloadableArtifacts
 
     // The build-time Swift SDK is a multiarch package and so is always the same
     XCTAssertEqual(
@@ -87,7 +88,7 @@ final class ArchitectureMappingTests: XCTestCase {
     )
 
     // Verify paths within the bundle
-    let paths = sdk.pathsConfiguration
+    let paths = await sdk.pathsConfiguration
 
     // The bundle path is not critical - it uses Swift's name
     // for the target architecture

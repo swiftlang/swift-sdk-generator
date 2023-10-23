@@ -33,6 +33,9 @@ let package = Package(
       dependencies: [
         "SwiftSDKGenerator",
         .product(name: "ArgumentParser", package: "swift-argument-parser"),
+      ],      
+      swiftSettings: [
+        .enableExperimentalFeature("StrictConcurrency=complete"),
       ]
     ),
     .target(
@@ -43,12 +46,18 @@ let package = Package(
         .product(name: "AsyncHTTPClient", package: "async-http-client"),
         .product(name: "SystemPackage", package: "swift-system"),
       ],
-      exclude: ["Dockerfiles"]
+      exclude: ["Dockerfiles"],
+      swiftSettings: [
+        .enableExperimentalFeature("StrictConcurrency=complete"),
+      ]
     ),
     .testTarget(
       name: "SwiftSDKGeneratorTests",
       dependencies: [
         .target(name: "SwiftSDKGenerator"),
+      ],
+      swiftSettings: [
+        .enableExperimentalFeature("StrictConcurrency=complete"),
       ]
     ),
     .target(

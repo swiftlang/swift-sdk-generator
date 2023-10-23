@@ -14,7 +14,7 @@ import Foundation
 import SystemPackage
 
 /// This protocol abstracts over possible generators, which allows creating a mock generator for testing purposes.
-public protocol SwiftSDKGenerator: AnyObject {
+public protocol SwiftSDKGenerator: Actor {
   // MARK: configuration
 
   var hostTriple: Triple { get }

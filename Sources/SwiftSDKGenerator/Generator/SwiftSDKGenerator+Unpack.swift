@@ -38,12 +38,12 @@ extension SwiftSDKGenerator {
       try await fileSystem.unpack(file: downloadableArtifacts.hostSwift.localPath, into: tmpDir)
       // Remove libraries for platforms we don't intend cross-compiling to
       for platform in unusedDarwinPlatforms {
-        try fileSystem.removeRecursively(at: tmpDir.appending("usr/lib/swift/\(platform)"))
+        try await fileSystem.removeRecursively(at: tmpDir.appending("usr/lib/swift/\(platform)"))
       }
-      try fileSystem.removeRecursively(at: tmpDir.appending("usr/lib/sourcekitd.framework"))
+      try await fileSystem.removeRecursively(at: tmpDir.appending("usr/lib/sourcekitd.framework"))
 
       for binary in unusedHostBinaries {
-        try fileSystem.removeRecursively(at: tmpDir.appending("usr/bin/\(binary)"))
+        try await fileSystem.removeRecursively(at: tmpDir.appending("usr/bin/\(binary)"))
       }
 
       try await fileSystem.rsync(from: tmpDir.appending("usr"), to: pathsConfiguration.toolchainDirPath)
@@ -95,10 +95,7 @@ extension SwiftSDKGenerator {
         fatalError()
       }
 
-      try fileSystem.copy(
-        from: unpackedLLDPath,
-        to: toolchainLLDPath
-      )
+      try await fileSystem.copy(from: unpackedLLDPath, to: toolchainLLDPath)
     }
   }
 }
