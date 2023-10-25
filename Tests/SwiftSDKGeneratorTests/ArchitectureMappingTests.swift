@@ -43,7 +43,7 @@ final class ArchitectureMappingTests: XCTestCase {
     sdkDirPathSuffix: String // Path of the SDK within the bundle
   ) async throws {
     // LocalSwiftSDKGenerator constructs URLs and paths which depend on architectures
-    let sdk = try await LocalSwiftSDKGenerator(
+    let sdk = try await SwiftSDKGenerator(
       // macOS is currently the only supported build environment
       hostCPUArchitecture: hostCPUArchitecture,
 

@@ -88,7 +88,7 @@ struct GeneratorCLI: AsyncParsableCommand {
     let linuxDistribution = try LinuxDistribution(name: linuxDistributionName, version: linuxDistributionVersion)
 
     let elapsed = try await ContinuousClock().measure {
-      try await LocalSwiftSDKGenerator(
+      try await SwiftSDKGenerator(
         hostCPUArchitecture: self.hostArch,
         targetCPUArchitecture: self.targetArch,
         swiftVersion: self.swiftVersion,
