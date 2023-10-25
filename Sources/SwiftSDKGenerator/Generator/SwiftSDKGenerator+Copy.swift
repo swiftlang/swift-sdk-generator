@@ -33,7 +33,7 @@ extension SwiftSDKGenerator {
           to: sdkUsrPath.appending("include")
         )
 
-        if case .rhel = await self.versionsConfiguration.linuxDistribution {
+        if case .rhel = self.versionsConfiguration.linuxDistribution {
           try await generator.runOnDockerContainer(
             id: containerID,
             command: #"""

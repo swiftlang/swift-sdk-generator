@@ -14,7 +14,7 @@ import Foundation
 import SystemPackage
 
 /// Implementation of ``SwiftSDKGenerator`` for the local file system.
-public actor LocalSwiftSDKGenerator: SwiftSDKGenerator {
+public actor SwiftSDKGenerator {
   public let hostTriple: Triple
   public let targetTriple: Triple
   public let artifactID: String
@@ -93,9 +93,9 @@ public actor LocalSwiftSDKGenerator: SwiftSDKGenerator {
   private static let homebrewPrefix = "/usr/local"
   #endif
 
-  private static let homebrewPath = "PATH='/bin:/usr/bin:\(LocalSwiftSDKGenerator.homebrewPrefix)/bin'"
+  private static let homebrewPath = "PATH='/bin:/usr/bin:\(SwiftSDKGenerator.homebrewPrefix)/bin'"
 
-  private static let dockerCommand = "\(LocalSwiftSDKGenerator.homebrewPath) docker"
+  private static let dockerCommand = "\(SwiftSDKGenerator.homebrewPath) docker"
 
   public static func getCurrentTriple(isVerbose: Bool) async throws -> Triple {
     let cpuString = try await Shell.readStdout("uname -m", shouldLogCommands: isVerbose)
@@ -360,7 +360,7 @@ public actor LocalSwiftSDKGenerator: SwiftSDKGenerator {
   }
 
   public func inTemporaryDirectory<T: Sendable>(
-    _ closure: @Sendable (LocalSwiftSDKGenerator, FilePath) async throws -> T
+    _ closure: @Sendable (SwiftSDKGenerator, FilePath) async throws -> T
   ) async throws -> T {
     let tmp = FilePath(NSTemporaryDirectory())
       .appending("swift-sdk-generator-\(UUID().uuidString.prefix(6))")
