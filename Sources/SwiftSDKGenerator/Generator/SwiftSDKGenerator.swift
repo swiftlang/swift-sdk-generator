@@ -15,14 +15,14 @@ import SystemPackage
 
 /// Implementation of ``SwiftSDKGenerator`` for the local file system.
 public actor SwiftSDKGenerator {
-  public let hostTriple: Triple
-  public let targetTriple: Triple
-  public let artifactID: String
-  public let versionsConfiguration: VersionsConfiguration
-  public let pathsConfiguration: PathsConfiguration
-  public var downloadableArtifacts: DownloadableArtifacts
-  public let shouldUseDocker: Bool
-  public let isVerbose: Bool
+  let hostTriple: Triple
+  let targetTriple: Triple
+  let artifactID: String
+  let versionsConfiguration: VersionsConfiguration
+  let pathsConfiguration: PathsConfiguration
+  var downloadableArtifacts: DownloadableArtifacts
+  let shouldUseDocker: Bool
+  let isVerbose: Bool
 
   public init(
     hostCPUArchitecture: Triple.CPU?,
@@ -97,7 +97,7 @@ public actor SwiftSDKGenerator {
 
   private static let dockerCommand = "\(SwiftSDKGenerator.homebrewPath) docker"
 
-  public static func getCurrentTriple(isVerbose: Bool) async throws -> Triple {
+  static func getCurrentTriple(isVerbose: Bool) async throws -> Triple {
     let cpuString = try await Shell.readStdout("uname -m", shouldLogCommands: isVerbose)
       .trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -118,7 +118,7 @@ public actor SwiftSDKGenerator {
     #endif
   }
 
-  public static func isChecksumValid(artifact: DownloadableArtifacts.Item, isVerbose: Bool) async throws -> Bool {
+  static func isChecksumValid(artifact: DownloadableArtifacts.Item, isVerbose: Bool) async throws -> Bool {
     guard let expectedChecksum = artifact.checksum else { return false }
 
     let computedChecksum = try await String(
@@ -144,7 +144,7 @@ public actor SwiftSDKGenerator {
     )
   }
 
-  public func buildDockerImage(baseImage: String) async throws -> String {
+  func buildDockerImage(baseImage: String) async throws -> String {
     try await self.inTemporaryDirectory { generator, tmp in
       try await generator.writeFile(
         at: tmp.appending("Dockerfile"),
@@ -169,7 +169,7 @@ public actor SwiftSDKGenerator {
     }
   }
 
-  public func launchDockerContainer(imageName: String) async throws -> String {
+  func launchDockerContainer(imageName: String) async throws -> String {
     try await Shell
       .readStdout(
         "\(Self.dockerCommand) run -d \(imageName) tail -f /dev/null",
@@ -178,14 +178,14 @@ public actor SwiftSDKGenerator {
       .trimmingCharacters(in: .whitespacesAndNewlines)
   }
 
-  public func runOnDockerContainer(id: String, command: String) async throws {
+  func runOnDockerContainer(id: String, command: String) async throws {
     try await Shell.run(
       "\(Self.dockerCommand) exec \(id) \(command)",
       shouldLogCommands: self.isVerbose
     )
   }
 
-  public func copyFromDockerContainer(
+  func copyFromDockerContainer(
     id: String,
     from containerPath: FilePath,
     to localPath: FilePath
@@ -196,7 +196,7 @@ public actor SwiftSDKGenerator {
     )
   }
 
-  public func stopDockerContainer(id: String) async throws {
+  func stopDockerContainer(id: String) async throws {
     try await Shell.run(
       """
       \(Self.dockerCommand) stop \(id) && \
@@ -206,35 +206,35 @@ public actor SwiftSDKGenerator {
     )
   }
 
-  public func doesFileExist(at path: FilePath) -> Bool {
+  func doesFileExist(at path: FilePath) -> Bool {
     self.fileManager.fileExists(atPath: path.string)
   }
 
-  public func removeFile(at path: FilePath) throws {
+  func removeFile(at path: FilePath) throws {
     try self.fileManager.removeItem(atPath: path.string)
   }
 
-  public func writeFile(at path: FilePath, _ data: Data) throws {
+  func writeFile(at path: FilePath, _ data: Data) throws {
     try data.write(to: URL(fileURLWithPath: path.string), options: .atomic)
   }
 
-  public func readFile(at path: FilePath) throws -> Data {
+  func readFile(at path: FilePath) throws -> Data {
     try Data(contentsOf: URL(fileURLWithPath: path.string))
   }
 
-  public func rsync(from source: FilePath, to destination: FilePath) async throws {
+  func rsync(from source: FilePath, to destination: FilePath) async throws {
     try self.createDirectoryIfNeeded(at: destination)
     try await Shell.run("rsync -a \(source) \(destination)", shouldLogCommands: self.isVerbose)
   }
 
-  public func createSymlink(at source: FilePath, pointingTo destination: FilePath) throws {
+  func createSymlink(at source: FilePath, pointingTo destination: FilePath) throws {
     try self.fileManager.createSymbolicLink(
       atPath: source.string,
       withDestinationPath: destination.string
     )
   }
 
-  public func findSymlinks(at directory: FilePath) throws -> [(FilePath, FilePath)] {
+  func findSymlinks(at directory: FilePath) throws -> [(FilePath, FilePath)] {
     guard let enumerator = fileManager.enumerator(
       at: URL(fileURLWithPath: directory.string),
       includingPropertiesForKeys: [.isSymbolicLinkKey]
@@ -254,12 +254,12 @@ public actor SwiftSDKGenerator {
     return result
   }
 
-  public func copy(from source: FilePath, to destination: FilePath) throws {
+  func copy(from source: FilePath, to destination: FilePath) throws {
     try self.removeRecursively(at: destination)
     try self.fileManager.copyItem(atPath: source.string, toPath: destination.string)
   }
 
-  public func createDirectoryIfNeeded(at directoryPath: FilePath) throws {
+  func createDirectoryIfNeeded(at directoryPath: FilePath) throws {
     var isDirectory: ObjCBool = false
 
     if self.fileManager.fileExists(atPath: directoryPath.string, isDirectory: &isDirectory) {
@@ -273,7 +273,7 @@ public actor SwiftSDKGenerator {
     }
   }
 
-  public func removeRecursively(at path: FilePath) throws {
+  func removeRecursively(at path: FilePath) throws {
     // Can't use `FileManager.fileExists` here, because it isn't good enough for symlinks. It always
     // tries to resolve a symlink before checking.
     if (try? self.fileManager.attributesOfItem(atPath: path.string)) != nil {
@@ -285,7 +285,7 @@ public actor SwiftSDKGenerator {
     try await Shell.run("gzip -d \(file)", currentDirectory: directoryPath, shouldLogCommands: self.isVerbose)
   }
 
-  public func untar(
+  func untar(
     file: FilePath,
     into directoryPath: FilePath,
     stripComponents: Int? = nil
@@ -327,7 +327,7 @@ public actor SwiftSDKGenerator {
     }
   }
 
-  public func unpack(file: FilePath, into directoryPath: FilePath) async throws {
+  func unpack(file: FilePath, into directoryPath: FilePath) async throws {
     switch file.extension {
     case "gz":
       if let stem = file.stem, FilePath(stem).extension == "tar" {
@@ -344,7 +344,7 @@ public actor SwiftSDKGenerator {
     }
   }
 
-  public func buildCMakeProject(_ projectPath: FilePath, options: String) async throws -> FilePath {
+  func buildCMakeProject(_ projectPath: FilePath, options: String) async throws -> FilePath {
     try await Shell.run(
       """
       PATH='/bin:/usr/bin:\(Self.homebrewPrefix)/bin' \
@@ -359,7 +359,7 @@ public actor SwiftSDKGenerator {
     return buildDirectory
   }
 
-  public func inTemporaryDirectory<T: Sendable>(
+  func inTemporaryDirectory<T: Sendable>(
     _ closure: @Sendable (SwiftSDKGenerator, FilePath) async throws -> T
   ) async throws -> T {
     let tmp = FilePath(NSTemporaryDirectory())
