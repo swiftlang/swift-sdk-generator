@@ -1,6 +1,7 @@
 // swift-tools-version: 5.9
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
+import CompilerPluginSupport
 import PackageDescription
 
 let package = Package(
@@ -20,10 +21,12 @@ let package = Package(
     .package(url: "https://github.com/apple/swift-argument-parser", from: "1.2.2"),
     .package(url: "https://github.com/apple/swift-async-algorithms.git", exact: "1.0.0-alpha"),
     .package(url: "https://github.com/apple/swift-atomics.git", from: "1.1.0"),
+    .package(url: "https://github.com/apple/swift-collections.git", from: "1.0.4"),
+    .package(url: "https://github.com/apple/swift-crypto.git", from: "3.1.0"),
     .package(url: "https://github.com/apple/swift-nio.git", from: "2.58.0"),
     .package(url: "https://github.com/apple/swift-nio-extras.git", from: "1.19.0"),
     .package(url: "https://github.com/apple/swift-log.git", from: "1.5.3"),
-    .package(url: "https://github.com/apple/swift-collections.git", from: "1.0.4"),
+    .package(url: "https://github.com/apple/swift-syntax.git", from: "509.0.1"),
   ],
   targets: [
     // Targets are the basic building blocks of a package. A target can define a module or a test suite.
@@ -33,7 +36,7 @@ let package = Package(
       dependencies: [
         "SwiftSDKGenerator",
         .product(name: "ArgumentParser", package: "swift-argument-parser"),
-      ],      
+      ],
       swiftSettings: [
         .enableExperimentalFeature("StrictConcurrency=complete"),
       ]
@@ -44,7 +47,9 @@ let package = Package(
         .target(name: "AsyncProcess"),
         .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
         .product(name: "AsyncHTTPClient", package: "async-http-client"),
+        .product(name: "Logging", package: "swift-log"),
         .product(name: "SystemPackage", package: "swift-system"),
+        "GeneratorEngine",
       ],
       exclude: ["Dockerfiles"],
       swiftSettings: [
@@ -54,10 +59,45 @@ let package = Package(
     .testTarget(
       name: "SwiftSDKGeneratorTests",
       dependencies: [
-        .target(name: "SwiftSDKGenerator"),
+        "SwiftSDKGenerator",
       ],
       swiftSettings: [
         .enableExperimentalFeature("StrictConcurrency=complete"),
+      ]
+    ),
+    .target(
+      name: "GeneratorEngine",
+      dependencies: [
+        .product(name: "AsyncHTTPClient", package: "async-http-client"),
+        .product(name: "Crypto", package: "swift-crypto"),
+        .product(name: "Logging", package: "swift-log"),
+        .product(name: "SystemPackage", package: "swift-system"),
+        "Macros",
+        "SystemSQLite",
+      ]
+    ),
+    .testTarget(
+      name: "GeneratorEngineTests",
+      dependencies: [
+        "GeneratorEngine",
+      ]
+    ),
+    .macro(
+      name: "Macros",
+      dependencies: [
+        .product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
+        .product(name: "SwiftSyntax", package: "swift-syntax"),
+        .product(name: "SwiftSyntaxBuilder", package: "swift-syntax"),
+        .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
+        .product(name: "SwiftDiagnostics", package: "swift-syntax"),
+      ]
+    ),
+    .testTarget(
+      name: "MacrosTests",
+      dependencies: [
+        "Macros",
+        .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
+        .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax"),
       ]
     ),
     .systemLibrary(name: "SystemSQLite", pkgConfig: "sqlite3"),
