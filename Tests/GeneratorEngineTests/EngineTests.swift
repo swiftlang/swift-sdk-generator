@@ -10,8 +10,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-import protocol Crypto.HashFunction
+import class AsyncHTTPClient.HTTPClient
 @testable import GeneratorEngine
+import struct Logging.Logger
 import struct SystemPackage.FilePath
 import XCTest
 
@@ -95,7 +96,17 @@ struct Expression {
 
 final class EngineTests: XCTestCase {
   func testSimpleCaching() async throws {
-    let engine = Engine(VirtualFileSystem(), cacheLocation: .memory)
+    let httpClient = HTTPClient()
+    let engine = Engine(
+      VirtualFileSystem(),
+      httpClient,
+      Logger(label: "engine-tests"),
+      cacheLocation: .memory
+    )
+
+    defer {
+      try! httpClient.syncShutdown()
+    }
 
     var resultPath = try await engine[Expression(x: 1, y: 2)]
     var result = try await engine.fileSystem.read(resultPath, as: Int.self)
