@@ -86,16 +86,7 @@ public actor SwiftSDKGenerator {
   }
 
   private let fileManager = FileManager.default
-
-  #if arch(arm64)
-  private static let homebrewPrefix = "/opt/homebrew"
-  #elseif arch(x86_64)
-  private static let homebrewPrefix = "/usr/local"
-  #endif
-
-  private static let homebrewPath = "PATH='/bin:/usr/bin:\(SwiftSDKGenerator.homebrewPrefix)/bin'"
-
-  private static let dockerCommand = "\(SwiftSDKGenerator.homebrewPath) docker"
+  private static let dockerCommand = "docker"
 
   static func getCurrentTriple(isVerbose: Bool) async throws -> Triple {
     let cpuString = try await Shell.readStdout("uname -m", shouldLogCommands: isVerbose)
@@ -307,7 +298,7 @@ public actor SwiftSDKGenerator {
       try await Shell.run("ar -x \(debFile)", currentDirectory: tmp, shouldLogCommands: isVerbose)
 
       try await Shell.run(
-        "PATH='/bin:/usr/bin:\(Self.homebrewPrefix)/bin' tar -xf \(tmp)/data.tar.*",
+        "tar -xf \(tmp)/data.tar.*",
         currentDirectory: directoryPath,
         shouldLogCommands: isVerbose
       )
@@ -346,14 +337,13 @@ public actor SwiftSDKGenerator {
   func buildCMakeProject(_ projectPath: FilePath, options: String) async throws -> FilePath {
     try await Shell.run(
       """
-      PATH='/bin:/usr/bin:\(Self.homebrewPrefix)/bin' \
       cmake -B build -G Ninja -S llvm -DCMAKE_BUILD_TYPE=Release \(options)
       """,
       currentDirectory: projectPath
     )
 
     let buildDirectory = projectPath.appending("build")
-    try await Shell.run("PATH='/bin:/usr/bin:\(Self.homebrewPrefix)/bin' ninja", currentDirectory: buildDirectory)
+    try await Shell.run("ninja", currentDirectory: buildDirectory)
 
     return buildDirectory
   }
