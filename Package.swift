@@ -65,6 +65,7 @@ let package = Package(
         .enableExperimentalFeature("StrictConcurrency=complete"),
       ]
     ),
+    .systemLibrary(name: "SystemSQLite", pkgConfig: "sqlite3"),
     .target(
       name: "GeneratorEngine",
       dependencies: [
