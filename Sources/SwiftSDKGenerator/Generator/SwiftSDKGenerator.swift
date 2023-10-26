@@ -172,7 +172,7 @@ public actor SwiftSDKGenerator {
   func launchDockerContainer(imageName: String) async throws -> String {
     try await Shell
       .readStdout(
-        "\(Self.dockerCommand) run -d \(imageName) tail -f /dev/null",
+        "\(Self.dockerCommand) run --rm -d \(imageName) tail -f /dev/null",
         shouldLogCommands: self.isVerbose
       )
       .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -199,8 +199,7 @@ public actor SwiftSDKGenerator {
   func stopDockerContainer(id: String) async throws {
     try await Shell.run(
       """
-      \(Self.dockerCommand) stop \(id) && \
-      \(Self.dockerCommand) rm -v \(id)
+      \(Self.dockerCommand) stop \(id)
       """,
       shouldLogCommands: self.isVerbose
     )
