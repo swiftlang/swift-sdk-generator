@@ -179,7 +179,7 @@ final class FileLock {
     let fm = FileManager.default
 
     // unless specified, we use the tempDirectory to store lock files
-    let lockFilesDirectory = lockFilesDirectory ?? FilePath(fm.temporaryDirectory.path())
+    let lockFilesDirectory = lockFilesDirectory ?? FilePath(fm.temporaryDirectory.path)
     var isDirectory: ObjCBool = false
     if !fm.fileExists(atPath: lockFilesDirectory.string, isDirectory: &isDirectory) {
       throw Error.noEntry(lockFilesDirectory)
@@ -190,7 +190,7 @@ final class FileLock {
     // use the parent path to generate unique filename in temp
     var lockFileName =
       (
-        FilePath(URL(string: fileToLock.removingLastComponent().string)!.resolvingSymlinksInPath().path())
+        FilePath(URL(string: fileToLock.removingLastComponent().string)!.resolvingSymlinksInPath().path)
           .appending(fileToLock.lastComponent!)
       )
       .components.map(\.string).joined(separator: "_")
