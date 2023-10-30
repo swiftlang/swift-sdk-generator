@@ -67,7 +67,7 @@ public actor Engine {
     get async throws {
       var hashFunction = SHA512()
       query.hash(with: &hashFunction)
-      let key = hashFunction.finalize().description
+      let key = hashFunction.finalize()
 
       if let fileRecord = try resultsCache.get(key, as: FileCacheRecord.self) {
         hashFunction = SHA512()
@@ -89,9 +89,10 @@ public actor Engine {
       try await self.fileSystem.withOpenReadableFile(resultPath) {
         try await $0.hash(with: &hashFunction)
       }
-      let resultHash = hashFunction.finalize().description
+      let resultHash = hashFunction.finalize()
 
-      try self.resultsCache.set(key, to: FileCacheRecord(path: resultPath, hash: resultHash))
+      // FIXME: update `SQLiteBackedCache` to store `resultHash` directly instead of relying on string conversions
+      try self.resultsCache.set(key, to: FileCacheRecord(path: resultPath, hash: resultHash.description))
 
       return resultPath
     }

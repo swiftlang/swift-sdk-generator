@@ -241,7 +241,7 @@ public final class SQLite {
       try SQLite.checkError { sqlite3_reset(self.stmt) }
     }
 
-    /// Clear bindings from the prepared statment.
+    /// Clear bindings from the prepared statement.
     func clearBindings() throws {
       try SQLite.checkError { sqlite3_clear_bindings(self.stmt) }
     }

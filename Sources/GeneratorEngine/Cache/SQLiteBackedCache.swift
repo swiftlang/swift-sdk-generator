@@ -68,7 +68,7 @@ final class SQLiteBackedCache {
   }
 
   private func put(
-    key: Key,
+    key: some Sequence<UInt8>,
     value: some Codable,
     replace: Bool = false
   ) throws {
@@ -77,7 +77,7 @@ final class SQLiteBackedCache {
       try self.executeStatement(query) { statement in
         let data = try self.jsonEncoder.encode(value)
         let bindings: [SQLite.SQLiteValue] = [
-          .string(key),
+          .blob(Data(key)),
           .blob(data),
         ]
         try statement.bind(bindings)
@@ -99,10 +99,10 @@ final class SQLiteBackedCache {
     }
   }
 
-  func get<Value: Codable>(_ key: String, as: Value.Type) throws -> Value? {
+  func get<Value: Codable>(_ key: some Sequence<UInt8>, as: Value.Type) throws -> Value? {
     let query = "SELECT value FROM \(self.tableName) WHERE key = ? LIMIT 1;"
     return try self.executeStatement(query) { statement -> Value? in
-      try statement.bind([.string(key)])
+      try statement.bind([.blob(Data(key))])
       let data = try statement.step()?.blob(at: 0)
       return try data.flatMap {
         try self.jsonDecoder.decode(Value.self, from: $0)
@@ -110,7 +110,7 @@ final class SQLiteBackedCache {
     }
   }
 
-  func set(_ key: String, to value: some Codable) throws {
+  func set(_ key: some Sequence<UInt8>, to value: some Codable) throws {
     try self.put(key: key, value: value, replace: true)
   }
 
