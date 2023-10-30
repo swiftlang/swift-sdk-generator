@@ -32,7 +32,6 @@ public actor Engine {
   /// `defer { engine.shutDown }` on the line that follows this initializer call.
   /// - Parameter fileSystem: Implementation of a file system this engine should use.
   /// - Parameter cacheLocation: Location of cache storage used by the engine.
-  /// - Parameter httpClient: HTTP client to use in queries that need it.
   /// - Parameter logger: Logger to use during queries execution.
   public init(
     _ fileSystem: any FileSystem,
@@ -63,7 +62,7 @@ public actor Engine {
   /// Executes a given query if no cached result of it is available. Otherwise fetches the result from engine's cache.
   /// - Parameter query: A query value to execute.
   /// - Returns: A file path to query's result recorded in a file.
-  public subscript(_ query: some QueryProtocol) -> FilePath {
+  public subscript(_ query: some QueryProtocol) -> FileCacheRecord {
     get async throws {
       var hashFunction = SHA512()
       query.hash(with: &hashFunction)
@@ -78,7 +77,7 @@ public actor Engine {
 
         if fileHash == fileRecord.hash {
           self.cacheHits += 1
-          return fileRecord.path
+          return fileRecord
         }
       }
 
@@ -90,11 +89,12 @@ public actor Engine {
         try await $0.hash(with: &hashFunction)
       }
       let resultHash = hashFunction.finalize()
+      let result = FileCacheRecord(path: resultPath, hash: resultHash.description)
 
       // FIXME: update `SQLiteBackedCache` to store `resultHash` directly instead of relying on string conversions
-      try self.resultsCache.set(key, to: FileCacheRecord(path: resultPath, hash: resultHash.description))
+      try self.resultsCache.set(key, to: result)
 
-      return resultPath
+      return result
     }
   }
 }

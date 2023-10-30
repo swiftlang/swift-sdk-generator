@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 import struct Foundation.URL
+import GeneratorEngine
 import struct SystemPackage.FilePath
 
 /// Information about the OS for which the artifact is built, if it's downloaded as prebuilt.
@@ -100,8 +101,9 @@ private let knownLLVMSourcesVersions: [String: String] = [
   "16.0.5": "37f540124b9cfd4680666e649f557077f9937c9178489cea285a672e714b2863",
 ]
 
-public struct DownloadableArtifacts: Sendable {
-  public struct Item: Sendable {
+struct DownloadableArtifacts: Sendable {
+  @CacheKey
+  struct Item: Sendable {
     let remoteURL: URL
     var localPath: FilePath
     let checksum: String?
@@ -112,7 +114,14 @@ public struct DownloadableArtifacts: Sendable {
   private(set) var hostLLVM: Item
   let targetSwift: Item
 
-  let allItems: [Item]
+  private let shouldUseDocker: Bool
+  var allItems: [Item] {
+    if self.shouldUseDocker {
+      [self.hostSwift, self.hostLLVM]
+    } else {
+      [self.hostSwift, self.hostLLVM, self.targetSwift]
+    }
+  }
 
   private let versions: VersionsConfiguration
   private let paths: PathsConfiguration
@@ -165,11 +174,7 @@ public struct DownloadableArtifacts: Sendable {
       isPrebuilt: true
     )
 
-    self.allItems = if shouldUseDocker {
-      [self.hostSwift, self.hostLLVM]
-    } else {
-      [self.hostSwift, self.hostLLVM, self.targetSwift]
-    }
+    self.shouldUseDocker = shouldUseDocker
   }
 
   mutating func useLLVMSources() {

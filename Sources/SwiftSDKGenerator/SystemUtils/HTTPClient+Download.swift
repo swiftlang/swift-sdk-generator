@@ -18,6 +18,11 @@ extension FileDownloadDelegate.Progress: @unchecked Sendable {}
 
 extension FilePath: @unchecked Sendable {}
 
+struct ArtifactDownloadProgress {
+  let artifact: DownloadableArtifacts.Item
+  let progress: FileDownloadDelegate.Progress
+}
+
 extension HTTPClient {
   func downloadFile(
     from url: URL,
@@ -54,7 +59,7 @@ extension HTTPClient {
 
   func streamDownloadProgress(
     for artifact: DownloadableArtifacts.Item
-  ) -> AsyncThrowingStream<FileDownloadDelegate.Progress, any Error> {
+  ) -> AsyncThrowingStream<ArtifactDownloadProgress, any Error> {
     .init { continuation in
       do {
         let delegate = try FileDownloadDelegate(
@@ -66,7 +71,7 @@ extension HTTPClient {
             }
           },
           reportProgress: {
-            continuation.yield($0)
+            continuation.yield(ArtifactDownloadProgress(artifact: artifact, progress: $0))
           }
         )
         let request = try HTTPClient.Request(url: artifact.remoteURL)
@@ -76,7 +81,7 @@ extension HTTPClient {
           case let .failure(error):
             continuation.finish(throwing: error)
           case let .success(finalProgress):
-            continuation.yield(finalProgress)
+            continuation.yield(ArtifactDownloadProgress(artifact: artifact, progress: finalProgress))
             continuation.finish()
           }
         }

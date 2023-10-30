@@ -88,7 +88,7 @@ struct GeneratorCLI: AsyncParsableCommand {
     let linuxDistribution = try LinuxDistribution(name: linuxDistributionName, version: linuxDistributionVersion)
 
     let elapsed = try await ContinuousClock().measure {
-      try await SwiftSDKGenerator(
+      let generator = try await SwiftSDKGenerator(
         hostCPUArchitecture: self.hostArch,
         targetCPUArchitecture: self.targetArch,
         swiftVersion: self.swiftVersion,
@@ -98,7 +98,13 @@ struct GeneratorCLI: AsyncParsableCommand {
         shouldUseDocker: self.withDocker,
         isVerbose: self.verbose
       )
-      .generateBundle(shouldGenerateFromScratch: !self.incremental)
+      do {
+        try await generator.generateBundle(shouldGenerateFromScratch: !self.incremental)
+        try await generator.shutDown()
+      } catch {
+        try await generator.shutDown()
+        throw error
+      }
     }
 
     print("\nTime taken for this generator run: \(elapsed.intervalString).")

@@ -12,7 +12,7 @@
 
 import struct SystemPackage.FilePath
 
-struct FileCacheRecord {
+public struct FileCacheRecord: Sendable {
   let path: FilePath
   let hash: String
 }
@@ -23,14 +23,14 @@ extension FileCacheRecord: Codable {
     case hash
   }
 
-  // FIXME: `Codable` on `FilePath` is broken
-  init(from decoder: any Decoder) throws {
+  // FIXME: `Codable` on `FilePath` is broken, thus all `Codable` types with `FilePath` properties need a custom impl.
+  public init(from decoder: any Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     self.path = try FilePath(container.decode(String.self, forKey: .path))
     self.hash = try container.decode(String.self, forKey: .hash)
   }
 
-  func encode(to encoder: any Encoder) throws {
+  public func encode(to encoder: any Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
     try container.encode(self.path.string, forKey: .path)
     try container.encode(self.hash, forKey: .hash)
