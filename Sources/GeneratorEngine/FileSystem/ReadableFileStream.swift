@@ -68,11 +68,8 @@ public struct LocalReadableFileStream: AsyncSequence {
         return nil
       }
 
-      return .init(buffer[0..<bytesRead])
-    }
-
-    deinit {
-      try! fileDescriptor.close()
+      buffer.removeLast(self.readChunkSize - bytesRead)
+      return buffer
     }
   }
 

@@ -13,29 +13,33 @@
 import struct SystemPackage.FilePath
 
 actor VirtualFileSystem: FileSystem {
-  private var content: [FilePath: [UInt8]]
+  public static let defaultChunkSize = 512 * 1024
 
-  init(content: [FilePath: [UInt8]] = [:]) {
-    self.content = content
-  }
+  let readChunkSize: Int
 
-  func read(_ path: FilePath) throws -> ReadableFileStream {
-    guard let bytes = self.content[path] else {
-      throw FileSystemError.fileDoesNotExist(path)
+  final class Storage {
+    init(_ content: [FilePath: [UInt8]]) {
+      self.content = content
     }
 
-    return .virtual(VirtualReadableFileStream(bytes: bytes))
+    var content: [FilePath: [UInt8]]
   }
 
-  func write(_ path: FilePath, _ bytes: [UInt8]) throws {
-    self.content[path] = bytes
+  private let storage: Storage
+
+  init(content: [FilePath: [UInt8]] = [:], readChunkSize: Int = defaultChunkSize) {
+    self.storage = .init(content)
+    self.readChunkSize = readChunkSize
   }
 
-  func hash(_ path: FilePath, with hashFunction: inout some HashFunction) throws {
-    guard let bytes = self.content[path] else {
+  func withOpenReadableFile<T>(_ path: FilePath, _ body: (OpenReadableFile) async throws -> T) async throws -> T {
+    guard let bytes = storage.content[path] else {
       throw FileSystemError.fileDoesNotExist(path)
     }
+    return try await body(.init(readChunkSize: self.readChunkSize, fileHandle: .virtual(bytes)))
+  }
 
-    hashFunction.update(data: bytes)
+  func withOpenWritableFile<T>(_ path: FilePath, _ body: (OpenWritableFile) async throws -> T) async throws -> T {
+    try await body(.init(fileHandle: .virtual(self.storage, path)))
   }
 }

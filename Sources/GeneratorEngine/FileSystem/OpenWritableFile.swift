@@ -10,15 +10,22 @@
 //
 //===----------------------------------------------------------------------===//
 
-import protocol Crypto.HashFunction
-import struct SystemPackage.FilePath
+import struct SystemPackage.FileDescriptor
 
-public protocol FileSystem: Actor {
-  func withOpenReadableFile<T>(_ path: FilePath, _ body: (OpenReadableFile) async throws -> T) async throws -> T
-  func withOpenWritableFile<T>(_ path: FilePath, _ body: (OpenWritableFile) async throws -> T) async throws -> T
-}
+public struct OpenWritableFile {
+  enum FileHandle {
+    case local(FileDescriptor)
+    case virtual(VirtualFileSystem.Storage, FilePath)
+  }
 
-enum FileSystemError: Error {
-  case fileDoesNotExist(FilePath)
-  case bufferLimitExceeded(FilePath)
+  let fileHandle: FileHandle
+
+  func write(_ bytes: some Sequence<UInt8>) async throws {
+    switch self.fileHandle {
+    case let .local(fileDescriptor):
+      _ = try fileDescriptor.writeAll(bytes)
+    case let .virtual(storage, path):
+      storage.content[path, default: []].append(contentsOf: bytes)
+    }
+  }
 }

@@ -22,29 +22,42 @@ public actor Engine {
   private(set) var cacheMisses = 0
 
   public let fileSystem: any FileSystem
-  public let httpClient: HTTPClient
+  public let httpClient = HTTPClient()
   public let logger: Logger
   private let resultsCache: SQLiteBackedCache
+  private var isShutDown = false
 
-  /// Creates a new instance of the ``Engine`` actor.
+  /// Creates a new instance of the ``Engine`` actor. Requires an explicit call to ``Engine//shutdown`` before the
+  /// instance is deinitialized. The recommended approach to resource management is to place
+  /// `defer { engine.shutDown }` on the line that follows this initializer call.
   /// - Parameter fileSystem: Implementation of a file system this engine should use.
   /// - Parameter cacheLocation: Location of cache storage used by the engine.
   /// - Parameter httpClient: HTTP client to use in queries that need it.
   /// - Parameter logger: Logger to use during queries execution.
   public init(
     _ fileSystem: any FileSystem,
-    _ httpClient: HTTPClient,
     _ logger: Logger,
     cacheLocation: SQLite.Location
   ) {
     self.fileSystem = fileSystem
-    self.httpClient = httpClient
     self.logger = logger
     self.resultsCache = SQLiteBackedCache(tableName: "cache_table", location: cacheLocation, logger)
   }
 
+  public func shutDown() async throws {
+    precondition(!self.isShutDown, "`Engine/shutDown` should be called only once")
+    try self.resultsCache.close()
+    try await self.httpClient.shutdown()
+
+    self.isShutDown = true
+  }
+
   deinit {
-    try! resultsCache.close()
+    let isShutDown = self.isShutDown
+    precondition(
+      isShutDown,
+      "`Engine/shutDown` should be called explicitly on instances of `Engine` before deinitialization"
+    )
   }
 
   /// Executes a given query if no cached result of it is available. Otherwise fetches the result from engine's cache.
@@ -58,7 +71,9 @@ public actor Engine {
 
       if let fileRecord = try resultsCache.get(key, as: FileCacheRecord.self) {
         hashFunction = SHA512()
-        try await self.fileSystem.hash(fileRecord.path, with: &hashFunction)
+        try await self.fileSystem.withOpenReadableFile(fileRecord.path) {
+          try await $0.hash(with: &hashFunction)
+        }
         let fileHash = hashFunction.finalize().description
 
         if fileHash == fileRecord.hash {
@@ -70,7 +85,10 @@ public actor Engine {
       self.cacheMisses += 1
       let resultPath = try await query.run(engine: self)
       hashFunction = SHA512()
-      try await self.fileSystem.hash(resultPath, with: &hashFunction)
+
+      try await self.fileSystem.withOpenReadableFile(resultPath) {
+        try await $0.hash(with: &hashFunction)
+      }
       let resultHash = hashFunction.finalize().description
 
       try self.resultsCache.set(key, to: FileCacheRecord(path: resultPath, hash: resultHash))

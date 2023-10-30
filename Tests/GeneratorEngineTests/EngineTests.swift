@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 import class AsyncHTTPClient.HTTPClient
+import struct Foundation.Data
 @testable import GeneratorEngine
 import struct Logging.Logger
 import struct SystemPackage.FilePath
@@ -20,19 +21,27 @@ private let encoder = JSONEncoder()
 private let decoder = JSONDecoder()
 
 private extension FileSystem {
-  func read<V: Decodable>(_ path: FilePath, as: V.Type) async throws -> V {
-    let fileStream = try await self.read(path)
-    var bytes = [UInt8]()
-    for try await chunk in fileStream {
-      bytes += chunk
+  func read<V: Decodable>(_ path: FilePath, bufferLimit: Int = 10 * 1024 * 1024, as: V.Type) async throws -> V {
+    let data = try await self.withOpenReadableFile(path) {
+      var data = Data()
+      for try await chunk in try await $0.read() {
+        data.append(contentsOf: chunk)
+
+        guard data.count < bufferLimit else {
+          throw FileSystemError.bufferLimitExceeded(path)
+        }
+      }
+      return data
     }
 
-    return try decoder.decode(V.self, from: .init(bytes))
+    return try decoder.decode(V.self, from: data)
   }
 
   func write(_ path: FilePath, _ value: some Encodable) async throws {
     let data = try encoder.encode(value)
-    try await self.write(path, .init(data))
+    try await self.withOpenWritableFile(path) { fileHandle in
+      try await fileHandle.write(data)
+    }
   }
 }
 
@@ -96,17 +105,11 @@ struct Expression {
 
 final class EngineTests: XCTestCase {
   func testSimpleCaching() async throws {
-    let httpClient = HTTPClient()
     let engine = Engine(
       VirtualFileSystem(),
-      httpClient,
       Logger(label: "engine-tests"),
       cacheLocation: .memory
     )
-
-    defer {
-      try! httpClient.syncShutdown()
-    }
 
     var resultPath = try await engine[Expression(x: 1, y: 2)]
     var result = try await engine.fileSystem.read(resultPath, as: Int.self)
@@ -148,5 +151,7 @@ final class EngineTests: XCTestCase {
 
     cacheHits = await engine.cacheHits
     XCTAssertEqual(cacheHits, 4)
+
+    try await engine.shutDown()
   }
 }

@@ -24,12 +24,14 @@ public protocol CacheKeyProtocol {
 
 extension Bool: CacheKeyProtocol {
   public func hash(with hashFunction: inout some HashFunction) {
+    "Swift.Bool".hash(with: &hashFunction)
     hashFunction.update(data: self ? [1] : [0])
   }
 }
 
 extension Int: CacheKeyProtocol {
   public func hash(with hashFunction: inout some HashFunction) {
+    "Swift.Int".hash(with: &hashFunction)
     withUnsafeBytes(of: self) {
       hashFunction.update(bufferPointer: $0)
     }
@@ -38,6 +40,10 @@ extension Int: CacheKeyProtocol {
 
 extension String: CacheKeyProtocol {
   public func hash(with hashFunction: inout some HashFunction) {
+    var t = "Swift.String"
+    t.withUTF8 {
+      hashFunction.update(bufferPointer: .init($0))
+    }
     var x = self
     x.withUTF8 {
       hashFunction.update(bufferPointer: .init($0))
@@ -47,20 +53,26 @@ extension String: CacheKeyProtocol {
 
 extension FilePath: CacheKeyProtocol {
   public func hash(with hashFunction: inout some HashFunction) {
-    self.description.hash(with: &hashFunction)
+    "SystemPackage.FilePath".hash(with: &hashFunction)
+    self.string.hash(with: &hashFunction)
   }
 }
 
 extension URL: CacheKeyProtocol {
   public func hash(with hashFunction: inout some HashFunction) {
+    "Foundation.URL".hash(with: &hashFunction)
     self.description.hash(with: &hashFunction)
   }
 }
 
 extension Optional: CacheKeyProtocol where Wrapped: CacheKeyProtocol {
   public func hash(with hashFunction: inout some HashFunction) {
+    "Swift.Optional".hash(with: &hashFunction)
     if let self {
+      true.hash(with: &hashFunction)
       self.hash(with: &hashFunction)
+    } else {
+      false.hash(with: &hashFunction)
     }
   }
 }

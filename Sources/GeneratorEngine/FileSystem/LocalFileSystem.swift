@@ -13,7 +13,7 @@
 import SystemPackage
 
 public actor LocalFileSystem: FileSystem {
-  public static let defaultChunkSize = 128 * 1024
+  public static let defaultChunkSize = 512 * 1024
 
   let readChunkSize: Int
 
@@ -21,42 +21,33 @@ public actor LocalFileSystem: FileSystem {
     self.readChunkSize = readChunkSize
   }
 
-  public func read(_ path: FilePath) throws -> ReadableFileStream {
-    try .local(
-      LocalReadableFileStream(
-        fileDescriptor: FileDescriptor.open(path, .readOnly),
-        readChunkSize: self.readChunkSize
-      )
-    )
-  }
-
-  public func write(_ path: FilePath, _ bytes: [UInt8]) throws {
-    let fd = try FileDescriptor.open(path, .writeOnly)
-
-    try fd.closeAfter {
-      _ = try fd.writeAll(bytes)
+  public func withOpenReadableFile<T>(
+    _ path: FilePath,
+    _ body: (OpenReadableFile) async throws -> T
+  ) async throws -> T {
+    let fd = try FileDescriptor.open(path, .readOnly)
+    do {
+      let result = try await body(.init(readChunkSize: readChunkSize, fileHandle: .local(fd)))
+      try fd.close()
+      return result
+    } catch {
+      try fd.close()
+      throw error
     }
   }
 
-  public func hash(
-    _ path: FilePath,
-    with hashFunction: inout some HashFunction
-  ) throws {
-    let fd = try FileDescriptor.open(path, .readOnly)
-
-    try fd.closeAfter {
-      var buffer = [UInt8](repeating: 0, count: readChunkSize)
-      var bytesRead = 0
-      repeat {
-        bytesRead = try buffer.withUnsafeMutableBytes {
-          try fd.read(into: $0)
-        }
-
-        if bytesRead > 0 {
-          hashFunction.update(data: buffer[0..<bytesRead])
-        }
-
-      } while bytesRead > 0
+  public func withOpenWritableFile<T>(
+    _ path: SystemPackage.FilePath,
+    _ body: (OpenWritableFile) async throws -> T
+  ) async throws -> T {
+    let fd = try FileDescriptor.open(path, .writeOnly)
+    do {
+      let result = try await body(.init(fileHandle: .local(fd)))
+      try fd.close()
+      return result
+    } catch {
+      try fd.close()
+      throw error
     }
   }
 }
