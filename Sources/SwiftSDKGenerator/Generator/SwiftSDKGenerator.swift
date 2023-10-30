@@ -136,24 +136,6 @@ public actor SwiftSDKGenerator {
     #endif
   }
 
-  static func isChecksumValid(artifact: DownloadableArtifacts.Item, isVerbose: Bool) async throws -> Bool {
-    guard let expectedChecksum = artifact.checksum else { return false }
-
-    let computedChecksum = try await String(
-      Shell.readStdout("openssl dgst -sha256 \(artifact.localPath)", shouldLogCommands: isVerbose)
-        .split(separator: "= ")[1]
-        // drop the trailing newline
-        .dropLast()
-    )
-
-    guard computedChecksum == expectedChecksum else {
-      print("SHA256 digest of file at `\(artifact.localPath)` does not match expected value: \(expectedChecksum)")
-      return false
-    }
-
-    return true
-  }
-
   private func buildDockerImage(name: String, dockerfileDirectory: FilePath) async throws {
     try await Shell.run(
       "\(Self.dockerCommand) build . -t \(name)",
