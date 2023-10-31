@@ -67,7 +67,7 @@ public extension SwiftSDKGenerator {
       try await self.unpackTargetSwiftPackage()
     }
 
-    try await self.unpackLLDLinker()
+    try await self.prepareLLDLinker()
 
     try self.fixAbsoluteSymlinks()
 

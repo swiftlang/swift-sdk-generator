@@ -23,24 +23,7 @@ import struct SystemPackage.FilePath
 private let ubuntuAMD64Mirror = "http://gb.archive.ubuntu.com/ubuntu"
 private let ubuntuARM64Mirror = "http://ports.ubuntu.com/ubuntu-ports"
 
-private let byteCountFormatter = ByteCountFormatter()
-
-@Query
-struct DownloadQuery {
-  let artifact: DownloadableArtifacts.Item
-
-  func run(engine: Engine) async throws -> FilePath {
-    print("Downloading remote artifact not available in local cache: \(self.artifact.remoteURL)")
-    let stream = await engine.httpClient.streamDownloadProgress(for: self.artifact)
-      .removeDuplicates(by: didProgressChangeSignificantly)
-      .throttle(for: .seconds(1))
-
-    for try await item in stream {
-      report(progress: item.progress, for: item.artifact)
-    }
-    return self.artifact.localPath
-  }
-}
+let byteCountFormatter = ByteCountFormatter()
 
 extension SwiftSDKGenerator {
   func downloadArtifacts(_ client: HTTPClient) async throws {
@@ -57,9 +40,8 @@ extension SwiftSDKGenerator {
 
     let results = try await withThrowingTaskGroup(of: FileCacheRecord.self) { group in
       for item in self.downloadableArtifacts.allItems {
-        print(item.remoteURL)
         group.addTask {
-          try await self.engine[DownloadQuery(artifact: item)]
+          try await self.engine[DownloadArtifactQuery(artifact: item)]
         }
       }
 
@@ -68,6 +50,11 @@ extension SwiftSDKGenerator {
         result.append(file)
       }
       return result
+    }
+
+    print("Using downloaded artifacts in these locations:")
+    for path in results.map(\.path) {
+      print(path)
     }
   }
 
@@ -209,42 +196,5 @@ extension HTTPClient {
     }
 
     return result
-  }
-}
-
-/// Checks whether two given progress value are different enough from each other. Used for filtering out progress
-/// values in async streams with `removeDuplicates` operator.
-/// - Parameters:
-///   - previous: Preceding progress value in the stream.
-///   - current: Currently processed progress value in the stream.
-/// - Returns: `true` if `totalBytes` value is different by any amount or if `receivedBytes` is different by amount
-/// larger than 1MiB. Returns `false` otherwise.
-@Sendable
-private func didProgressChangeSignificantly(
-  previous: ArtifactDownloadProgress,
-  current: ArtifactDownloadProgress
-) -> Bool {
-  guard previous.progress.totalBytes == current.progress.totalBytes else {
-    return true
-  }
-
-  return current.progress.receivedBytes - previous.progress.receivedBytes > 1024 * 1024 * 1024
-}
-
-private func report(progress: FileDownloadDelegate.Progress, for artifact: DownloadableArtifacts.Item) {
-  if let total = progress.totalBytes {
-    print("""
-    \(artifact.remoteURL.lastPathComponent) \(
-      byteCountFormatter
-        .string(fromByteCount: Int64(progress.receivedBytes))
-    )/\(
-      byteCountFormatter
-        .string(fromByteCount: Int64(total))
-    )
-    """)
-  } else {
-    print(
-      "\(artifact.remoteURL.lastPathComponent) \(byteCountFormatter.string(fromByteCount: Int64(progress.receivedBytes)))"
-    )
   }
 }

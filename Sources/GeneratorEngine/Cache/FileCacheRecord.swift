@@ -13,8 +13,8 @@
 import struct SystemPackage.FilePath
 
 public struct FileCacheRecord: Sendable {
-  let path: FilePath
-  let hash: String
+  public let path: FilePath
+  public let hash: String
 }
 
 extension FileCacheRecord: Codable {

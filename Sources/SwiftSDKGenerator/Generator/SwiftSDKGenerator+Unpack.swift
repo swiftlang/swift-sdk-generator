@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+import struct SystemPackage.FilePath
+
 private let unusedDarwinPlatforms = [
   "watchsimulator",
   "iphonesimulator",
@@ -66,36 +68,43 @@ extension SwiftSDKGenerator {
     }
   }
 
-  func unpackLLDLinker() async throws {
+  func prepareLLDLinker() async throws {
     logGenerationStep("Unpacking and copying `lld` linker...")
     let downloadableArtifacts = self.downloadableArtifacts
     let pathsConfiguration = self.pathsConfiguration
     let targetOS = self.targetTriple.os
 
-    try await inTemporaryDirectory { fileSystem, tmpDir in
-      let llvmArtifact = downloadableArtifacts.hostLLVM
-      try await fileSystem.untar(
-        file: llvmArtifact.localPath,
-        into: tmpDir,
-        stripComponents: 1
-      )
+    let llvmArtifact = downloadableArtifacts.hostLLVM
 
-      let unpackedLLDPath = if llvmArtifact.isPrebuilt {
-        tmpDir.appending("bin/lld")
-      } else {
-        try await self.buildLLD(llvmSourcesDirectory: tmpDir)
-      }
+    let untarDestination = pathsConfiguration.artifactsCachePath.appending(
+      FilePath.Component(llvmArtifact.localPath.stem!)!.stem
+    )
+    try self.createDirectoryIfNeeded(at: untarDestination)
+    try await self.untar(
+      file: llvmArtifact.localPath,
+      into: untarDestination,
+      stripComponents: 1
+    )
 
-      let toolchainLLDPath = switch targetOS {
-      case .linux:
-        pathsConfiguration.toolchainBinDirPath.appending("ld.lld")
-      case .wasi:
-        pathsConfiguration.toolchainBinDirPath.appending("wasm-ld")
-      default:
-        fatalError()
-      }
-
-      try await fileSystem.copy(from: unpackedLLDPath, to: toolchainLLDPath)
+    let unpackedLLDPath = if llvmArtifact.isPrebuilt {
+      untarDestination.appending("bin/lld")
+    } else {
+      try await self.engine[CMakeBuildQuery(
+        sourcesDirectory: untarDestination,
+        outputBinarySubpath: ["bin", "lld"],
+        options: "-DLLVM_ENABLE_PROJECTS=lld -DLLVM_TARGETS_TO_BUILD=\(self.targetTriple.cpu.llvmTargetConventionName)"
+      )].path
     }
+
+    let toolchainLLDPath = switch targetOS {
+    case .linux:
+      pathsConfiguration.toolchainBinDirPath.appending("ld.lld")
+    case .wasi:
+      pathsConfiguration.toolchainBinDirPath.appending("wasm-ld")
+    default:
+      fatalError()
+    }
+
+    try self.copy(from: unpackedLLDPath, to: toolchainLLDPath)
   }
 }

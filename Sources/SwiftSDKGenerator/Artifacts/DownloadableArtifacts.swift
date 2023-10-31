@@ -107,7 +107,6 @@ struct DownloadableArtifacts: Sendable {
       isPrebuilt: true
     )
 
-    let targetArtifactsOS = ArtifactOS(targetTriple.os, versions)
     self.targetSwift = .init(
       remoteURL: versions.swiftDownloadURL(),
       localPath: paths.artifactsCachePath
