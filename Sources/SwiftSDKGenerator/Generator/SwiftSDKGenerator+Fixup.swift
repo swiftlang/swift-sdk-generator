@@ -85,4 +85,11 @@ extension SwiftSDKGenerator {
 
     try writeFile(at: path, Data(moduleMap.utf8))
   }
+
+  func symlinkClangHeaders() throws {
+    try self.createSymlink(
+      at: self.pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static/clang"), 
+      pointingTo: "../swift/clang"
+    )
+  }
 }
