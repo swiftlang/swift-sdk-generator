@@ -79,6 +79,8 @@ extension SwiftSDKGenerator {
         .appending("/usr/lib/swift/linux/\(targetCPU.linuxConventionName)/glibc.modulemap")
     )
 
+    try self.symlinkClangHeaders()
+
     let autolinkExtractPath = pathsConfiguration.toolchainBinDirPath.appending("swift-autolink-extract")
 
     if !doesFileExist(at: autolinkExtractPath) {
