@@ -26,8 +26,8 @@ public extension Triple.CPU {
   }
 }
 
-extension SwiftSDKGenerator {
-  public func generateBundle(shouldGenerateFromScratch: Bool) async throws {
+public extension SwiftSDKGenerator {
+  func generateBundle(shouldGenerateFromScratch: Bool) async throws {
     var configuration = HTTPClient.Configuration(redirectConfiguration: .follow(max: 5, allowCycles: false))
     // Workaround an issue with github.com returning 400 instead of 404 status to HEAD requests from AHC.
     configuration.httpVersion = .http1Only
@@ -49,9 +49,7 @@ extension SwiftSDKGenerator {
     try createDirectoryIfNeeded(at: pathsConfiguration.sdkDirPath)
     try createDirectoryIfNeeded(at: pathsConfiguration.toolchainDirPath)
 
-    if try await !self.isCacheValid {
-      try await self.downloadArtifacts(client)
-    }
+    try await self.downloadArtifacts(client)
 
     if !shouldUseDocker {
       guard case let .ubuntu(version) = versionsConfiguration.linuxDistribution else {
@@ -103,35 +101,6 @@ extension SwiftSDKGenerator {
       swift build --experimental-swift-sdk \(artifactID)
       """
     )
-  }
-
-  /// Check whether cached downloads for required `DownloadArtifacts.Item` values can be reused instead of downloading
-  /// them each time the generator is running.
-  /// - Returns: `true` if artifacts are valid, `false` otherwise.
-  private var isCacheValid: Bool {
-    get async throws {
-      logGenerationStep("Checking packages cache...")
-
-      guard downloadableArtifacts.allItems.map(\.localPath).allSatisfy(doesFileExist(at:)) else {
-        return false
-      }
-
-      return try await withThrowingTaskGroup(of: Bool.self) { taskGroup in
-        for artifact in downloadableArtifacts.allItems {
-          taskGroup.addTask {
-            try await Self.isChecksumValid(artifact: artifact, isVerbose: self.isVerbose)
-          }
-        }
-
-        for try await isValid in taskGroup {
-          guard isValid else {
-            return false
-          }
-        }
-
-        return true
-      }
-    }
   }
 }
 

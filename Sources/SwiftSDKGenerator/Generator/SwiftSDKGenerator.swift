@@ -11,9 +11,11 @@
 //===----------------------------------------------------------------------===//
 
 import Foundation
+import GeneratorEngine
+import Logging
 import SystemPackage
 
-/// Implementation of ``SwiftSDKGenerator`` for the local file system.
+/// Top-level actor that sequences all of the required SDK generation steps.
 public actor SwiftSDKGenerator {
   let hostTriple: Triple
   let targetTriple: Triple
@@ -23,6 +25,9 @@ public actor SwiftSDKGenerator {
   var downloadableArtifacts: DownloadableArtifacts
   let shouldUseDocker: Bool
   let isVerbose: Bool
+
+  let engine: Engine
+  private var isShutDown = false
 
   public init(
     hostCPUArchitecture: Triple.CPU?,
@@ -83,6 +88,28 @@ public actor SwiftSDKGenerator {
     )
     self.shouldUseDocker = shouldUseDocker
     self.isVerbose = isVerbose
+
+    let engineCachePath = self.pathsConfiguration.artifactsCachePath.appending("cache.db")
+    self.engine = .init(
+      LocalFileSystem(),
+      Logger(label: "org.swift.swift-sdk-generator"),
+      cacheLocation: .path(engineCachePath)
+    )
+  }
+
+  public func shutDown() async throws {
+    precondition(!self.isShutDown, "`SwiftSDKGenerator/shutDown` should be called only once")
+    try await self.engine.shutDown()
+
+    self.isShutDown = true
+  }
+
+  deinit {
+    let isShutDown = self.isShutDown
+    precondition(
+      isShutDown,
+      "`Engine/shutDown` should be called explicitly on instances of `Engine` before deinitialization"
+    )
   }
 
   private let fileManager = FileManager.default
@@ -107,24 +134,6 @@ public actor SwiftSDKGenerator {
     #else
     fatalError("Triple detection not implemented for the platform that this generator was built on.")
     #endif
-  }
-
-  static func isChecksumValid(artifact: DownloadableArtifacts.Item, isVerbose: Bool) async throws -> Bool {
-    guard let expectedChecksum = artifact.checksum else { return false }
-
-    let computedChecksum = try await String(
-      Shell.readStdout("openssl dgst -sha256 \(artifact.localPath)", shouldLogCommands: isVerbose)
-        .split(separator: "= ")[1]
-        // drop the trailing newline
-        .dropLast()
-    )
-
-    guard computedChecksum == expectedChecksum else {
-      print("SHA256 digest of file at `\(artifact.localPath)` does not match expected value: \(expectedChecksum)")
-      return false
-    }
-
-    return true
   }
 
   private func buildDockerImage(name: String, dockerfileDirectory: FilePath) async throws {

@@ -12,15 +12,35 @@
 
 import AsyncAlgorithms
 import AsyncHTTPClient
+import GeneratorEngine
 import RegexBuilder
 
 import class Foundation.ByteCountFormatter
 import struct Foundation.URL
 
+import struct SystemPackage.FilePath
+
 private let ubuntuAMD64Mirror = "http://gb.archive.ubuntu.com/ubuntu"
 private let ubuntuARM64Mirror = "http://ports.ubuntu.com/ubuntu-ports"
 
 private let byteCountFormatter = ByteCountFormatter()
+
+@Query
+struct DownloadQuery {
+  let artifact: DownloadableArtifacts.Item
+
+  func run(engine: Engine) async throws -> FilePath {
+    print("Downloading remote artifact not available in local cache: \(self.artifact.remoteURL)")
+    let stream = await engine.httpClient.streamDownloadProgress(for: self.artifact)
+      .removeDuplicates(by: didProgressChangeSignificantly)
+      .throttle(for: .seconds(1))
+
+    for try await item in stream {
+      report(progress: item.progress, for: item.artifact)
+    }
+    return self.artifact.localPath
+  }
+}
 
 extension SwiftSDKGenerator {
   func downloadArtifacts(_ client: HTTPClient) async throws {
@@ -35,42 +55,19 @@ extension SwiftSDKGenerator {
       downloadableArtifacts.useLLVMSources()
     }
 
-    let hostSwiftProgressStream = client.streamDownloadProgress(for: downloadableArtifacts.hostSwift)
-      .removeDuplicates(by: didProgressChangeSignificantly)
-    let hostLLVMProgressStream = client.streamDownloadProgress(for: downloadableArtifacts.hostLLVM)
-      .removeDuplicates(by: didProgressChangeSignificantly)
-
-    print("Using these URLs for downloads:")
-
-    for artifact in downloadableArtifacts.allItems {
-      print(artifact.remoteURL)
-    }
-
-    // FIXME: some code duplication is necessary due to https://github.com/apple/swift-async-algorithms/issues/226
-    if shouldUseDocker {
-      let stream = combineLatest(hostSwiftProgressStream, hostLLVMProgressStream)
-        .throttle(for: .seconds(1))
-
-      for try await (swiftProgress, llvmProgress) in stream {
-        report(progress: swiftProgress, for: downloadableArtifacts.hostSwift)
-        report(progress: llvmProgress, for: downloadableArtifacts.hostLLVM)
+    let results = try await withThrowingTaskGroup(of: FileCacheRecord.self) { group in
+      for item in self.downloadableArtifacts.allItems {
+        print(item.remoteURL)
+        group.addTask {
+          try await self.engine[DownloadQuery(artifact: item)]
+        }
       }
-    } else {
-      let targetSwiftProgressStream = client.streamDownloadProgress(for: downloadableArtifacts.targetSwift)
-        .removeDuplicates(by: didProgressChangeSignificantly)
 
-      let stream = combineLatest(
-        hostSwiftProgressStream,
-        hostLLVMProgressStream,
-        targetSwiftProgressStream
-      )
-      .throttle(for: .seconds(1))
-
-      for try await (hostSwiftProgress, hostLLVMProgress, targetSwiftProgress) in stream {
-        report(progress: hostSwiftProgress, for: downloadableArtifacts.hostSwift)
-        report(progress: hostLLVMProgress, for: downloadableArtifacts.hostLLVM)
-        report(progress: targetSwiftProgress, for: downloadableArtifacts.targetSwift)
+      var result = [FileCacheRecord]()
+      for try await file in group {
+        result.append(file)
       }
+      return result
     }
   }
 
@@ -224,14 +221,14 @@ extension HTTPClient {
 /// larger than 1MiB. Returns `false` otherwise.
 @Sendable
 private func didProgressChangeSignificantly(
-  previous: FileDownloadDelegate.Progress,
-  current: FileDownloadDelegate.Progress
+  previous: ArtifactDownloadProgress,
+  current: ArtifactDownloadProgress
 ) -> Bool {
-  guard previous.totalBytes == current.totalBytes else {
+  guard previous.progress.totalBytes == current.progress.totalBytes else {
     return true
   }
 
-  return current.receivedBytes - previous.receivedBytes > 1024 * 1024 * 1024
+  return current.progress.receivedBytes - previous.progress.receivedBytes > 1024 * 1024 * 1024
 }
 
 private func report(progress: FileDownloadDelegate.Progress, for artifact: DownloadableArtifacts.Item) {

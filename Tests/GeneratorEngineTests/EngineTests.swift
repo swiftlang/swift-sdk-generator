@@ -61,8 +61,7 @@ struct MultiplyByTwo {
   let x: Int
 
   func run(engine: Engine) async throws -> FilePath {
-    let constPath = try await engine[Const(x: self.x)]
-
+    let constPath = try await engine[Const(x: self.x)].path
     let constResult = try await engine.fileSystem.read(constPath, as: Int.self)
 
     let resultPath = FilePath("/MultiplyByTwo-\(constResult)")
@@ -76,7 +75,7 @@ struct AddThirty {
   let x: Int
 
   func run(engine: Engine) async throws -> FilePath {
-    let constPath = try await engine[Const(x: self.x)]
+    let constPath = try await engine[Const(x: self.x)].path
     let constResult = try await engine.fileSystem.read(constPath, as: Int.self)
 
     let resultPath = FilePath("/AddThirty-\(constResult)")
@@ -91,8 +90,8 @@ struct Expression {
   let y: Int
 
   func run(engine: Engine) async throws -> FilePath {
-    let multiplyPath = try await engine[MultiplyByTwo(x: self.x)]
-    let addThirtyPath = try await engine[AddThirty(x: self.y)]
+    let multiplyPath = try await engine[MultiplyByTwo(x: self.x)].path
+    let addThirtyPath = try await engine[AddThirty(x: self.y)].path
 
     let multiplyResult = try await engine.fileSystem.read(multiplyPath, as: Int.self)
     let addThirtyResult = try await engine.fileSystem.read(addThirtyPath, as: Int.self)
@@ -111,7 +110,7 @@ final class EngineTests: XCTestCase {
       cacheLocation: .memory
     )
 
-    var resultPath = try await engine[Expression(x: 1, y: 2)]
+    var resultPath = try await engine[Expression(x: 1, y: 2)].path
     var result = try await engine.fileSystem.read(resultPath, as: Int.self)
 
     XCTAssertEqual(result, 34)
@@ -122,7 +121,7 @@ final class EngineTests: XCTestCase {
     var cacheHits = await engine.cacheHits
     XCTAssertEqual(cacheHits, 0)
 
-    resultPath = try await engine[Expression(x: 1, y: 2)]
+    resultPath = try await engine[Expression(x: 1, y: 2)].path
     result = try await engine.fileSystem.read(resultPath, as: Int.self)
     XCTAssertEqual(result, 34)
 
@@ -132,7 +131,7 @@ final class EngineTests: XCTestCase {
     cacheHits = await engine.cacheHits
     XCTAssertEqual(cacheHits, 1)
 
-    resultPath = try await engine[Expression(x: 2, y: 1)]
+    resultPath = try await engine[Expression(x: 2, y: 1)].path
     result = try await engine.fileSystem.read(resultPath, as: Int.self)
     XCTAssertEqual(result, 35)
 
@@ -142,7 +141,7 @@ final class EngineTests: XCTestCase {
     cacheHits = await engine.cacheHits
     XCTAssertEqual(cacheHits, 3)
 
-    resultPath = try await engine[Expression(x: 2, y: 1)]
+    resultPath = try await engine[Expression(x: 2, y: 1)].path
     result = try await engine.fileSystem.read(resultPath, as: Int.self)
     XCTAssertEqual(result, 35)
 
