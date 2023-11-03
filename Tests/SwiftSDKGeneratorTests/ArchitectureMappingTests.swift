@@ -104,6 +104,8 @@ final class ArchitectureMappingTests: XCTestCase {
       paths.artifactBundlePath.string + sdkDirPathSuffix,
       "Unexpected sdkDirPathSuffix"
     )
+
+    try await sdk.shutDown()
   }
 
   func testX86ToX86SDKGenerator() async throws {

@@ -16,6 +16,7 @@ import struct SystemPackage.FilePath
 @Query
 struct CMakeBuildQuery {
   let sourcesDirectory: FilePath
+  /// Path to the output binary relative to the CMake build directory.
   let outputBinarySubpath: [FilePath.Component]
   let options: String
 

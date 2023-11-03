@@ -63,7 +63,7 @@ extension SwiftSDKGenerator {
           // `libc.so` is a linker script with absolute paths on RHEL, replace with a relative symlink
           let libcSO = sdkUsrLib64Path.appending("libc.so")
           try await removeFile(at: libcSO)
-          try await createSymlink(at: libcSO, pointingTo: "libc.await so.6")
+          try await createSymlink(at: libcSO, pointingTo: "libc.so.6")
         }
 
         try await generator.createDirectoryIfNeeded(at: sdkUsrLibPath)
