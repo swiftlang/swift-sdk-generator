@@ -25,23 +25,6 @@ private let ubuntuARM64Mirror = "http://ports.ubuntu.com/ubuntu-ports"
 
 let byteCountFormatter = ByteCountFormatter()
 
-@Query
-struct DownloadQuery {
-  let artifact: DownloadableArtifacts.Item
-
-  func run(engine: Engine) async throws -> FilePath {
-    print("Downloading remote artifact not available in local cache: \(self.artifact.remoteURL)")
-    let stream = await engine.httpClient.streamDownloadProgress(for: self.artifact)
-      .removeDuplicates(by: didProgressChangeSignificantly)
-      .throttle(for: .seconds(1))
-
-    for try await item in stream {
-      report(progress: item.progress, for: item.artifact)
-    }
-    return self.artifact.localPath
-  }
-}
-
 extension SwiftSDKGenerator {
   func downloadArtifacts(_ client: HTTPClient) async throws {
     logGenerationStep("Downloading required toolchain packages...")
