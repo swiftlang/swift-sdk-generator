@@ -41,6 +41,7 @@ extension SwiftSDKGenerator {
       // Remove libraries for platforms we don't intend cross-compiling to
       for platform in unusedDarwinPlatforms {
         try await fileSystem.removeRecursively(at: tmpDir.appending("usr/lib/swift/\(platform)"))
+        try await fileSystem.removeRecursively(at: tmpDir.appending("usr/lib/swift_static/\(platform)"))
       }
       try await fileSystem.removeRecursively(at: tmpDir.appending("usr/lib/sourcekitd.framework"))
 

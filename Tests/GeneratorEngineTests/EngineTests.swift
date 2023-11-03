@@ -62,7 +62,6 @@ struct MultiplyByTwo {
 
   func run(engine: Engine) async throws -> FilePath {
     let constPath = try await engine[Const(x: self.x)].path
-
     let constResult = try await engine.fileSystem.read(constPath, as: Int.self)
 
     let resultPath = FilePath("/MultiplyByTwo-\(constResult)")
