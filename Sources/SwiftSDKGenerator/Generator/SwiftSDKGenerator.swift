@@ -141,7 +141,7 @@ public actor SwiftSDKGenerator {
         at: tmp.appending("Dockerfile"),
         Data(
           """
-          FROM \(baseImage)
+          FROM --platform=linux/\(self.targetTriple.cpu.debianConventionName) \(baseImage)
           """.utf8
         )
       )
