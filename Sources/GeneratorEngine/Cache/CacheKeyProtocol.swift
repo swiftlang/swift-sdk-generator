@@ -24,14 +24,14 @@ public protocol CacheKeyProtocol {
 
 extension Bool: CacheKeyProtocol {
   public func hash(with hashFunction: inout some HashFunction) {
-    "Swift.Bool".hash(with: &hashFunction)
+    String(reflecting: Self.self).hash(with: &hashFunction)
     hashFunction.update(data: self ? [1] : [0])
   }
 }
 
 extension Int: CacheKeyProtocol {
   public func hash(with hashFunction: inout some HashFunction) {
-    "Swift.Int".hash(with: &hashFunction)
+    String(reflecting: Self.self).hash(with: &hashFunction)
     withUnsafeBytes(of: self) {
       hashFunction.update(bufferPointer: $0)
     }
@@ -40,7 +40,7 @@ extension Int: CacheKeyProtocol {
 
 extension String: CacheKeyProtocol {
   public func hash(with hashFunction: inout some HashFunction) {
-    var t = "Swift.String"
+    var t = String(reflecting: Self.self)
     t.withUTF8 {
       hashFunction.update(bufferPointer: .init($0))
     }
@@ -53,26 +53,42 @@ extension String: CacheKeyProtocol {
 
 extension FilePath: CacheKeyProtocol {
   public func hash(with hashFunction: inout some HashFunction) {
-    "SystemPackage.FilePath".hash(with: &hashFunction)
+    String(reflecting: Self.self).hash(with: &hashFunction)
+    self.string.hash(with: &hashFunction)
+  }
+}
+
+extension FilePath.Component: CacheKeyProtocol {
+  public func hash(with hashFunction: inout some HashFunction) {
+    String(reflecting: Self.self).hash(with: &hashFunction)
     self.string.hash(with: &hashFunction)
   }
 }
 
 extension URL: CacheKeyProtocol {
   public func hash(with hashFunction: inout some HashFunction) {
-    "Foundation.URL".hash(with: &hashFunction)
+    String(reflecting: Self.self).hash(with: &hashFunction)
     self.description.hash(with: &hashFunction)
   }
 }
 
 extension Optional: CacheKeyProtocol where Wrapped: CacheKeyProtocol {
   public func hash(with hashFunction: inout some HashFunction) {
-    "Swift.Optional".hash(with: &hashFunction)
+    String(reflecting: Self.self).hash(with: &hashFunction)
     if let self {
       true.hash(with: &hashFunction)
       self.hash(with: &hashFunction)
     } else {
       false.hash(with: &hashFunction)
+    }
+  }
+}
+
+extension Array: CacheKeyProtocol where Element: CacheKeyProtocol {
+  public func hash(with hashFunction: inout some HashFunction) {
+    String(reflecting: Self.self).hash(with: &hashFunction)
+    for element in self {
+      element.hash(with: &hashFunction)
     }
   }
 }

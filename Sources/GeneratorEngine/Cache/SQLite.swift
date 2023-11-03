@@ -15,6 +15,7 @@ import SystemPackage
 import SystemSQLite
 
 extension FilePath: @unchecked Sendable {}
+extension FilePath.Component: @unchecked Sendable {}
 
 /// A minimal SQLite wrapper.
 public final class SQLite {
