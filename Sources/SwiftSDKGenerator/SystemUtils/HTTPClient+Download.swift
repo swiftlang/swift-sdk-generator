@@ -90,23 +90,4 @@ extension HTTPClient {
       }
     }
   }
-
-  func downloadFiles(
-    from urls: [URL],
-    to directory: FilePath
-  ) async throws -> [FileDownloadDelegate.Progress] {
-    try await withThrowingTaskGroup(of: FileDownloadDelegate.Progress.self) {
-      for url in urls {
-        $0.addTask {
-          try await self.downloadFile(from: url, to: directory.appending(url.lastPathComponent))
-        }
-      }
-
-      var result = [FileDownloadDelegate.Progress]()
-      for try await progress in $0 {
-        result.append(progress)
-      }
-      return result
-    }
-  }
 }

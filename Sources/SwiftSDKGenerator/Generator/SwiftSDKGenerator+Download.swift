@@ -16,6 +16,7 @@ import GeneratorEngine
 import RegexBuilder
 
 import class Foundation.ByteCountFormatter
+import class Foundation.FileManager
 import struct Foundation.URL
 
 import struct SystemPackage.FilePath
@@ -101,8 +102,8 @@ extension SwiftSDKGenerator {
     let pathsConfiguration = self.pathsConfiguration
 
     try await inTemporaryDirectory { fs, tmpDir in
-      let progress = try await client.downloadFiles(from: urls, to: tmpDir)
-      report(downloadedFiles: Array(zip(urls, progress.map(\.receivedBytes))))
+      let downloadedFiles = try await self.downloadFiles(from: urls, to: tmpDir)
+      report(downloadedFiles: downloadedFiles)
 
       for fileName in urls.map(\.lastPathComponent) {
         try await fs.unpack(file: tmpDir.appending(fileName), into: pathsConfiguration.sdkDirPath)
@@ -111,9 +112,32 @@ extension SwiftSDKGenerator {
 
     try createDirectoryIfNeeded(at: pathsConfiguration.toolchainBinDirPath)
   }
+
+  func downloadFiles(from urls: [URL], to directory: FilePath) async throws -> [(URL, UInt64)] {
+    try await withThrowingTaskGroup(of: (URL, UInt64).self) {
+      for url in urls {
+        $0.addTask {
+          let downloadedFilePath = try await self.engine[DownloadFileQuery(remoteURL: url, localDirectory: directory)]
+          let filePath = downloadedFilePath.path
+          guard let fileSize = try FileManager.default.attributesOfItem(
+            atPath: filePath.string
+          )[.size] as? UInt64 else {
+            throw GeneratorError.fileDoesNotExist(filePath)
+          }
+          return (url, fileSize)
+        }
+      }
+
+      var result = [(URL, UInt64)]()
+      for try await progress in $0 {
+        result.append(progress)
+      }
+      return result
+    }
+  }
 }
 
-private func report(downloadedFiles: [(URL, Int)]) {
+private func report(downloadedFiles: [(URL, UInt64)]) {
   for (url, bytes) in downloadedFiles {
     print("\(url) – \(byteCountFormatter.string(fromByteCount: Int64(bytes)))")
   }
