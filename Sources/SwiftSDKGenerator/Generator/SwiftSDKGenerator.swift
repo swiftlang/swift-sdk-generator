@@ -136,43 +136,12 @@ public actor SwiftSDKGenerator {
     #endif
   }
 
-  private func buildDockerImage(name: String, dockerfileDirectory: FilePath) async throws {
-    try await Shell.run(
-      "\(Self.dockerCommand) build . -t \(name)",
-      currentDirectory: dockerfileDirectory,
-      shouldLogCommands: self.isVerbose
-    )
-  }
-
-  func buildDockerImage(baseImage: String) async throws -> String {
-    try await self.inTemporaryDirectory { generator, tmp in
-      try await generator.writeFile(
-        at: tmp.appending("Dockerfile"),
-        Data(
-          """
-          FROM --platform=linux/\(self.targetTriple.cpu.debianConventionName) \(baseImage)
-          """.utf8
-        )
-      )
-
-      let versions = generator.versionsConfiguration
-      let imageName =
-        """
-        swiftlang/swift-sdk:\(versions.swiftBareSemVer)-\(versions.linuxDistribution.name)-\(
-          versions.linuxDistribution.release
-        )
-        """
-
-      try await generator.buildDockerImage(name: imageName, dockerfileDirectory: tmp)
-
-      return imageName
-    }
-  }
-
   func launchDockerContainer(imageName: String) async throws -> String {
     try await Shell
       .readStdout(
-        "\(Self.dockerCommand) run --rm -d \(imageName) tail -f /dev/null",
+        """
+        \(Self.dockerCommand) run --rm --platform=linux/\(self.targetTriple.cpu.debianConventionName) -d \(imageName) tail -f /dev/null
+        """,
         shouldLogCommands: self.isVerbose
       )
       .trimmingCharacters(in: .whitespacesAndNewlines)

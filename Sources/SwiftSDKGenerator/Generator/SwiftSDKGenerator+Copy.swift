@@ -14,12 +14,8 @@ import SystemPackage
 
 extension SwiftSDKGenerator {
   func copyTargetSwiftFromDocker() async throws {
-    logGenerationStep("Building a Docker image for the target environment...")
-    // FIXME: launch Swift base image directly instead of building a new empty image
-    let imageName = try await buildDockerImage(baseImage: self.versionsConfiguration.swiftBaseDockerImage)
-
     logGenerationStep("Launching a Docker container to copy Swift SDK for the target triple from it...")
-    let containerID = try await launchDockerContainer(imageName: imageName)
+    let containerID = try await launchDockerContainer(imageName: self.versionsConfiguration.swiftBaseDockerImage)
     do {
       let pathsConfiguration = self.pathsConfiguration
 
