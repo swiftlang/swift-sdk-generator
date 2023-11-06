@@ -67,7 +67,16 @@ extension SwiftSDKGenerator {
         }
 
         try await generator.createDirectoryIfNeeded(at: sdkUsrLibPath)
-        for subpath in ["clang", "gcc", "swift", "swift_static"] {
+        var subpaths =  ["clang", "gcc", "swift", "swift_static"]
+
+        // Ubuntu's multiarch directory scheme puts some libraries in
+        // architecture-specific directories:
+        //   https://wiki.ubuntu.com/MultiarchSpec
+        if case .ubuntu = self.versionsConfiguration.linuxDistribution {
+          subpaths += ["\(targetTriple.cpu)-linux-gnu"]
+        }
+
+        for subpath in subpaths {
           try await generator.copyFromDockerContainer(
             id: containerID,
             from: FilePath("/usr/lib").appending(subpath),
