@@ -36,13 +36,19 @@ extension SwiftSDKGenerator {
       )
     }
 
+    let extraSwiftCOptions: [String] = if case .rhel = self.versionsConfiguration.linuxDistribution, self.versionsConfiguration.swiftVersion.hasPrefix("5.9") {
+      ["-Xfrontend", "-disable-stack-protector"]
+    } else {
+      []
+    }
+
     try writeFile(
       at: toolsetJSONPath,
       encoder.encode(
         Toolset(
           rootPath: relativeToolchainBinDir.string,
           swiftCompiler: .init(
-            extraCLIOptions: ["-use-ld=lld", "-Xlinker", "-R/usr/lib/swift/linux/"]
+            extraCLIOptions: ["-use-ld=lld", "-Xlinker", "-R/usr/lib/swift/linux/"] + extraSwiftCOptions
           ),
           cxxCompiler: .init(
             extraCLIOptions: ["-lstdc++"]
