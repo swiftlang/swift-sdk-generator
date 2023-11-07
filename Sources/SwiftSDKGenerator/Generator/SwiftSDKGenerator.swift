@@ -24,6 +24,7 @@ public actor SwiftSDKGenerator {
   let pathsConfiguration: PathsConfiguration
   var downloadableArtifacts: DownloadableArtifacts
   let shouldUseDocker: Bool
+  let baseDockerImage: String
   let isVerbose: Bool
 
   let engine: Engine
@@ -37,6 +38,8 @@ public actor SwiftSDKGenerator {
     lldVersion: String,
     linuxDistribution: LinuxDistribution,
     shouldUseDocker: Bool,
+    baseDockerImage: String?,
+    artifactID: String?,
     isVerbose: Bool
   ) async throws {
     logGenerationStep("Looking up configuration values...")
@@ -60,7 +63,7 @@ public actor SwiftSDKGenerator {
       os: .linux,
       environment: .gnu
     )
-    self.artifactID = """
+    self.artifactID = artifactID ?? """
     \(swiftVersion)_\(linuxDistribution.name.rawValue)_\(linuxDistribution.release)_\(
       self.targetTriple.cpu.linuxConventionName
     )
@@ -87,6 +90,7 @@ public actor SwiftSDKGenerator {
       self.pathsConfiguration
     )
     self.shouldUseDocker = shouldUseDocker
+    self.baseDockerImage = baseDockerImage ?? self.versionsConfiguration.swiftBaseDockerImage
     self.isVerbose = isVerbose
 
     let engineCachePath = self.pathsConfiguration.artifactsCachePath.appending("cache.db")
