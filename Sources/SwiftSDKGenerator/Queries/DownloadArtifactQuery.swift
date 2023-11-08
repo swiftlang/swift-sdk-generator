@@ -22,7 +22,7 @@ struct DownloadArtifactQuery {
     print("Downloading remote artifact not available in local cache: \(self.artifact.remoteURL)")
     let stream = await engine.httpClient.streamDownloadProgress(for: self.artifact)
       .removeDuplicates(by: didProgressChangeSignificantly)
-      .throttle(for: .seconds(1))
+      ._throttle(for: .seconds(1))
 
     for try await item in stream {
       report(progress: item.progress, for: item.artifact)
