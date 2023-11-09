@@ -10,16 +10,23 @@
 //
 //===----------------------------------------------------------------------===//
 
+import AsyncProcess
 import Foundation
 import NIOCore
 import NIOFoundationCompat
 
 public extension ByteBuffer {
-  func unzip(isVerbose: Bool) throws -> AsyncThrowingStream<Data, any Error> {
-    let gzip = try Shell("gzip -cd", shouldLogCommands: isVerbose)
-    gzip.stdin.write(Data(buffer: self))
-    try gzip.stdin.close()
+  func unzip(isVerbose: Bool) async throws -> ByteBuffer? {
+    let result = try await ProcessExecutor.runCollectingOutput(
+      executable: "/usr/bin/gzip", ["-cd"],
+      standardInput: [self].async,
+      collectStandardOutput: true,
+      collectStandardError: false,
+      perStreamCollectionLimitBytes: 100 * 1024 * 1024
+    )
 
-    return gzip.stdout
+    try result.exitReason.throwIfNonZero()
+
+    return result.standardOutput
   }
 }

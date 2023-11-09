@@ -51,7 +51,7 @@ struct GeneratorCLI: AsyncParsableCommand {
   var swiftVersion = "5.9-RELEASE"
 
   @Option(help: "Version of LLD linker to supply in the bundle.")
-  var lldVersion = "16.0.5"
+  var lldVersion = "16.0.6"
 
   @Option(
     help: """

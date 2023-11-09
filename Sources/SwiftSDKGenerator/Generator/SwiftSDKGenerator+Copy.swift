@@ -64,7 +64,7 @@ extension SwiftSDKGenerator {
         }
 
         try await generator.createDirectoryIfNeeded(at: sdkUsrLibPath)
-        var subpaths =  ["clang", "gcc", "swift", "swift_static"]
+        var subpaths = ["clang", "gcc", "swift", "swift_static"]
 
         // Ubuntu's multiarch directory scheme puts some libraries in
         // architecture-specific directories:

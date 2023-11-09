@@ -14,9 +14,9 @@ import AsyncAlgorithms
 import Logging
 import NIO
 
-public struct OutputLoggingSettings {
+public struct OutputLoggingSettings: Sendable {
   /// Where should the output line put to?
-  public enum WhereTo {
+  public enum WhereTo: Sendable {
     /// Put the output line into the logMessage itself.
     case logMessage
 
@@ -46,23 +46,37 @@ public struct OutputLoggingSettings {
   func metadata(stream: ProcessOutputStream, line: String) -> Logger.Metadata {
     switch self.to {
     case .logMessage:
-      return ["stream": "\(stream.description)"]
+      ["stream": "\(stream.description)"]
     case .metadata(logMessage: _, let key):
-      return [key: "\(line)"]
+      [key: "\(line)"]
     }
   }
 }
 
 public extension ProcessExecutor {
   /// Run child process, discarding all its output.
-  static func run(
-    group: EventLoopGroup,
+  ///
+  /// - note: The `environment` defaults to the empty environment.
+  ///
+  /// - Parameters:
+  ///   - group: The `EventLoopGroup` to run the I/O on
+  ///   - executable: The full path to the executable to spawn
+  ///   - arguments: The arguments to the executable (not including `argv[0]`)
+  ///   - environment: The environment variables to pass to the child process.
+  ///                  If you want to inherit the calling process' environment into the child, specify
+  /// `ProcessInfo.processInfo.environment`
+  ///   - standardInput: An `AsyncSequence` providing the standard input, pass `EOFSequence(of: ByteBuffer.self)` if you
+  /// don't want to
+  ///                    provide input.
+  ///   - logger: Where to log diagnostic messages to (default to no where)
+  static func run<StandardInput: AsyncSequence & Sendable>(
+    group: EventLoopGroup = ProcessExecutor.defaultEventLoopGroup,
     executable: String,
     _ arguments: [String],
     standardInput: StandardInput,
     environment: [String: String] = [:],
-    logger: Logger
-  ) async throws -> ProcessExitReason {
+    logger: Logger = ProcessExecutor.disableLogging
+  ) async throws -> ProcessExitReason where StandardInput.Element == ByteBuffer {
     let p = Self(
       group: group,
       executable: executable,
@@ -76,16 +90,31 @@ public extension ProcessExecutor {
     return try await p.run()
   }
 
-  /// Run child process, logging all its output line by line.
-  static func runLogOutput(
-    group: EventLoopGroup,
+  /// Run child process, logging all its output.
+  ///
+  /// - note: The `environment` defaults to the empty environment.
+  ///
+  /// - Parameters:
+  ///   - group: The `EventLoopGroup` to run the I/O on
+  ///   - executable: The full path to the executable to spawn
+  ///   - arguments: The arguments to the executable (not including `argv[0]`)
+  ///   - environment: The environment variables to pass to the child process.
+  ///                  If you want to inherit the calling process' environment into the child, specify
+  /// `ProcessInfo.processInfo.environment`
+  ///   - standardInput: An `AsyncSequence` providing the standard input, pass `EOFSequence(of: ByteBuffer.self)` if you
+  /// don't want to
+  ///                    provide input.
+  ///   - logger: Where to log diagnostic and output messages to
+  ///   - logConfiguration: How to log the output lines
+  static func runLogOutput<StandardInput: AsyncSequence & Sendable>(
+    group: EventLoopGroup = ProcessExecutor.defaultEventLoopGroup,
     executable: String,
     _ arguments: [String],
     standardInput: StandardInput,
     environment: [String: String] = [:],
     logger: Logger,
     logConfiguration: OutputLoggingSettings
-  ) async throws -> ProcessExitReason {
+  ) async throws -> ProcessExitReason where StandardInput.Element == ByteBuffer {
     let exe = ProcessExecutor(
       group: group,
       executable: executable,
@@ -124,17 +153,34 @@ public extension ProcessExecutor {
     }
   }
 
-  /// Run child process, process all its output (`stdout` and `stderr`) using a closure.
-  static func runProcessingOutput(
-    group: EventLoopGroup,
+  /// Run child process, processing all its output (`stdout` and `stderr`) using a closure.
+  ///
+  /// - note: The `environment` defaults to the empty environment.
+  ///
+  /// - Parameters:
+  ///   - group: The `EventLoopGroup` to run the I/O on
+  ///   - executable: The full path to the executable to spawn
+  ///   - arguments: The arguments to the executable (not including `argv[0]`)
+  ///   - environment: The environment variables to pass to the child process.
+  ///                  If you want to inherit the calling process' environment into the child, specify
+  /// `ProcessInfo.processInfo.environment`
+  ///   - standardInput: An `AsyncSequence` providing the standard input, pass `EOFSequence(of: ByteBuffer.self)` if you
+  /// don't want to
+  ///                    provide input.
+  ///   - outputProcessor: The closure that'll be called for every chunk of output
+  ///   - splitOutputIntoLines: Whether to call the closure with full lines (`true`) or arbitrary chunks of output
+  /// (`false`)
+  ///   - logger: Where to log diagnostic and output messages to
+  static func runProcessingOutput<StandardInput: AsyncSequence & Sendable>(
+    group: EventLoopGroup = ProcessExecutor.defaultEventLoopGroup,
     executable: String,
     _ arguments: [String],
     standardInput: StandardInput,
     outputProcessor: @escaping @Sendable (ProcessOutputStream, ByteBuffer) async throws -> (),
     splitOutputIntoLines: Bool = false,
     environment: [String: String] = [:],
-    logger: Logger
-  ) async throws -> ProcessExitReason {
+    logger: Logger = ProcessExecutor.disableLogging
+  ) async throws -> ProcessExitReason where StandardInput.Element == ByteBuffer {
     let exe = ProcessExecutor(
       group: group,
       executable: executable,
@@ -195,8 +241,27 @@ public extension ProcessExecutor {
     case standardError(ByteBuffer?)
   }
 
-  static func runCollectingOutput(
-    group: EventLoopGroup,
+  /// Run child process, collecting its output (`stdout` and `stderr`) into memory.
+  ///
+  /// - note: The `environment` defaults to the empty environment.
+  ///
+  /// - Parameters:
+  ///   - group: The `EventLoopGroup` to run the I/O on
+  ///   - executable: The full path to the executable to spawn
+  ///   - arguments: The arguments to the executable (not including `argv[0]`)
+  ///   - environment: The environment variables to pass to the child process.
+  ///                  If you want to inherit the calling process' environment into the child, specify
+  /// `ProcessInfo.processInfo.environment`
+  ///   - standardInput: An `AsyncSequence` providing the standard input, pass `EOFSequence(of: ByteBuffer.self)` if you
+  /// don't want to
+  ///                    provide input.
+  ///   - collectStandardOutput: If `true`, collect all of the child process' standard output into memory, discard if
+  /// `false`
+  ///   - collectStandardError: If `true`, collect all of the child process' standard error into memory, discard if
+  /// `false`
+  ///   - logger: Where to log diagnostic and output messages to
+  static func runCollectingOutput<StandardInput: AsyncSequence & Sendable>(
+    group: EventLoopGroup = ProcessExecutor.defaultEventLoopGroup,
     executable: String,
     _ arguments: [String],
     standardInput: StandardInput,
@@ -204,8 +269,8 @@ public extension ProcessExecutor {
     collectStandardError: Bool,
     perStreamCollectionLimitBytes: Int = 128 * 1024,
     environment: [String: String] = [:],
-    logger: Logger
-  ) async throws -> ProcessExitReasonAndOutput {
+    logger: Logger = ProcessExecutor.disableLogging
+  ) async throws -> ProcessExitReasonAndOutput where StandardInput.Element == ByteBuffer {
     let exe = ProcessExecutor(
       group: group,
       executable: executable,
@@ -220,7 +285,7 @@ public extension ProcessExecutor {
     return try await withThrowingTaskGroup(of: ProcessExitInformationPiece.self) { group in
       group.addTask {
         if collectStandardOutput {
-          var output: ByteBuffer?
+          var output: ByteBuffer? = nil
           for try await chunk in await exe.standardOutput {
             guard (output?.readableBytes ?? 0) + chunk.readableBytes <= perStreamCollectionLimitBytes else {
               throw TooMuchProcessOutputError(stream: .standardOutput)
@@ -235,7 +300,7 @@ public extension ProcessExecutor {
 
       group.addTask {
         if collectStandardError {
-          var output: ByteBuffer?
+          var output: ByteBuffer? = nil
           for try await chunk in await exe.standardError {
             guard (output?.readableBytes ?? 0) + chunk.readableBytes <= perStreamCollectionLimitBytes else {
               throw TooMuchProcessOutputError(stream: .standardError)
@@ -265,5 +330,142 @@ public extension ProcessExecutor {
       }
       return allInfo
     }
+  }
+}
+
+public extension ProcessExecutor {
+  /// Run child process, discarding all its output.
+  ///
+  /// - note: The `environment` defaults to the empty environment.
+  ///
+  /// - Parameters:
+  ///   - group: The `EventLoopGroup` to run the I/O on
+  ///   - executable: The full path to the executable to spawn
+  ///   - arguments: The arguments to the executable (not including `argv[0]`)
+  ///   - environment: The environment variables to pass to the child process.
+  ///                  If you want to inherit the calling process' environment into the child, specify
+  /// `ProcessInfo.processInfo.environment`
+  ///   - logger: Where to log diagnostic messages to (default to no where)
+  static func run(
+    group: EventLoopGroup = ProcessExecutor.defaultEventLoopGroup,
+    executable: String,
+    _ arguments: [String],
+    environment: [String: String] = [:],
+    logger: Logger = ProcessExecutor.disableLogging
+  ) async throws -> ProcessExitReason {
+    try await self.run(
+      group: group,
+      executable: executable,
+      arguments,
+      standardInput: EOFSequence(),
+      environment: environment,
+      logger: logger
+    )
+  }
+
+  /// Run child process, logging all its output.
+  ///
+  /// - note: The `environment` defaults to the empty environment.
+  ///
+  /// - Parameters:
+  ///   - group: The `EventLoopGroup` to run the I/O on
+  ///   - executable: The full path to the executable to spawn
+  ///   - arguments: The arguments to the executable (not including `argv[0]`)
+  ///   - environment: The environment variables to pass to the child process.
+  ///                  If you want to inherit the calling process' environment into the child, specify
+  /// `ProcessInfo.processInfo.environment`
+  ///   - logger: Where to log diagnostic and output messages to
+  ///   - logConfiguration: How to log the output lines
+  static func runLogOutput(
+    group: EventLoopGroup = ProcessExecutor.defaultEventLoopGroup,
+    executable: String,
+    _ arguments: [String],
+    environment: [String: String] = [:],
+    logger: Logger,
+    logConfiguration: OutputLoggingSettings
+  ) async throws -> ProcessExitReason {
+    try await self.runLogOutput(
+      group: group,
+      executable: executable,
+      arguments,
+      standardInput: EOFSequence(),
+      environment: environment,
+      logger: logger,
+      logConfiguration: logConfiguration
+    )
+  }
+
+  /// Run child process, processing all its output (`stdout` and `stderr`) using a closure.
+  ///
+  /// - note: The `environment` defaults to the empty environment.
+  ///
+  /// - Parameters:
+  ///   - group: The `EventLoopGroup` to run the I/O on
+  ///   - executable: The full path to the executable to spawn
+  ///   - arguments: The arguments to the executable (not including `argv[0]`)
+  ///   - environment: The environment variables to pass to the child process.
+  ///                  If you want to inherit the calling process' environment into the child, specify
+  /// `ProcessInfo.processInfo.environment`
+  ///   - outputProcessor: The closure that'll be called for every chunk of output
+  ///   - splitOutputIntoLines: Whether to call the closure with full lines (`true`) or arbitrary chunks of output
+  /// (`false`)
+  ///   - logger: Where to log diagnostic and output messages to
+  static func runProcessingOutput(
+    group: EventLoopGroup = ProcessExecutor.defaultEventLoopGroup,
+    executable: String,
+    _ arguments: [String],
+    outputProcessor: @escaping @Sendable (ProcessOutputStream, ByteBuffer) async throws -> (),
+    splitOutputIntoLines: Bool = false,
+    environment: [String: String] = [:],
+    logger: Logger = ProcessExecutor.disableLogging
+  ) async throws -> ProcessExitReason {
+    try await self.runProcessingOutput(
+      group: group,
+      executable: executable,
+      arguments,
+      standardInput: EOFSequence(),
+      outputProcessor: outputProcessor,
+      splitOutputIntoLines: splitOutputIntoLines,
+      environment: environment,
+      logger: logger
+    )
+  }
+
+  /// Run child process, collecting its output (`stdout` and `stderr`) into memory.
+  ///
+  /// - note: The `environment` defaults to the empty environment.
+  ///
+  /// - Parameters:
+  ///   - group: The `EventLoopGroup` to run the I/O on
+  ///   - executable: The full path to the executable to spawn
+  ///   - arguments: The arguments to the executable (not including `argv[0]`)
+  ///   - environment: The environment variables to pass to the child process.
+  ///                  If you want to inherit the calling process' environment into the child, specify
+  /// `ProcessInfo.processInfo.environment`
+  ///   - collectStandardOutput: If `true`, collect all of the child process' standard output into memory, discard if
+  /// `false`
+  ///   - collectStandardError: If `true`, collect all of the child process' standard error into memory, discard if
+  /// `false`
+  ///   - logger: Where to log diagnostic and output messages to
+  static func runCollectingOutput(
+    group: EventLoopGroup = ProcessExecutor.defaultEventLoopGroup,
+    executable: String,
+    _ arguments: [String],
+    collectStandardOutput: Bool,
+    collectStandardError: Bool,
+    perStreamCollectionLimitBytes: Int = 128 * 1024,
+    environment: [String: String] = [:],
+    logger: Logger = ProcessExecutor.disableLogging
+  ) async throws -> ProcessExitReasonAndOutput {
+    try await self.runCollectingOutput(
+      group: group,
+      executable: executable,
+      arguments, standardInput: EOFSequence(),
+      collectStandardOutput: collectStandardOutput,
+      collectStandardError: collectStandardError,
+      perStreamCollectionLimitBytes: perStreamCollectionLimitBytes,
+      environment: environment,
+      logger: logger
+    )
   }
 }

@@ -15,6 +15,8 @@ import enum NIOHTTP1.HTTPResponseStatus
 import struct SystemPackage.FilePath
 
 enum GeneratorError: Error {
+  case noProcessOutput(String)
+  case nonZeroExitCode(Int32, CommandInfo)
   case unknownLinuxDistribution(name: String, version: String?)
   case unknownMacOSVersion(String)
   case unknownCPUArchitecture(String)
@@ -22,12 +24,17 @@ enum GeneratorError: Error {
   case distributionSupportsOnlyDockerGenerator(LinuxDistribution)
   case fileDoesNotExist(FilePath)
   case fileDownloadFailed(URL, HTTPResponseStatus)
+  case ubuntuPackagesDecompressionFailure
   case ubuntuPackagesParsingFailure(expectedPackages: Int, actual: Int)
 }
 
 extension GeneratorError: CustomStringConvertible {
   var description: String {
     switch self {
+    case let .noProcessOutput(process):
+      "Failed to read standard output of a launched process: \(process)"
+    case let .nonZeroExitCode(exitCode, commandInfo):
+      "Process launched with \(commandInfo) failed with exit code \(exitCode)"
     case let .unknownLinuxDistribution(name, version):
       "Linux distribution `\(name)`\(version.map { " with version \($0)" } ?? "")` is not supported by this generator."
     case let .unknownMacOSVersion(version):
@@ -45,6 +52,8 @@ extension GeneratorError: CustomStringConvertible {
       "Expected to find a file at path `\(filePath)`."
     case let .fileDownloadFailed(url, status):
       "File could not be downloaded from a URL `\(url)`, the server returned status `\(status)`."
+    case .ubuntuPackagesDecompressionFailure:
+      "Failed to decompress the list of Ubuntu packages"
     case let .ubuntuPackagesParsingFailure(expected, actual):
       "Failed to parse Ubuntu packages manifest, expected \(expected), found \(actual) packages."
     }
