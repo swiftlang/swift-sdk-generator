@@ -16,5 +16,5 @@ set -ex
 if [ "$(uname)" = Darwin ]; then
     swift test $@
 else
-    swift build $@
+    swift build --vv $@
 fi
