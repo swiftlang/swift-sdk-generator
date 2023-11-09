@@ -39,8 +39,6 @@ extension SwiftSDKGenerator {
       downloadableArtifacts.useLLVMSources()
     }
 
-    print(self.downloadableArtifacts.allItems)
-
     let results = try await withThrowingTaskGroup(of: FileCacheRecord.self) { group in
       for item in self.downloadableArtifacts.allItems {
         group.addTask {
