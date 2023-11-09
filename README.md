@@ -104,6 +104,56 @@ for Ubuntu Jammy and Swift 5.9 this would be `swift:5.9-jammy-slim`. If you'd li
 an arbitrary Ubuntu Jammy system, make sure you pass `--static-swift-stdlib` flag to `swift build`, in addition
 to the `--experimental-swift-sdk` option.
 
+## Building an SDK from a container image
+
+You can base your SDK on a container image, such as one of the
+[official Swift images](https://hub.docker.com/_/swift).   By
+default, the command below will build an SDK based on the Ubuntu
+Jammy image:
+```
+swift run swift-sdk-generator --with-docker
+```
+To build a RHEL images, use the `--linux-distribution-name` option.
+The following command will build a `ubi9`-based image:
+```
+swift run swift-sdk-generator --with-docker --linux-distribution-name rhel
+```
+
+You can also specify the base container image by name:
+
+```
+swift run swift-sdk-generator --with-docker --from-container-image swift:5.9-jammy
+```
+
+```
+swift run swift-sdk-generator --with-docker --linux-distribution-name rhel --from-container-image swift:5.9-rhel-ubi9
+```
+
+### Including extra Linux libraries
+
+If your project depends on Linux libraries which are not part of a
+standard base image, you can build your SDK from a custom container
+image which includes them.
+
+Prepare a `Dockerfile` which derives from one of the standard images
+and installs the packages you need.   This example installs SQLite
+and its dependencies on top of the Swift project's Ubuntu Jammy image:
+
+```
+FROM swift:5.9-jammy
+RUN apt update && apt -y install libsqlite3-dev && apt -y clean
+```
+
+Build the new container image:
+```
+docker build -t my-custom-image -f Dockerfile .
+```
+
+Finally, build your custom SDK:
+```
+swift run swift-sdk-generator --with-docker --from-container-image my-custom-image:latest --sdk-name 5.9-ubuntu-with-sqlite
+```
+
 ## Swift SDK distribution
 
 The `.artifactbundle` directory produced in the previous section can be packaged as a `.tar.gz` archive and redistributed

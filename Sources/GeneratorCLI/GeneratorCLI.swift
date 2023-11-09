@@ -20,6 +20,17 @@ struct GeneratorCLI: AsyncParsableCommand {
   @Flag(help: "Delegate to Docker for copying files for the target triple.")
   var withDocker: Bool = false
 
+  @Option(help: "Container image from which to copy the target triple.")
+  var fromContainerImage: String? = nil
+
+  @Option(
+    help: """
+    Name of the SDK bundle.  Defaults to a string composed of Swift version, Linux distribution, Linux release
+    and target CPU architecture.
+    """
+  )
+  var sdkName: String? = nil
+
   @Flag(
     help: "Experimental: avoid cleaning up toolchain and SDK directories and regenerate the SDK bundle incrementally."
   )
@@ -96,6 +107,8 @@ struct GeneratorCLI: AsyncParsableCommand {
         lldVersion: self.lldVersion,
         linuxDistribution: linuxDistribution,
         shouldUseDocker: self.withDocker,
+        baseDockerImage: self.fromContainerImage,
+        artifactID: self.sdkName,
         isVerbose: self.verbose
       )
       do {
