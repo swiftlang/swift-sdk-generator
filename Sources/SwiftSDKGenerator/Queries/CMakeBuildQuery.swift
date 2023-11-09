@@ -27,11 +27,12 @@ struct CMakeBuildQuery {
         self
           .sourcesDirectory
       )"/build -G Ninja -DCMAKE_BUILD_TYPE=Release \(self.options)
-      """
+      """,
+      logStdout: true
     )
 
     let buildDirectory = self.sourcesDirectory.appending("build")
-    try await Shell.run(#"ninja -C "\#(buildDirectory)""#)
+    try await Shell.run(#"ninja -C "\#(buildDirectory)""#, logStdout: true)
 
     return self.outputBinarySubpath.reduce(into: buildDirectory) { $0.append($1) }
   }

@@ -23,25 +23,31 @@ public struct CommandInfo: Sendable {
 struct Shell {
   private let process: ProcessExecutor
   private let commandInfo: CommandInfo
+  private let logStdout: Bool
+  private let logStderr: Bool
 
-  init(
+  private init(
     _ command: String,
     shouldLogCommands: Bool,
+    logStdout: Bool = false,
+    logStderr: Bool = true,
     file: String = #file,
     line: Int = #line
   ) throws {
+    self.process = ProcessExecutor(
+      executable: "/bin/sh",
+      ["-c", command],
+      environment: ProcessInfo.processInfo.environment,
+      standardOutput: logStdout ? .stream : .discard,
+      standardError: logStderr ? .stream : .discard
+    )
     self.commandInfo = CommandInfo(
       command: command,
       file: file,
       line: line
     )
-    self.process = ProcessExecutor(
-      executable: "/bin/sh",
-      ["-c", command],
-      environment: ProcessInfo.processInfo.environment,
-      standardOutput: .discard,
-      standardError: .stream
-    )
+    self.logStdout = logStdout
+    self.logStderr = logStderr
 
     if shouldLogCommands {
       print(command)
@@ -52,9 +58,13 @@ struct Shell {
   private func waitUntilExit() async throws {
     let result = try await withThrowingTaskGroup(of: Void.self) { group in
       group.addTask {
-        for try await var chunk in await self.process.standardError {
-          guard let string = chunk.readString(length: chunk.readableBytes) else { continue }
-          print(string)
+        if self.logStdout {
+          try await self.process.standardOutput.printChunksAsStrings()
+        }
+      }
+      group.addTask {
+        if self.logStderr {
+          try await self.process.standardError.printChunksAsStrings()
         }
       }
       return try await self.process.run()
@@ -78,12 +88,16 @@ struct Shell {
   static func run(
     _ command: String,
     shouldLogCommands: Bool = false,
+    logStdout: Bool = false,
+    logStderr: Bool = true,
     file: String = #file,
     line: Int = #line
   ) async throws {
     try await Shell(
       command,
       shouldLogCommands: shouldLogCommands,
+      logStdout: logStdout,
+      logStderr: logStderr,
       file: file,
       line: line
     )
@@ -118,5 +132,14 @@ struct Shell {
     }
 
     return result
+  }
+}
+
+extension ChunkSequence {
+  func printChunksAsStrings() async throws {
+    for try await var chunk in self {
+      guard let string = chunk.readString(length: chunk.readableBytes) else { continue }
+      print(string)
+    }
   }
 }
