@@ -17,22 +17,16 @@ import NIOExtras
 struct NIOAsyncPipeWriter<Chunks: AsyncSequence & Sendable> where Chunks.Element == ByteBuffer {
   static func sinkSequenceInto(
     _ chunks: Chunks,
-    fileDescriptor fd: CInt,
+    takingOwnershipOfFD fd: CInt,
     eventLoop: EventLoop
   ) async throws {
-    // Just so we've got an input.
-    // (workaround for https://github.com/apple/swift-nio/issues/2444)
-    let deadPipe = Pipe()
     let channel = try await NIOPipeBootstrap(group: eventLoop)
       .channelOption(ChannelOptions.allowRemoteHalfClosure, value: true)
       .channelOption(ChannelOptions.autoRead, value: false)
-      .takingOwnershipOfDescriptors(
-        input: dup(deadPipe.fileHandleForReading.fileDescriptor),
-        output: dup(fd)
+      .takingOwnershipOfDescriptor(
+        output: fd
       ).get()
     channel.close(mode: .input, promise: nil)
-    try! deadPipe.fileHandleForReading.close()
-    try! deadPipe.fileHandleForWriting.close()
     defer {
       channel.close(promise: nil)
     }

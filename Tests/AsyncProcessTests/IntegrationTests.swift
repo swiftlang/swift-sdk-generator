@@ -105,7 +105,7 @@ final class IntegrationTests: XCTestCase {
     )
     try await withThrowingTaskGroup(of: ProcessExitReason?.self) { group in
       group.addTask {
-        var lastLine: String?
+        var lastLine: String? = nil
         for try await line in await exe.standardOutput.splitIntoLines(dropTerminator: false) {
           if line.readableBytes > 72 {
             lastLine = String(buffer: line)
@@ -145,13 +145,7 @@ final class IntegrationTests: XCTestCase {
         switch furtherReturn {
         case let .some(result):
           // the `exe.run()` task
-          #if os(Linux)
-          // Because of the workaround for https://github.com/apple/swift-corelibs-foundation/issues/4772 ,
-          // we can't use `Process.terminate()` on Linux...
           XCTAssertEqual(.signal(SIGKILL), result)
-          #else
-          XCTAssertEqual(.signal(SIGTERM), result)
-          #endif
         case .none:
           // stderr task
           ()
@@ -267,6 +261,38 @@ final class IntegrationTests: XCTestCase {
     XCTAssertEqual(.exit(0), all.exitReason)
     XCTAssertEqual("value of my var\n", String(buffer: all.standardOutput))
     XCTAssertEqual("", String(buffer: all.standardError))
+  }
+
+  func testSimplePipe() async throws {
+    self.logger.logLevel = .debug
+    let echo = ProcessExecutor(
+      group: self.group,
+      executable: "/bin/sh",
+      ["-c", "echo foo;"],
+      standardInput: EOFSequence(),
+      standardError: .discard,
+      logger: self.logger
+    )
+
+    try await withThrowingTaskGroup(of: Void.self) { group in
+      group.addTask {
+        try await echo.run().throwIfNonZero()
+      }
+      group.addTask {
+        let echoOutput = await echo.standardOutput
+
+        let sed = ProcessExecutor(
+          group: self.group,
+          executable: "/usr/bin/tr",
+          ["[:lower:]", "[:upper:]"],
+          standardInput: echoOutput,
+          logger: self.logger
+        )
+        let output = try await sed.runGetAllOutput()
+        XCTAssertEqual(String(buffer: output.standardOutput), "FOO\n")
+      }
+      try await group.waitForAll()
+    }
   }
 
   func testStressTestVeryLittleOutput() async throws {
@@ -498,7 +524,7 @@ final class IntegrationTests: XCTestCase {
     recordedLogger.logLevel = .info // don't give us the normal messages
     recordedLogger[metadataKey: "yo"] = "hey"
 
-    try await ProcessExecutor<EOFSequence>.runLogOutput(
+    try await ProcessExecutor.runLogOutput(
       group: self.group,
       executable: "/bin/sh",
       ["-c", "echo 1; echo >&2 2; echo 3; echo >&2 4; echo 5; echo >&2 6; echo 7; echo >&2 8;"],
@@ -520,7 +546,7 @@ final class IntegrationTests: XCTestCase {
     recordedLogger.logLevel = .info // don't give us the normal messages
     recordedLogger[metadataKey: "yo"] = "hey"
 
-    try await ProcessExecutor<EOFSequence>.runLogOutput(
+    try await ProcessExecutor.runLogOutput(
       group: self.group,
       executable: "/bin/sh",
       ["-c", "echo 1; echo >&2 2; echo 3; echo >&2 4; echo 5; echo >&2 6; echo 7; echo >&2 8;"],
@@ -537,7 +563,7 @@ final class IntegrationTests: XCTestCase {
 
   func testProcessOutputByLine() async throws {
     let collectedLines: NIOLockedValueBox<[(String, String)]> = NIOLockedValueBox([])
-    try await ProcessExecutor<EOFSequence>.runProcessingOutput(
+    try await ProcessExecutor.runProcessingOutput(
       group: self.group,
       executable: "/bin/sh",
       [
@@ -564,7 +590,7 @@ final class IntegrationTests: XCTestCase {
 
   func testProcessOutputInChunks() async throws {
     let collectedBytes = ManagedAtomic<Int>(0)
-    try await ProcessExecutor<EOFSequence>.runProcessingOutput(
+    try await ProcessExecutor.runProcessingOutput(
       group: self.group,
       executable: "/bin/dd",
       ["if=/dev/zero", "bs=\(1024 * 1024)", "count=20", "status=none"],
@@ -581,7 +607,7 @@ final class IntegrationTests: XCTestCase {
   }
 
   func testBasicRunMethodWorks() async throws {
-    try await ProcessExecutor<EOFSequence>.run(
+    try await ProcessExecutor.run(
       group: self.group,
       executable: "/bin/dd", ["if=/dev/zero", "bs=\(1024 * 1024)", "count=100"],
       standardInput: EOFSequence(),
@@ -590,7 +616,7 @@ final class IntegrationTests: XCTestCase {
   }
 
   func testCollectJustStandardOutput() async throws {
-    let allInfo = try await ProcessExecutor<EOFSequence>.runCollectingOutput(
+    let allInfo = try await ProcessExecutor.runCollectingOutput(
       group: self.group,
       executable: "/bin/dd", ["if=/dev/zero", "bs=\(1024 * 1024)", "count=1"],
       standardInput: EOFSequence(),
@@ -605,7 +631,7 @@ final class IntegrationTests: XCTestCase {
   }
 
   func testCollectJustStandardError() async throws {
-    let allInfo = try await ProcessExecutor<EOFSequence>.runCollectingOutput(
+    let allInfo = try await ProcessExecutor.runCollectingOutput(
       group: self.group,
       executable: "/bin/sh", ["-c", "/bin/dd >&2 if=/dev/zero bs=\(1024 * 1024) count=1 status=none"],
       standardInput: EOFSequence(),
@@ -620,7 +646,7 @@ final class IntegrationTests: XCTestCase {
   }
 
   func testCollectNothing() async throws {
-    let allInfo = try await ProcessExecutor<EOFSequence>.runCollectingOutput(
+    let allInfo = try await ProcessExecutor.runCollectingOutput(
       group: self.group,
       executable: "/bin/sh", ["-c", "/bin/dd >&2 if=/dev/zero bs=\(1024 * 1024) count=100 status=none"],
       standardInput: EOFSequence(),
@@ -635,7 +661,7 @@ final class IntegrationTests: XCTestCase {
   }
 
   func testCollectStdOutAndErr() async throws {
-    let allInfo = try await ProcessExecutor<EOFSequence>.runCollectingOutput(
+    let allInfo = try await ProcessExecutor.runCollectingOutput(
       group: self.group,
       executable: "/bin/sh",
       [
@@ -658,7 +684,7 @@ final class IntegrationTests: XCTestCase {
 
   func testTooMuchToCollectStdout() async throws {
     do {
-      let result = try await ProcessExecutor<EOFSequence>.runCollectingOutput(
+      let result = try await ProcessExecutor.runCollectingOutput(
         group: self.group,
         executable: "/bin/dd", ["if=/dev/zero", "bs=\(1024 * 1024)", "count=1"],
         standardInput: EOFSequence(),
@@ -669,17 +695,17 @@ final class IntegrationTests: XCTestCase {
       )
       XCTFail("should've thrown but got result: \(result)")
     } catch {
-      XCTAssertTrue(error is ProcessExecutor<EOFSequence<ByteBuffer>>.TooMuchProcessOutputError)
+      XCTAssertTrue(error is ProcessExecutor.TooMuchProcessOutputError)
       XCTAssertEqual(
         ProcessOutputStream.standardOutput,
-        (error as? ProcessExecutor<EOFSequence>.TooMuchProcessOutputError)?.stream
+        (error as? ProcessExecutor.TooMuchProcessOutputError)?.stream
       )
     }
   }
 
   func testTooMuchToCollectStderr() async throws {
     do {
-      let result = try await ProcessExecutor<EOFSequence>.runCollectingOutput(
+      let result = try await ProcessExecutor.runCollectingOutput(
         group: self.group,
         executable: "/bin/dd",
         ["if=/dev/zero", "bs=\(1024 * 1024)", "of=/dev/stderr", "count=1", "status=none"],
@@ -691,16 +717,16 @@ final class IntegrationTests: XCTestCase {
       )
       XCTFail("should've thrown but got result: \(result)")
     } catch {
-      XCTAssertTrue(error is ProcessExecutor<EOFSequence<ByteBuffer>>.TooMuchProcessOutputError)
+      XCTAssertTrue(error is ProcessExecutor.TooMuchProcessOutputError)
       XCTAssertEqual(
         ProcessOutputStream.standardError,
-        (error as? ProcessExecutor<EOFSequence>.TooMuchProcessOutputError)?.stream
+        (error as? ProcessExecutor.TooMuchProcessOutputError)?.stream
       )
     }
   }
 
   func testCollectEmptyStringFromStdoutAndErr() async throws {
-    let allInfo = try await ProcessExecutor<EOFSequence>.runCollectingOutput(
+    let allInfo = try await ProcessExecutor.runCollectingOutput(
       group: self.group,
       executable: "/bin/sh",
       ["-c", ""],
@@ -713,6 +739,247 @@ final class IntegrationTests: XCTestCase {
     XCTAssertNoThrow(try allInfo.exitReason.throwIfNonZero())
     XCTAssertEqual(ByteBuffer(), allInfo.standardError)
     XCTAssertEqual(ByteBuffer(), allInfo.standardOutput)
+  }
+
+  func testExecutableDoesNotExist() async throws {
+    let exe = ProcessExecutor(
+      group: self.group,
+      executable: "/dev/null/does/not/exist",
+      [],
+      standardInput: EOFSequence(),
+      standardOutput: .discard,
+      standardError: .discard,
+      logger: self.logger
+    )
+    do {
+      let result = try await exe.run()
+      XCTFail("got result for bad executable: \(result)")
+    } catch {
+      XCTAssertEqual(NSCocoaErrorDomain, (error as NSError).domain)
+      #if canImport(Darwin)
+      // https://github.com/apple/swift-corelibs-foundation/issues/4810
+      XCTAssertEqual(NSFileNoSuchFileError, (error as NSError).code)
+      #endif
+    }
+  }
+
+  func testAPIsWithoutELGOrLoggerArguments() async throws {
+    let exe = ProcessExecutor(
+      executable: "/bin/sh", ["-c", "true"],
+      standardInput: EOFSequence(),
+      standardOutput: .discard,
+      standardError: .discard
+    )
+    try await exe.run().throwIfNonZero()
+
+    try await ProcessExecutor.run(
+      executable: "/bin/sh", ["-c", "true"],
+      standardInput: EOFSequence()
+    ).throwIfNonZero()
+
+    try await ProcessExecutor.runCollectingOutput(
+      executable: "/bin/sh",
+      ["-c", "true"],
+      standardInput: EOFSequence(),
+      collectStandardOutput: false,
+      collectStandardError: false
+    ).exitReason.throwIfNonZero()
+
+    try await ProcessExecutor.runProcessingOutput(
+      executable: "/bin/sh",
+      ["-c", "true"],
+      standardInput: EOFSequence()
+    ) { _, _ in
+    }.throwIfNonZero()
+
+    try await ProcessExecutor.runLogOutput(
+      executable: "/bin/sh",
+      ["-c", "true"],
+      standardInput: EOFSequence(),
+      logger: self.logger,
+      logConfiguration: .init(logLevel: .critical, to: .logMessage)
+    ).throwIfNonZero()
+  }
+
+  func testAPIsWithoutELGStandardInputOrLoggerArguments() async throws {
+    let exe = ProcessExecutor(
+      executable: "/bin/sh", ["-c", "true"],
+      standardOutput: .discard,
+      standardError: .discard
+    )
+    try await exe.run().throwIfNonZero()
+
+    let exeStream = ProcessExecutor(executable: "/bin/sh", ["-c", "true"])
+    #if compiler(>=5.8)
+    async let stdout = Array(exeStream.standardOutput)
+    async let stderr = Array(exeStream.standardError)
+    #else
+    async let stdout = {
+      var chunks: [ByteBuffer] = []
+      for try await chunk in await exeStream.standardOutput {
+        chunks.append(chunk)
+      }
+      return chunks
+    }()
+    async let stderr = {
+      var chunks: [ByteBuffer] = []
+      for try await chunk in await exeStream.standardError {
+        chunks.append(chunk)
+      }
+      return chunks
+    }()
+    #endif
+    try await exeStream.run().throwIfNonZero()
+    let out = try await stdout
+    let err = try await stderr
+    XCTAssertEqual([], out)
+    XCTAssertEqual([], err)
+
+    try await ProcessExecutor.run(executable: "/bin/sh", ["-c", "true"]).throwIfNonZero()
+
+    try await ProcessExecutor.runCollectingOutput(
+      executable: "/bin/sh",
+      ["-c", "true"],
+      collectStandardOutput: false,
+      collectStandardError: false
+    ).exitReason.throwIfNonZero()
+
+    try await ProcessExecutor.runProcessingOutput(executable: "/bin/sh", ["-c", "true"]) { _, _ in
+    }.throwIfNonZero()
+
+    try await ProcessExecutor.runLogOutput(
+      executable: "/bin/sh",
+      ["-c", "true"],
+      logger: self.logger,
+      logConfiguration: .init(logLevel: .critical, to: .logMessage)
+    ).throwIfNonZero()
+  }
+
+  func testStdoutAndStderrToSameFileWorks() async throws {
+    let tempDir = URL(fileURLWithPath: NSTemporaryDirectory())
+      .appendingPathComponent("AsyncProcessTests-\(getpid())-\(UUID())")
+    try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: false)
+    defer {
+      XCTAssertNoThrow(try FileManager.default.removeItem(at: tempDir))
+    }
+
+    for (stdoutMode, stderrMode) in [("shared", "shared"), ("shared", "owned"), ("owned", "shared")] {
+      let filePath = tempDir.appendingPathComponent("file-\(stdoutMode)-\(stderrMode)")
+      let fd = try FileDescriptor.open(
+        .init(filePath.path.removingPercentEncoding!),
+        .writeOnly,
+        options: .create,
+        permissions: [.ownerRead, .ownerWrite]
+      )
+      defer {
+        if stdoutMode == "shared" && stderrMode == "shared" {
+          XCTAssertNoThrow(try fd.close())
+        }
+      }
+
+      let stdout: ProcessOutput
+      let stderr: ProcessOutput
+
+      if stdoutMode == "owned" {
+        stdout = .fileDescriptor(takingOwnershipOf: fd)
+      } else {
+        stdout = .fileDescriptor(sharing: fd)
+      }
+      if stderrMode == "owned" {
+        stderr = .fileDescriptor(takingOwnershipOf: fd)
+      } else {
+        stderr = .fileDescriptor(sharing: fd)
+      }
+
+      #if canImport(Darwin)
+      let command =
+        "for o in 1 2; do i=1000; while [ $i -gt 0 ]; do echo $o >&$o; i=$(( $i - 1 )); done & done; wait"
+      #else
+      // workaround for
+      // https://github.com/apple/swift-corelibs-foundation/issues/4772
+      // which causes `SIGCHLD` being blocked in the shell so it can't wait for its children :|
+      let command =
+        "for o in 1 2; do i=1000; while [ $i -gt 0 ]; do echo $o >&$o; i=$(( $i - 1 )); done & done; sleep 10"
+      #endif
+
+      let exe = ProcessExecutor(
+        group: self.group,
+        executable: "/bin/sh",
+        ["-c", command],
+        standardInput: EOFSequence(),
+        standardOutput: stdout,
+        standardError: stderr,
+        logger: self.logger
+      )
+      try await exe.run().throwIfNonZero()
+      let actualOutput = try Data(contentsOf: filePath)
+      XCTAssertEqual(4000, actualOutput.count, "\(stdoutMode)-\(stderrMode)")
+
+      var expectedOutput = Data()
+      expectedOutput.append(Data(repeating: UInt8(ascii: "\n"), count: 2000))
+      expectedOutput.append(Data(repeating: UInt8(ascii: "1"), count: 1000))
+      expectedOutput.append(Data(repeating: UInt8(ascii: "2"), count: 1000))
+      XCTAssertEqual(expectedOutput, Data(actualOutput.sorted()), "\(stdoutMode)-\(stderrMode)")
+    }
+  }
+
+  func testCanReliablyKillProcessesEvenWithSigmask() async throws {
+    let exitReason = try await withThrowingTaskGroup(
+      of: ProcessExitReason?.self,
+      returning: ProcessExitReason.self
+    ) { group in
+      group.addTask {
+        try await ProcessExecutor.run(
+          executable: "/bin/sh",
+          ["-c", "trap 'echo no' TERM; while true; do sleep 1; done"]
+        )
+      }
+      group.addTask {
+        try? await Task.sleep(nanoseconds: 10_000_000)
+        return nil
+      }
+
+      while let result = try await group.next() {
+        group.cancelAll()
+        if let result {
+          return result
+        }
+      }
+      preconditionFailure("this should be impossible, task should've returned a result")
+    }
+    XCTAssertEqual(.signal(SIGKILL), exitReason)
+  }
+
+  func testCancelProcessVeryEarlyOnStressTest() async throws {
+    for i in 0..<1000 {
+      self.logger.debug("iteration go", metadata: ["iteration-number": "\(i)"])
+      let exitReason = try await withThrowingTaskGroup(
+        of: ProcessExitReason?.self,
+        returning: ProcessExitReason.self
+      ) { group in
+        group.addTask {
+          try await ProcessExecutor.run(
+            executable: "/bin/sleep", ["100000"],
+            logger: self.logger
+          )
+        }
+        group.addTask {
+          let waitNS = UInt64.random(in: 0..<10_000_000)
+          self.logger.info("waiting", metadata: ["wait-ns": "\(waitNS)"])
+          try? await Task.sleep(nanoseconds: waitNS)
+          return nil
+        }
+
+        while let result = try await group.next() {
+          group.cancelAll()
+          if let result {
+            return result
+          }
+        }
+        preconditionFailure("this should be impossible, task should've returned a result")
+      }
+      XCTAssertEqual(.signal(SIGKILL), exitReason, "iteration \(i)")
+    }
   }
 
   // MARK: - Setup/teardown
@@ -745,7 +1012,7 @@ extension AsyncStream {
 
 extension AsyncSequence where Element == ByteBuffer {
   func pullAllOfIt() async throws -> ByteBuffer {
-    var buffer: ByteBuffer?
+    var buffer: ByteBuffer? = nil
     for try await chunk in self {
       buffer.setOrWriteImmutableBuffer(chunk)
     }

@@ -10,99 +10,64 @@
 //
 //===----------------------------------------------------------------------===//
 
-import Foundation
+import AsyncProcess
+import class Foundation.ProcessInfo
 import struct SystemPackage.FilePath
 
 public struct CommandInfo: Sendable {
   let command: String
-  let currentDirectory: FilePath?
   let file: String
   let line: Int
 }
 
-final class Shell {
-  // FIXME: using Foundation's `Process` under the hood might not work on Linux due to these bugs:
-  // https://github.com/apple/swift-corelibs-foundation/issues/3275
-  // https://github.com/apple/swift-corelibs-foundation/issues/3276
-  private let process: Process
+struct Shell {
+  private let process: ProcessExecutor
   private let commandInfo: CommandInfo
-
-  /// Writable handle to the standard input of the command.
-  let stdin: FileHandle
-
-  /// Readable stream of data chunks that the running command writes to the standard output I/O
-  /// handle.
-  let stdout: AsyncThrowingStream<Data, any Error>
-
-  /// Readable stream of data chunks that the running command writes to the standard error I/O
-  /// handle.
-  let stderr: AsyncThrowingStream<Data, any Error>
 
   init(
     _ command: String,
-    currentDirectory: FilePath? = nil,
-    shouldDisableIOStreams: Bool = false,
     shouldLogCommands: Bool,
     file: String = #file,
     line: Int = #line
   ) throws {
     self.commandInfo = CommandInfo(
       command: command,
-      currentDirectory: currentDirectory,
       file: file,
       line: line
     )
-    let process = Process()
-
-    if let currentDirectory {
-      process.currentDirectoryURL = URL(fileURLWithPath: currentDirectory.string)
-    }
-    process.executableURL = URL(string: "file:///bin/sh")
-    process.arguments = ["-c", command]
-
-    let stdinPipe = Pipe()
-    self.stdin = stdinPipe.fileHandleForWriting
-    process.standardInput = stdinPipe
-
-    if shouldDisableIOStreams {
-      self.stdout = .init { $0.finish() }
-      self.stderr = .init { $0.finish() }
-    } else {
-      self.stdout = .init(process, pipeKeyPath: \.standardOutput, commandInfo: self.commandInfo)
-      self.stderr = .init(process, pipeKeyPath: \.standardError, commandInfo: self.commandInfo)
-    }
-
-    self.process = process
+    self.process = ProcessExecutor(
+      executable: "/bin/sh",
+      ["-c", command],
+      environment: ProcessInfo.processInfo.environment,
+      standardOutput: .discard,
+      standardError: .stream
+    )
 
     if shouldLogCommands {
       print(command)
     }
-
-    try process.run()
-  }
-
-  private func check(exitCode: Int32) throws {
-    guard exitCode == 0 else {
-      throw FileOperationError.nonZeroExitCode(exitCode, self.commandInfo)
-    }
   }
 
   /// Wait for the process to exit in a non-blocking way.
-  func waitUntilExit() async throws {
-    guard self.process.isRunning else {
-      return try self.check(exitCode: self.process.terminationStatus)
-    }
-
-    try await withTaskCancellationHandler {
-      let exitCode = await withCheckedContinuation { continuation in
-        self.process.terminationHandler = {
-          continuation.resume(returning: $0.terminationStatus)
+  private func waitUntilExit() async throws {
+    let result = try await withThrowingTaskGroup(of: Void.self) { group in
+      group.addTask {
+        for try await var chunk in await self.process.standardError {
+          guard let string = chunk.readString(length: chunk.readableBytes) else { continue }
+          print(string)
         }
       }
-
-      try check(exitCode: exitCode)
-    } onCancel: {
-      self.process.interrupt()
+      return try await self.process.run()
+    }
+    do {
+      try result.throwIfNonZero()
+    } catch {
+      switch result {
+      case let .exit(code):
+        throw GeneratorError.nonZeroExitCode(code, self.commandInfo)
+      case .signal:
+        fatalError()
+      }
     }
   }
 
@@ -112,15 +77,12 @@ final class Shell {
   ///   - currentDirectory: current working directory for the command.
   static func run(
     _ command: String,
-    currentDirectory: FilePath? = nil,
     shouldLogCommands: Bool = false,
     file: String = #file,
     line: Int = #line
   ) async throws {
     try await Shell(
       command,
-      currentDirectory: currentDirectory,
-      shouldDisableIOStreams: true,
       shouldLogCommands: shouldLogCommands,
       file: file,
       line: line
@@ -130,61 +92,31 @@ final class Shell {
 
   static func readStdout(
     _ command: String,
-    currentDirectory: FilePath? = nil,
     shouldLogCommands: Bool = false,
     file: String = #file,
     line: Int = #line
   ) async throws -> String {
-    let process = try Shell(
-      command,
-      currentDirectory: currentDirectory,
-      shouldDisableIOStreams: false,
-      shouldLogCommands: shouldLogCommands,
-      file: file,
-      line: line
+    if shouldLogCommands {
+      print(command)
+    }
+
+    let result = try await ProcessExecutor.runCollectingOutput(
+      executable: "/bin/sh",
+      ["-c", command],
+      collectStandardOutput: true,
+      collectStandardError: false,
+      perStreamCollectionLimitBytes: 100 * 1024 * 1024
     )
 
-    try await process.waitUntilExit()
+    try result.exitReason.throwIfNonZero()
 
-    var output = ""
-    for try await chunk in process.stdout {
-      output.append(String(data: chunk, encoding: .utf8)!)
+    guard
+      var buffer = result.standardOutput,
+      let result = buffer.readString(length: buffer.readableBytes)
+    else {
+      throw GeneratorError.noProcessOutput(command)
     }
-    return output
-  }
-}
 
-@available(*, unavailable)
-extension Shell: Sendable {}
-
-private extension AsyncThrowingStream where Element == Data, Failure == any Error {
-  init(
-    _ process: Process,
-    pipeKeyPath: ReferenceWritableKeyPath<Process, Any?>,
-    commandInfo: CommandInfo
-  ) {
-    self.init { continuation in
-      let pipe = Pipe()
-      pipe.fileHandleForReading.readabilityHandler = { [unowned pipe] fileHandle in
-        let data = fileHandle.availableData
-        if !data.isEmpty {
-          continuation.yield(data)
-        } else {
-          if !process.isRunning && process.terminationStatus != 0 {
-            continuation.finish(
-              throwing: FileOperationError.nonZeroExitCode(process.terminationStatus, commandInfo)
-            )
-          } else {
-            continuation.finish()
-          }
-
-          // Clean up the handler to prevent repeated calls and continuation finishes for the same
-          // process.
-          pipe.fileHandleForReading.readabilityHandler = nil
-        }
-      }
-
-      process[keyPath: pipeKeyPath] = pipe
-    }
+    return result
   }
 }
