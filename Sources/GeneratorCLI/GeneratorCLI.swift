@@ -11,7 +11,6 @@
 //===----------------------------------------------------------------------===//
 
 import ArgumentParser
-import AsyncAlgorithms
 import SwiftSDKGenerator
 import UnixSignals
 
