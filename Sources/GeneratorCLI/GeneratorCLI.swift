@@ -11,7 +11,9 @@
 //===----------------------------------------------------------------------===//
 
 import ArgumentParser
+import AsyncAlgorithms
 import SwiftSDKGenerator
+import UnixSignals
 
 @main
 struct GeneratorCLI: AsyncParsableCommand {
@@ -88,6 +90,12 @@ struct GeneratorCLI: AsyncParsableCommand {
   )
   var targetArch: Triple.CPU? = nil
 
+  enum State {
+    case generatorFinished
+    case generatorFailed(Error)
+    case signalReceived(UnixSignal)
+  }
+
   mutating func run() async throws {
     let linuxDistributionDefaultVersion = switch self.linuxDistributionName {
     case .rhel:
@@ -109,10 +117,41 @@ struct GeneratorCLI: AsyncParsableCommand {
         shouldUseDocker: self.withDocker,
         baseDockerImage: self.fromContainerImage,
         artifactID: self.sdkName,
+        isIncremental: self.incremental,
         isVerbose: self.verbose
       )
       do {
-        try await generator.generateBundle(shouldGenerateFromScratch: !self.incremental)
+        let cancellationSignals = await UnixSignalsSequence(trapping: [.sigint])
+        let (stateStream, stateContinuation) = AsyncStream.makeStream(of: State.self)
+        let generatorTask = Task {
+          do {
+            try await generator.generateBundle()
+            stateContinuation.yield(.generatorFinished)
+          } catch {
+            stateContinuation.yield(.generatorFailed(error))
+          }
+        }
+        let signalsTask = Task {
+          for await signal in cancellationSignals {
+            stateContinuation.yield(.signalReceived(signal))
+          }
+        }
+
+        for try await state in stateStream {
+          switch state {
+          case let .signalReceived(signal):
+            print("\nGenerator was cancelled due to receiving \(signal) signal.")
+            generatorTask.cancel()
+            signalsTask.cancel()
+            stateContinuation.finish()
+          case let .generatorFailed(error):
+            throw error
+          case .generatorFinished:
+            signalsTask.cancel()
+            stateContinuation.finish()
+          }
+        }
+
         try await generator.shutDown()
       } catch {
         try await generator.shutDown()

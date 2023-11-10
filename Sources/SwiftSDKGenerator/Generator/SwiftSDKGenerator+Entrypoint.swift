@@ -27,7 +27,7 @@ public extension Triple.CPU {
 }
 
 public extension SwiftSDKGenerator {
-  func generateBundle(shouldGenerateFromScratch: Bool) async throws {
+  func generateBundle() async throws {
     var configuration = HTTPClient.Configuration(redirectConfiguration: .follow(max: 5, allowCycles: false))
     // Workaround an issue with github.com returning 400 instead of 404 status to HEAD requests from AHC.
     configuration.httpVersion = .http1Only
@@ -40,7 +40,7 @@ public extension SwiftSDKGenerator {
       try! client.syncShutdown()
     }
 
-    if shouldGenerateFromScratch {
+    if !self.isIncremental {
       try removeRecursively(at: pathsConfiguration.sdkDirPath)
       try removeRecursively(at: pathsConfiguration.toolchainDirPath)
     }

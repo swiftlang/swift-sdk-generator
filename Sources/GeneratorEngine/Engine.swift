@@ -29,7 +29,7 @@ public actor Engine {
 
   /// Creates a new instance of the ``Engine`` actor. Requires an explicit call to ``Engine//shutdown`` before the
   /// instance is deinitialized. The recommended approach to resource management is to place
-  /// `defer { engine.shutDown }` on the line that follows this initializer call.
+  /// `engine.shutDown()` when the engine is no longer used, but is not deinitialized yet.
   /// - Parameter fileSystem: Implementation of a file system this engine should use.
   /// - Parameter cacheLocation: Location of cache storage used by the engine.
   /// - Parameter logger: Logger to use during queries execution.

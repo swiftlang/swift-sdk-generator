@@ -26,6 +26,7 @@ let package = Package(
     .package(url: "https://github.com/apple/swift-nio.git", from: "2.58.0"),
     .package(url: "https://github.com/apple/swift-nio-extras.git", from: "1.19.0"),
     .package(url: "https://github.com/apple/swift-log.git", from: "1.5.3"),
+    .package(url: "https://github.com/swift-server/swift-service-lifecycle.git", from: "2.3.0"),
     .package(url: "https://github.com/apple/swift-syntax.git", from: "509.0.2"),
   ],
   targets: [
@@ -36,6 +37,7 @@ let package = Package(
       dependencies: [
         "SwiftSDKGenerator",
         .product(name: "ArgumentParser", package: "swift-argument-parser"),
+        .product(name: "UnixSignals", package: "swift-service-lifecycle"),
       ],
       swiftSettings: [
         .enableExperimentalFeature("StrictConcurrency=complete"),

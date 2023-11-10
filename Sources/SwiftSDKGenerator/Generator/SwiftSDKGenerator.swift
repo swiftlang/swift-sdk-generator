@@ -25,6 +25,7 @@ public actor SwiftSDKGenerator {
   var downloadableArtifacts: DownloadableArtifacts
   let shouldUseDocker: Bool
   let baseDockerImage: String
+  let isIncremental: Bool
   let isVerbose: Bool
 
   let engine: Engine
@@ -40,6 +41,7 @@ public actor SwiftSDKGenerator {
     shouldUseDocker: Bool,
     baseDockerImage: String?,
     artifactID: String?,
+    isIncremental: Bool,
     isVerbose: Bool
   ) async throws {
     logGenerationStep("Looking up configuration values...")
@@ -91,6 +93,7 @@ public actor SwiftSDKGenerator {
     )
     self.shouldUseDocker = shouldUseDocker
     self.baseDockerImage = baseDockerImage ?? self.versionsConfiguration.swiftBaseDockerImage
+    self.isIncremental = isIncremental
     self.isVerbose = isVerbose
 
     let engineCachePath = self.pathsConfiguration.artifactsCachePath.appending("cache.db")

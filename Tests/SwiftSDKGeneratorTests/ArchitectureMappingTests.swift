@@ -57,6 +57,9 @@ final class ArchitectureMappingTests: XCTestCase {
       lldVersion: "16.0.4",
       linuxDistribution: .ubuntu(.jammy),
       shouldUseDocker: false,
+      baseDockerImage: nil,
+      artifactID: nil,
+      isIncremental: false,
       isVerbose: false
     )
 
