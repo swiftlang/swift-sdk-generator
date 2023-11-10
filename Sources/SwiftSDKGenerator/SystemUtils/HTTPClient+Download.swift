@@ -5,8 +5,8 @@
 // Copyright (c) 2022-2023 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
-// See http://swift.org/LICENSE.txt for license information
-// See http://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
+// See https://swift.org/LICENSE.txt for license information
+// See https://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
 //
 //===----------------------------------------------------------------------===//
 
@@ -17,6 +17,11 @@ import SystemPackage
 extension FileDownloadDelegate.Progress: @unchecked Sendable {}
 
 extension FilePath: @unchecked Sendable {}
+
+struct ArtifactDownloadProgress {
+  let artifact: DownloadableArtifacts.Item
+  let progress: FileDownloadDelegate.Progress
+}
 
 extension HTTPClient {
   func downloadFile(
@@ -54,7 +59,7 @@ extension HTTPClient {
 
   func streamDownloadProgress(
     for artifact: DownloadableArtifacts.Item
-  ) -> AsyncThrowingStream<FileDownloadDelegate.Progress, any Error> {
+  ) -> AsyncThrowingStream<ArtifactDownloadProgress, any Error> {
     .init { continuation in
       do {
         let delegate = try FileDownloadDelegate(
@@ -66,7 +71,7 @@ extension HTTPClient {
             }
           },
           reportProgress: {
-            continuation.yield($0)
+            continuation.yield(ArtifactDownloadProgress(artifact: artifact, progress: $0))
           }
         )
         let request = try HTTPClient.Request(url: artifact.remoteURL)
@@ -76,32 +81,13 @@ extension HTTPClient {
           case let .failure(error):
             continuation.finish(throwing: error)
           case let .success(finalProgress):
-            continuation.yield(finalProgress)
+            continuation.yield(ArtifactDownloadProgress(artifact: artifact, progress: finalProgress))
             continuation.finish()
           }
         }
       } catch {
         continuation.finish(throwing: error)
       }
-    }
-  }
-
-  func downloadFiles(
-    from urls: [URL],
-    to directory: FilePath
-  ) async throws -> [FileDownloadDelegate.Progress] {
-    try await withThrowingTaskGroup(of: FileDownloadDelegate.Progress.self) {
-      for url in urls {
-        $0.addTask {
-          try await self.downloadFile(from: url, to: directory.appending(url.lastPathComponent))
-        }
-      }
-
-      var result = [FileDownloadDelegate.Progress]()
-      for try await progress in $0 {
-        result.append(progress)
-      }
-      return result
     }
   }
 }

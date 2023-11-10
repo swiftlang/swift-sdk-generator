@@ -5,8 +5,8 @@
 // Copyright (c) 2022-2023 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
-// See http://swift.org/LICENSE.txt for license information
-// See http://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
+// See https://swift.org/LICENSE.txt for license information
+// See https://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
 //
 //===----------------------------------------------------------------------===//
 
@@ -34,16 +34,16 @@ public struct OutputLoggingSettings {
     self.to = to
   }
 
-  internal func logMessage(line: String) -> Logger.Message {
+  func logMessage(line: String) -> Logger.Message {
     switch self.to {
     case .logMessage:
-      return "\(line)"
+      "\(line)"
     case .metadata(logMessage: let message, key: _):
-      return message
+      message
     }
   }
 
-  internal func metadata(stream: ProcessOutputStream, line: String) -> Logger.Metadata {
+  func metadata(stream: ProcessOutputStream, line: String) -> Logger.Metadata {
     switch self.to {
     case .logMessage:
       return ["stream": "\(stream.description)"]
@@ -249,7 +249,7 @@ public extension ProcessExecutor {
       }
 
       group.addTask {
-        .exitReason(try await exe.run())
+        try await .exitReason(exe.run())
       }
 
       var allInfo = ProcessExitReasonAndOutput(exitReason: .exit(-1), standardOutput: nil, standardError: nil)

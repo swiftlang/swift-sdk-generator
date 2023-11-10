@@ -5,17 +5,22 @@
 // Copyright (c) 2023 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
-// See http://swift.org/LICENSE.txt for license information
-// See http://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
+// See https://swift.org/LICENSE.txt for license information
+// See https://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
 //
 //===----------------------------------------------------------------------===//
 
 import Foundation
-@testable import SwiftSDKGenerator
+import Logging
 import SystemPackage
 import XCTest
 
+@testable import SwiftSDKGenerator
+
 final class EndToEndTests: XCTestCase {
+  private let logger = Logger(label: "swift-sdk-generator")
+
+  #if !os(macOS)
   func testPackageInitExecutable() async throws {
     let fm = FileManager.default
 
@@ -24,7 +29,16 @@ final class EndToEndTests: XCTestCase {
     packageDirectory.removeLastComponent()
 
     // Do multiple runs with different sets of arguments.
-    for runArguments in ["", "--with-docker --linux-distribution-name rhel --linux-distribution-version ubi9"] {
+    // Test with no arguments by default:
+    var possibleArguments = [""]
+    do {
+      try await Shell.run("docker ps")
+      possibleArguments.append("--with-docker --linux-distribution-name rhel --linux-distribution-version ubi9")
+    } catch {
+      self.logger.warning("Docker CLI does not seem to be working, skipping tests that involve Docker.")
+    }
+
+    for runArguments in possibleArguments {
       let generatorOutput = try await Shell.readStdout(
         "swift run swift-sdk-generator \(runArguments)",
         currentDirectory: packageDirectory
@@ -70,4 +84,5 @@ final class EndToEndTests: XCTestCase {
       XCTAssertTrue(buildOutput.contains("Build complete!"))
     }
   }
+  #endif
 }

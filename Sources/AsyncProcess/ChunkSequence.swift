@@ -5,8 +5,8 @@
 // Copyright (c) 2022-2023 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
-// See http://swift.org/LICENSE.txt for license information
-// See http://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
+// See https://swift.org/LICENSE.txt for license information
+// See https://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
 //
 //===----------------------------------------------------------------------===//
 
@@ -39,17 +39,17 @@ public struct ChunkSequence: AsyncSequence & Sendable {
   public typealias Element = ByteBuffer
   public struct AsyncIterator: AsyncIteratorProtocol {
     public typealias Element = ByteBuffer
-    internal typealias UnderlyingSequence = FileContentStream
+    typealias UnderlyingSequence = FileContentStream
 
     private var underlyingIterator: UnderlyingSequence.AsyncIterator?
 
-    internal init(_ underlyingSequence: UnderlyingSequence?) {
+    init(_ underlyingSequence: UnderlyingSequence?) {
       self.underlyingIterator = underlyingSequence?.makeAsyncIterator()
     }
 
     public mutating func next() async throws -> Element? {
       if self.underlyingIterator != nil {
-        return try await self.underlyingIterator!.next()
+        try await self.underlyingIterator!.next()
       } else {
         throw IllegalStreamConsumptionError(
           description: """

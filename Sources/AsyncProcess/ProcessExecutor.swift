@@ -5,8 +5,8 @@
 // Copyright (c) 2022-2023 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
-// See http://swift.org/LICENSE.txt for license information
-// See http://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
+// See https://swift.org/LICENSE.txt for license information
+// See https://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
 //
 //===----------------------------------------------------------------------===//
 
@@ -18,12 +18,12 @@ import NIO
 @_exported import struct SystemPackage.FileDescriptor
 
 public struct ProcessOutputStream: Sendable & Hashable & CustomStringConvertible {
-  internal enum Backing {
+  enum Backing {
     case standardOutput
     case standardError
   }
 
-  internal var backing: Backing
+  var backing: Backing
 
   public static let standardOutput: Self = .init(backing: .standardOutput)
 
@@ -32,23 +32,23 @@ public struct ProcessOutputStream: Sendable & Hashable & CustomStringConvertible
   public var description: String {
     switch self.backing {
     case .standardOutput:
-      return "stdout"
+      "stdout"
     case .standardError:
-      return "stderr"
+      "stderr"
     }
   }
 }
 
 /// What to do with a given stream (`stdout`/`stderr`) in the spawned child process.
 public struct ProcessOutput {
-  internal enum Backing {
+  enum Backing {
     case discard
     case inherit
     case fileDescriptor(FileDescriptor)
     case stream
   }
 
-  internal var backing: Backing
+  var backing: Backing
 
   /// Discard the child process' output.
   ///

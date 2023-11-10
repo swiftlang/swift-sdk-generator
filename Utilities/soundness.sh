@@ -6,8 +6,8 @@
 ## Copyright (c) 2022-2023 Apple Inc. and the Swift project authors
 ## Licensed under Apache License v2.0 with Runtime Library Exception
 ##
-## See http://swift.org/LICENSE.txt for license information
-## See http://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
+## See https://swift.org/LICENSE.txt for license information
+## See https://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
 ##
 ##===----------------------------------------------------------------------===##
 
@@ -65,7 +65,8 @@ for language in swift-or-c bash python; do
   matching_files=( -name '*' )
   case "$language" in
       swift-or-c)
-        exceptions=( -name "Package.swift" -o -path "./Examples/*" -o -path "./Fixtures/*" -o -path "./IntegrationTests/*" -o -path "./Tests/*"  )
+        exceptions=( -name "Package.swift" -o -path "./Examples/*" -o -path "./Fixtures/*" \
+            -o -path "./IntegrationTests/*" -o -path "./Tests/*" -o -path "./Bundles/*" )
         matching_files=( -name '*.swift' -o -name '*.c' -o -name '*.h' )
         cat > "$tmp" <<"EOF"
 //===----------------------------------------------------------------------===//
@@ -75,14 +76,15 @@ for language in swift-or-c bash python; do
 // Copyright (c) YEARS Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
-// See http://swift.org/LICENSE.txt for license information
-// See http://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
+// See https://swift.org/LICENSE.txt for license information
+// See https://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
 //
 //===----------------------------------------------------------------------===//
 EOF
         ;;
       bash)
-        exceptions=( -path "./Examples/*" -o -path "./Fixtures/*" -o -path "./IntegrationTests/*" )
+        exceptions=( -path "./Examples/*" -o -path "./Fixtures/*" -o -path "./IntegrationTests/*" \
+            -o -path "./Bundles/*" )
         matching_files=( -name '*.sh' )
         cat > "$tmp" <<"EOF"
 #!/bin/bash
@@ -93,14 +95,15 @@ EOF
 ## Copyright (c) YEARS Apple Inc. and the Swift project authors
 ## Licensed under Apache License v2.0 with Runtime Library Exception
 ##
-## See http://swift.org/LICENSE.txt for license information
-## See http://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
+## See https://swift.org/LICENSE.txt for license information
+## See https://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
 ##
 ##===----------------------------------------------------------------------===##
 EOF
       ;;
       python)
-        exceptions=( -path "./Examples/*" -o -path "./Fixtures/*" -o -path "./IntegrationTests/*" )
+        exceptions=( -path "./Examples/*" -o -path "./Fixtures/*" -o -path "./IntegrationTests/*" \
+            -o -path "./Bundles/*" )
         matching_files=( -name '*.py' )
         cat > "$tmp" <<"EOF"
 #!/usr/bin/env python3
@@ -111,8 +114,8 @@ EOF
 ## Copyright (c) YEARS Apple Inc. and the Swift project authors
 ## Licensed under Apache License v2.0 with Runtime Library Exception
 ##
-## See http://swift.org/LICENSE.txt for license information
-## See http://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
+## See https://swift.org/LICENSE.txt for license information
+## See https://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
 ##
 ##===----------------------------------------------------------------------===##
 EOF
