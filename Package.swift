@@ -19,7 +19,7 @@ let package = Package(
     .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.19.0"),
     .package(url: "https://github.com/apple/swift-system", from: "1.2.1"),
     .package(url: "https://github.com/apple/swift-argument-parser", from: "1.2.2"),
-    .package(url: "https://github.com/apple/swift-async-algorithms.git", exact: "1.0.0-alpha"),
+    .package(url: "https://github.com/apple/swift-async-algorithms.git", exact: "1.0.0-beta.1"),
     .package(url: "https://github.com/apple/swift-atomics.git", from: "1.1.0"),
     .package(url: "https://github.com/apple/swift-collections.git", from: "1.0.5"),
     .package(url: "https://github.com/apple/swift-crypto.git", from: "3.1.0"),
