@@ -46,9 +46,9 @@ public struct OutputLoggingSettings {
   func metadata(stream: ProcessOutputStream, line: String) -> Logger.Metadata {
     switch self.to {
     case .logMessage:
-      return ["stream": "\(stream.description)"]
+      ["stream": "\(stream.description)"]
     case .metadata(logMessage: _, let key):
-      return [key: "\(line)"]
+      [key: "\(line)"]
     }
   }
 }

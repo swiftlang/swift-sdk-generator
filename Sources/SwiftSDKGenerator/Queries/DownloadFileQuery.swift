@@ -16,12 +16,12 @@ import struct SystemPackage.FilePath
 
 @Query
 struct DownloadFileQuery {
-    let remoteURL: URL
-    let localDirectory: FilePath
+  let remoteURL: URL
+  let localDirectory: FilePath
 
-    func run(engine: Engine) async throws -> FilePath {
-        let downloadedFilePath = self.localDirectory.appending(self.remoteURL.lastPathComponent)
-        _ = try await engine.httpClient.downloadFile(from: self.remoteURL, to: downloadedFilePath)
-        return downloadedFilePath
-    }
+  func run(engine: Engine) async throws -> FilePath {
+    let downloadedFilePath = self.localDirectory.appending(self.remoteURL.lastPathComponent)
+    _ = try await engine.httpClient.downloadFile(from: self.remoteURL, to: downloadedFilePath)
+    return downloadedFilePath
+  }
 }

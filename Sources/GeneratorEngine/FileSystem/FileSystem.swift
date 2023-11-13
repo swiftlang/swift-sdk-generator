@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 import protocol Crypto.HashFunction
+import struct SystemPackage.Errno
 import struct SystemPackage.FilePath
 
 public protocol FileSystem: Actor {
@@ -21,4 +22,15 @@ public protocol FileSystem: Actor {
 enum FileSystemError: Error {
   case fileDoesNotExist(FilePath)
   case bufferLimitExceeded(FilePath)
+  case systemError(FilePath, Errno)
+}
+
+extension Error {
+  func attach(path: FilePath) -> any Error {
+    if let error = self as? Errno {
+      FileSystemError.systemError(path, error)
+    } else {
+      self
+    }
+  }
 }
