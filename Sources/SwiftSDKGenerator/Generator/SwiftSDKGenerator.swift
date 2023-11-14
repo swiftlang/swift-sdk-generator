@@ -141,14 +141,15 @@ public actor SwiftSDKGenerator {
   }
 
   func launchDockerContainer(imageName: String) async throws -> String {
-    try await Shell
-      .readStdout(
-        """
-        \(Self.dockerCommand) run --rm --platform=linux/\(self.targetTriple.cpu.debianConventionName) -d \(imageName) tail -f /dev/null
-        """,
-        shouldLogCommands: self.isVerbose
-      )
-      .trimmingCharacters(in: .whitespacesAndNewlines)
+    try await Shell.readStdout(
+      """
+      \(Self.dockerCommand) run --rm --platform=linux/\(
+        self.targetTriple.cpu.debianConventionName
+      ) -d \(imageName) tail -f /dev/null
+      """,
+      shouldLogCommands: self.isVerbose
+    )
+    .trimmingCharacters(in: .whitespacesAndNewlines)
   }
 
   func runOnDockerContainer(id: String, command: String) async throws {
