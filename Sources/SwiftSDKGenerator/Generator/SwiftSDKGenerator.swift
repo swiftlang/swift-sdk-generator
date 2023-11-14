@@ -317,20 +317,6 @@ public actor SwiftSDKGenerator {
     }
   }
 
-  func buildCMakeProject(_ projectPath: FilePath, options: String) async throws -> FilePath {
-    try await Shell.run(
-      """
-      cmake -B build -G Ninja -S llvm -DCMAKE_BUILD_TYPE=Release \(options)
-      """,
-      currentDirectory: projectPath
-    )
-
-    let buildDirectory = projectPath.appending("build")
-    try await Shell.run("ninja", currentDirectory: buildDirectory)
-
-    return buildDirectory
-  }
-
   func inTemporaryDirectory<T: Sendable>(
     _ closure: @Sendable (SwiftSDKGenerator, FilePath) async throws -> T
   ) async throws -> T {
