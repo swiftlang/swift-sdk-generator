@@ -5,8 +5,8 @@
 // Copyright (c) 2022-2023 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
-// See http://swift.org/LICENSE.txt for license information
-// See http://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
+// See https://swift.org/LICENSE.txt for license information
+// See https://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
 //
 //===----------------------------------------------------------------------===//
 
@@ -43,7 +43,7 @@ final class ArchitectureMappingTests: XCTestCase {
     sdkDirPathSuffix: String // Path of the SDK within the bundle
   ) async throws {
     // LocalSwiftSDKGenerator constructs URLs and paths which depend on architectures
-    let sdk = try await LocalSwiftSDKGenerator(
+    let sdk = try await SwiftSDKGenerator(
       // macOS is currently the only supported build environment
       hostCPUArchitecture: hostCPUArchitecture,
 
@@ -60,10 +60,11 @@ final class ArchitectureMappingTests: XCTestCase {
       isVerbose: false
     )
 
-    XCTAssertEqual(sdk.artifactID, artifactID, "Unexpected artifactID")
+    let sdkArtifactID = await sdk.artifactID
+    XCTAssertEqual(sdkArtifactID, artifactID, "Unexpected artifactID")
 
     // Verify download URLs
-    let artifacts = sdk.downloadableArtifacts
+    let artifacts = await sdk.downloadableArtifacts
 
     // The build-time Swift SDK is a multiarch package and so is always the same
     XCTAssertEqual(
@@ -87,7 +88,7 @@ final class ArchitectureMappingTests: XCTestCase {
     )
 
     // Verify paths within the bundle
-    let paths = sdk.pathsConfiguration
+    let paths = await sdk.pathsConfiguration
 
     // The bundle path is not critical - it uses Swift's name
     // for the target architecture
@@ -103,6 +104,8 @@ final class ArchitectureMappingTests: XCTestCase {
       paths.artifactBundlePath.string + sdkDirPathSuffix,
       "Unexpected sdkDirPathSuffix"
     )
+
+    try await sdk.shutDown()
   }
 
   func testX86ToX86SDKGenerator() async throws {

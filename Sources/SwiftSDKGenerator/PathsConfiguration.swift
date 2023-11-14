@@ -5,8 +5,8 @@
 // Copyright (c) 2022-2023 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
-// See http://swift.org/LICENSE.txt for license information
-// See http://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
+// See https://swift.org/LICENSE.txt for license information
+// See https://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
 //
 //===----------------------------------------------------------------------===//
 
@@ -22,7 +22,8 @@ public struct PathsConfiguration: Sendable {
     self.swiftSDKRootPath = self.artifactBundlePath
       .appending(artifactID)
       .appending(targetTriple.linuxConventionDescription)
-      self.sdkDirPath = self.swiftSDKRootPath.appending("\(linuxDistribution.name.rawValue)-\(linuxDistribution.release).sdk")
+    self.sdkDirPath = self.swiftSDKRootPath
+      .appending("\(linuxDistribution.name.rawValue)-\(linuxDistribution.release).sdk")
     self.toolchainDirPath = self.swiftSDKRootPath.appending("swift.xctoolchain")
     self.toolchainBinDirPath = self.toolchainDirPath.appending("usr/bin")
   }

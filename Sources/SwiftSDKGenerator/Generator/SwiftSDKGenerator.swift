@@ -5,24 +5,30 @@
 // Copyright (c) 2022-2023 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
-// See http://swift.org/LICENSE.txt for license information
-// See http://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
+// See https://swift.org/LICENSE.txt for license information
+// See https://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
 //
 //===----------------------------------------------------------------------===//
 
 import Foundation
+import GeneratorEngine
+import Logging
 import SystemPackage
 
-/// Implementation of ``SwiftSDKGenerator`` for the local file system.
-public final class LocalSwiftSDKGenerator: SwiftSDKGenerator {
-  public let hostTriple: Triple
-  public let targetTriple: Triple
-  public let artifactID: String
-  public let versionsConfiguration: VersionsConfiguration
-  public let pathsConfiguration: PathsConfiguration
-  public let downloadableArtifacts: DownloadableArtifacts
-  public let shouldUseDocker: Bool
-  public let isVerbose: Bool
+/// Top-level actor that sequences all of the required SDK generation steps.
+public actor SwiftSDKGenerator {
+  let hostTriple: Triple
+  let targetTriple: Triple
+  let artifactID: String
+  let versionsConfiguration: VersionsConfiguration
+  let pathsConfiguration: PathsConfiguration
+  var downloadableArtifacts: DownloadableArtifacts
+  let shouldUseDocker: Bool
+  let baseDockerImage: String
+  let isVerbose: Bool
+
+  let engine: Engine
+  private var isShutDown = false
 
   public init(
     hostCPUArchitecture: Triple.CPU?,
@@ -32,11 +38,14 @@ public final class LocalSwiftSDKGenerator: SwiftSDKGenerator {
     lldVersion: String,
     linuxDistribution: LinuxDistribution,
     shouldUseDocker: Bool,
+    baseDockerImage: String?,
+    artifactID: String?,
     isVerbose: Bool
   ) async throws {
     logGenerationStep("Looking up configuration values...")
 
     let sourceRoot = FilePath(#file)
+      .removingLastComponent()
       .removingLastComponent()
       .removingLastComponent()
       .removingLastComponent()
@@ -54,7 +63,7 @@ public final class LocalSwiftSDKGenerator: SwiftSDKGenerator {
       os: .linux,
       environment: .gnu
     )
-    self.artifactID = """
+    self.artifactID = artifactID ?? """
     \(swiftVersion)_\(linuxDistribution.name.rawValue)_\(linuxDistribution.release)_\(
       self.targetTriple.cpu.linuxConventionName
     )
@@ -81,22 +90,36 @@ public final class LocalSwiftSDKGenerator: SwiftSDKGenerator {
       self.pathsConfiguration
     )
     self.shouldUseDocker = shouldUseDocker
+    self.baseDockerImage = baseDockerImage ?? self.versionsConfiguration.swiftBaseDockerImage
     self.isVerbose = isVerbose
+
+    let engineCachePath = self.pathsConfiguration.artifactsCachePath.appending("cache.db")
+    self.engine = .init(
+      LocalFileSystem(),
+      Logger(label: "org.swift.swift-sdk-generator"),
+      cacheLocation: .path(engineCachePath)
+    )
+  }
+
+  public func shutDown() async throws {
+    precondition(!self.isShutDown, "`SwiftSDKGenerator/shutDown` should be called only once")
+    try await self.engine.shutDown()
+
+    self.isShutDown = true
+  }
+
+  deinit {
+    let isShutDown = self.isShutDown
+    precondition(
+      isShutDown,
+      "`Engine/shutDown` should be called explicitly on instances of `Engine` before deinitialization"
+    )
   }
 
   private let fileManager = FileManager.default
+  private static let dockerCommand = "docker"
 
-  #if arch(arm64)
-  private static let homebrewPrefix = "/opt/homebrew"
-  #elseif arch(x86_64)
-  private static let homebrewPrefix = "/usr/local"
-  #endif
-
-  private static let homebrewPath = "PATH='/bin:/usr/bin:\(LocalSwiftSDKGenerator.homebrewPrefix)/bin'"
-
-  private static let dockerCommand = "\(LocalSwiftSDKGenerator.homebrewPath) docker"
-
-  public static func getCurrentTriple(isVerbose: Bool) async throws -> Triple {
+  static func getCurrentTriple(isVerbose: Bool) async throws -> Triple {
     let cpuString = try await Shell.readStdout("uname -m", shouldLogCommands: isVerbose)
       .trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -117,74 +140,26 @@ public final class LocalSwiftSDKGenerator: SwiftSDKGenerator {
     #endif
   }
 
-  public static func isChecksumValid(artifact: DownloadableArtifacts.Item, isVerbose: Bool) async throws -> Bool {
-    guard let expectedChecksum = artifact.checksum else { return false }
-
-    let computedChecksum = try await String(
-      Shell.readStdout("openssl dgst -sha256 \(artifact.localPath)", shouldLogCommands: isVerbose)
-        .split(separator: "= ")[1]
-        // drop the trailing newline
-        .dropLast()
-    )
-
-    guard computedChecksum == expectedChecksum else {
-      print("SHA256 digest of file at `\(artifact.localPath)` does not match expected value: \(expectedChecksum)")
-      return false
-    }
-
-    return true
-  }
-
-  private func buildDockerImage(name: String, dockerfileDirectory: FilePath) async throws {
-    try await Shell.run(
-      "\(Self.dockerCommand) build . -t \(name)",
-      currentDirectory: dockerfileDirectory,
+  func launchDockerContainer(imageName: String) async throws -> String {
+    try await Shell.readStdout(
+      """
+      \(Self.dockerCommand) run --rm --platform=linux/\(
+        self.targetTriple.cpu.debianConventionName
+      ) -d \(imageName) tail -f /dev/null
+      """,
       shouldLogCommands: self.isVerbose
     )
+    .trimmingCharacters(in: .whitespacesAndNewlines)
   }
 
-  public func buildDockerImage(baseImage: String) async throws -> String {
-    try await self.inTemporaryDirectory { generator, tmp in
-      try generator.writeFile(
-        at: tmp.appending("Dockerfile"),
-        Data(
-          """
-          FROM \(baseImage)
-          """.utf8
-        )
-      )
-
-      let versions = generator.versionsConfiguration
-      let imageName =
-        """
-        swiftlang/swift-sdk:\(versions.swiftBareSemVer)-\(versions.linuxDistribution.name)-\(
-          versions.linuxDistribution.release
-        )
-        """
-
-      try await generator.buildDockerImage(name: imageName, dockerfileDirectory: tmp)
-
-      return imageName
-    }
-  }
-
-  public func launchDockerContainer(imageName: String) async throws -> String {
-    try await Shell
-      .readStdout(
-        "\(Self.dockerCommand) run -d \(imageName) tail -f /dev/null",
-        shouldLogCommands: self.isVerbose
-      )
-      .trimmingCharacters(in: .whitespacesAndNewlines)
-  }
-
-  public func runOnDockerContainer(id: String, command: String) async throws {
+  func runOnDockerContainer(id: String, command: String) async throws {
     try await Shell.run(
       "\(Self.dockerCommand) exec \(id) \(command)",
       shouldLogCommands: self.isVerbose
     )
   }
 
-  public func copyFromDockerContainer(
+  func copyFromDockerContainer(
     id: String,
     from containerPath: FilePath,
     to localPath: FilePath
@@ -195,45 +170,44 @@ public final class LocalSwiftSDKGenerator: SwiftSDKGenerator {
     )
   }
 
-  public func stopDockerContainer(id: String) async throws {
+  func stopDockerContainer(id: String) async throws {
     try await Shell.run(
       """
-      \(Self.dockerCommand) stop \(id) && \
-      \(Self.dockerCommand) rm -v \(id)
+      \(Self.dockerCommand) stop \(id)
       """,
       shouldLogCommands: self.isVerbose
     )
   }
 
-  public func doesFileExist(at path: FilePath) -> Bool {
+  func doesFileExist(at path: FilePath) -> Bool {
     self.fileManager.fileExists(atPath: path.string)
   }
 
-  public func removeFile(at path: FilePath) throws {
+  func removeFile(at path: FilePath) throws {
     try self.fileManager.removeItem(atPath: path.string)
   }
 
-  public func writeFile(at path: FilePath, _ data: Data) throws {
+  func writeFile(at path: FilePath, _ data: Data) throws {
     try data.write(to: URL(fileURLWithPath: path.string), options: .atomic)
   }
 
-  public func readFile(at path: FilePath) throws -> Data {
+  func readFile(at path: FilePath) throws -> Data {
     try Data(contentsOf: URL(fileURLWithPath: path.string))
   }
 
-  public func rsync(from source: FilePath, to destination: FilePath) async throws {
-    try createDirectoryIfNeeded(at: destination)
+  func rsync(from source: FilePath, to destination: FilePath) async throws {
+    try self.createDirectoryIfNeeded(at: destination)
     try await Shell.run("rsync -a \(source) \(destination)", shouldLogCommands: self.isVerbose)
   }
 
-  public func createSymlink(at source: FilePath, pointingTo destination: FilePath) throws {
+  func createSymlink(at source: FilePath, pointingTo destination: FilePath) throws {
     try self.fileManager.createSymbolicLink(
       atPath: source.string,
       withDestinationPath: destination.string
     )
   }
 
-  public func findSymlinks(at directory: FilePath) throws -> [(FilePath, FilePath)] {
+  func findSymlinks(at directory: FilePath) throws -> [(FilePath, FilePath)] {
     guard let enumerator = fileManager.enumerator(
       at: URL(fileURLWithPath: directory.string),
       includingPropertiesForKeys: [.isSymbolicLinkKey]
@@ -253,12 +227,12 @@ public final class LocalSwiftSDKGenerator: SwiftSDKGenerator {
     return result
   }
 
-  public func copy(from source: FilePath, to destination: FilePath) throws {
+  func copy(from source: FilePath, to destination: FilePath) throws {
     try self.removeRecursively(at: destination)
     try self.fileManager.copyItem(atPath: source.string, toPath: destination.string)
   }
 
-  public func createDirectoryIfNeeded(at directoryPath: FilePath) throws {
+  func createDirectoryIfNeeded(at directoryPath: FilePath) throws {
     var isDirectory: ObjCBool = false
 
     if self.fileManager.fileExists(atPath: directoryPath.string, isDirectory: &isDirectory) {
@@ -272,7 +246,7 @@ public final class LocalSwiftSDKGenerator: SwiftSDKGenerator {
     }
   }
 
-  public func removeRecursively(at path: FilePath) throws {
+  func removeRecursively(at path: FilePath) throws {
     // Can't use `FileManager.fileExists` here, because it isn't good enough for symlinks. It always
     // tries to resolve a symlink before checking.
     if (try? self.fileManager.attributesOfItem(atPath: path.string)) != nil {
@@ -284,7 +258,7 @@ public final class LocalSwiftSDKGenerator: SwiftSDKGenerator {
     try await Shell.run("gzip -d \(file)", currentDirectory: directoryPath, shouldLogCommands: self.isVerbose)
   }
 
-  public func untar(
+  func untar(
     file: FilePath,
     into directoryPath: FilePath,
     stripComponents: Int? = nil
@@ -307,7 +281,7 @@ public final class LocalSwiftSDKGenerator: SwiftSDKGenerator {
       try await Shell.run("ar -x \(debFile)", currentDirectory: tmp, shouldLogCommands: isVerbose)
 
       try await Shell.run(
-        "PATH='/bin:/usr/bin:\(Self.homebrewPrefix)/bin' tar -xf \(tmp)/data.tar.*",
+        "tar -xf \(tmp)/data.tar.*",
         currentDirectory: directoryPath,
         shouldLogCommands: isVerbose
       )
@@ -326,7 +300,7 @@ public final class LocalSwiftSDKGenerator: SwiftSDKGenerator {
     }
   }
 
-  public func unpack(file: FilePath, into directoryPath: FilePath) async throws {
+  func unpack(file: FilePath, into directoryPath: FilePath) async throws {
     switch file.extension {
     case "gz":
       if let stem = file.stem, FilePath(stem).extension == "tar" {
@@ -343,8 +317,22 @@ public final class LocalSwiftSDKGenerator: SwiftSDKGenerator {
     }
   }
 
-  public func inTemporaryDirectory<T>(
-    _ closure: @Sendable (LocalSwiftSDKGenerator, FilePath) async throws -> T
+  func buildCMakeProject(_ projectPath: FilePath, options: String) async throws -> FilePath {
+    try await Shell.run(
+      """
+      cmake -B build -G Ninja -S llvm -DCMAKE_BUILD_TYPE=Release \(options)
+      """,
+      currentDirectory: projectPath
+    )
+
+    let buildDirectory = projectPath.appending("build")
+    try await Shell.run("ninja", currentDirectory: buildDirectory)
+
+    return buildDirectory
+  }
+
+  func inTemporaryDirectory<T: Sendable>(
+    _ closure: @Sendable (SwiftSDKGenerator, FilePath) async throws -> T
   ) async throws -> T {
     let tmp = FilePath(NSTemporaryDirectory())
       .appending("swift-sdk-generator-\(UUID().uuidString.prefix(6))")
@@ -358,7 +346,3 @@ public final class LocalSwiftSDKGenerator: SwiftSDKGenerator {
     return result
   }
 }
-
-// Explicitly marking `LocalSwiftSDKGenerator` as non-`Sendable` for safety.
-@available(*, unavailable)
-extension LocalSwiftSDKGenerator: Sendable {}

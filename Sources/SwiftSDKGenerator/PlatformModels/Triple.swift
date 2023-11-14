@@ -5,14 +5,14 @@
 // Copyright (c) 2022-2023 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
-// See http://swift.org/LICENSE.txt for license information
-// See http://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
+// See https://swift.org/LICENSE.txt for license information
+// See https://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
 //
 //===----------------------------------------------------------------------===//
 
-public struct Triple: CustomStringConvertible {
+public struct Triple: Sendable, CustomStringConvertible {
   /// CPU architecture supported by the generator.
-  public enum CPU: String, Decodable, CaseIterable {
+  public enum CPU: String, Sendable, Decodable, CaseIterable {
     case x86_64
     case arm64
 
@@ -34,6 +34,14 @@ public struct Triple: CustomStringConvertible {
       case .x86_64: "x86_64"
       }
     }
+
+    /// Returns the value of `cpu` converted to a convention used by `LLVM_TARGETS_TO_BUILD` CMake setting.
+    var llvmTargetConventionName: String {
+      switch self {
+      case .x86_64: "X86"
+      case .arm64: "AArch64"
+      }
+    }
   }
 
   enum Vendor: String {
@@ -45,6 +53,8 @@ public struct Triple: CustomStringConvertible {
     case linux
     case darwin(version: String)
     case macosx(version: String)
+    case wasi
+    case win32
 
     var description: String {
       switch self {
@@ -54,6 +64,10 @@ public struct Triple: CustomStringConvertible {
         "darwin\(version)"
       case let .macosx(version):
         "macosx\(version)"
+      case .wasi:
+        "wasi"
+      case .win32:
+        "win32"
       }
     }
   }

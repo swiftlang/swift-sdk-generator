@@ -5,8 +5,8 @@
 // Copyright (c) 2022-2023 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
-// See http://swift.org/LICENSE.txt for license information
-// See http://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
+// See https://swift.org/LICENSE.txt for license information
+// See https://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
 //
 //===----------------------------------------------------------------------===//
 
@@ -46,9 +46,9 @@ public struct OutputLoggingSettings {
   func metadata(stream: ProcessOutputStream, line: String) -> Logger.Metadata {
     switch self.to {
     case .logMessage:
-      return ["stream": "\(stream.description)"]
+      ["stream": "\(stream.description)"]
     case .metadata(logMessage: _, let key):
-      return [key: "\(line)"]
+      [key: "\(line)"]
     }
   }
 }

@@ -5,8 +5,8 @@
 // Copyright (c) 2022-2023 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
-// See http://swift.org/LICENSE.txt for license information
-// See http://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
+// See https://swift.org/LICENSE.txt for license information
+// See https://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
 //
 //===----------------------------------------------------------------------===//
 
@@ -20,6 +20,17 @@ struct GeneratorCLI: AsyncParsableCommand {
 
   @Flag(help: "Delegate to Docker for copying files for the target triple.")
   var withDocker: Bool = false
+
+  @Option(help: "Container image from which to copy the target triple.")
+  var fromContainerImage: String? = nil
+
+  @Option(
+    help: """
+    Name of the SDK bundle.  Defaults to a string composed of Swift version, Linux distribution, Linux release
+    and target CPU architecture.
+    """
+  )
+  var sdkName: String? = nil
 
   @Flag(
     help: "Experimental: avoid cleaning up toolchain and SDK directories and regenerate the SDK bundle incrementally."
@@ -38,7 +49,7 @@ struct GeneratorCLI: AsyncParsableCommand {
   var swiftBranch: String? = nil
 
   @Option(help: "Version of Swift to supply in the bundle.")
-  var swiftVersion = "5.8-RELEASE"
+  var swiftVersion = "5.9-RELEASE"
 
   @Option(help: "Version of LLD linker to supply in the bundle.")
   var lldVersion = "16.0.5"
@@ -55,7 +66,7 @@ struct GeneratorCLI: AsyncParsableCommand {
     help: """
     Version of the Linux distribution used as a target platform. Available options for Ubuntu: `20.04`, \
     `22.04` (default when `--linux-distribution-name` is `ubuntu`). Available options for RHEL: `ubi9` (default when \
-    `--linux-distribution-name` is `rhel`.
+    `--linux-distribution-name` is `rhel`).
     """
   )
   var linuxDistributionVersion: String?
@@ -68,7 +79,7 @@ struct GeneratorCLI: AsyncParsableCommand {
     ).
     """
   )
-  var hostCPUArchitecture: Triple.CPU? = nil
+  var hostArch: Triple.CPU? = nil
 
   @Option(
     help: """
@@ -76,29 +87,38 @@ struct GeneratorCLI: AsyncParsableCommand {
     Available options: \(Triple.CPU.allCases.map { "`\($0.rawValue)`" }.joined(separator: ", ")).
     """
   )
-  var targetCPUArchitecture: Triple.CPU? = nil
+  var targetArch: Triple.CPU? = nil
 
   mutating func run() async throws {
-    let linuxDistributionVersion = switch self.linuxDistributionName {
+    let linuxDistributionDefaultVersion = switch self.linuxDistributionName {
     case .rhel:
       "ubi9"
     case .ubuntu:
       "22.04"
     }
+    let linuxDistributionVersion = self.linuxDistributionVersion ?? linuxDistributionDefaultVersion
     let linuxDistribution = try LinuxDistribution(name: linuxDistributionName, version: linuxDistributionVersion)
 
     let elapsed = try await ContinuousClock().measure {
-      try await LocalSwiftSDKGenerator(
-        hostCPUArchitecture: self.hostCPUArchitecture,
-        targetCPUArchitecture: self.targetCPUArchitecture,
+      let generator = try await SwiftSDKGenerator(
+        hostCPUArchitecture: self.hostArch,
+        targetCPUArchitecture: self.targetArch,
         swiftVersion: self.swiftVersion,
         swiftBranch: self.swiftBranch,
         lldVersion: self.lldVersion,
         linuxDistribution: linuxDistribution,
         shouldUseDocker: self.withDocker,
+        baseDockerImage: self.fromContainerImage,
+        artifactID: self.sdkName,
         isVerbose: self.verbose
       )
-      .generateBundle(shouldGenerateFromScratch: !self.incremental)
+      do {
+        try await generator.generateBundle(shouldGenerateFromScratch: !self.incremental)
+        try await generator.shutDown()
+      } catch {
+        try await generator.shutDown()
+        throw error
+      }
     }
 
     print("\nTime taken for this generator run: \(elapsed.intervalString).")
