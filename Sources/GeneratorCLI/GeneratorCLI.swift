@@ -12,7 +12,6 @@
 
 import ArgumentParser
 import SwiftSDKGenerator
-nonsense
 
 @main
 struct GeneratorCLI: AsyncParsableCommand {
