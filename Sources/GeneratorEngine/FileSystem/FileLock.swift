@@ -35,7 +35,6 @@ final class FileLock {
   enum Error: Swift.Error {
     case noEntry(FilePath)
     case notDirectory(FilePath)
-    case errno(Int32, FilePath)
   }
 
   /// File descriptor to the lock file.
@@ -108,18 +107,18 @@ final class FileLock {
     #else
     // Open the lock file.
     if self.fileDescriptor == nil {
-      let fd = try FileDescriptor.open(
-        self.lockFile,
-        .writeOnly,
-        options: [.create, .closeOnExec],
-        permissions: [.groupReadWrite, .ownerReadWrite, .otherReadWrite]
-      ).rawValue
-      if fd == -1 {
-        throw Error.errno(errno, self.lockFile)
+      do {
+        self.fileDescriptor = try FileDescriptor.open(
+          self.lockFile,
+          .writeOnly,
+          options: [.create, .closeOnExec],
+          permissions: [.groupReadWrite, .ownerReadWrite, .otherReadWrite]
+        ).rawValue
+      } catch {
+        throw error.attach(path: self.lockFile)
       }
-      self.fileDescriptor = fd
     }
-    // Aquire lock on the file.
+    // Acquire lock on the file.
     while true {
       if type == .exclusive && flock(self.fileDescriptor!, LOCK_EX) == 0 {
         break
