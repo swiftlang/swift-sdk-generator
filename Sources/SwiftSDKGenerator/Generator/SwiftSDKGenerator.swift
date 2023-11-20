@@ -144,14 +144,15 @@ public actor SwiftSDKGenerator {
   }
 
   func launchDockerContainer(imageName: String) async throws -> String {
-    try await Shell
-      .readStdout(
-        """
-        \(Self.dockerCommand) run --rm --platform=linux/\(self.targetTriple.cpu.debianConventionName) -d \(imageName) tail -f /dev/null
-        """,
-        shouldLogCommands: self.isVerbose
-      )
-      .trimmingCharacters(in: .whitespacesAndNewlines)
+    try await Shell.readStdout(
+      """
+      \(Self.dockerCommand) run --rm --platform=linux/\(
+        self.targetTriple.cpu.debianConventionName
+      ) -d \(imageName) tail -f /dev/null
+      """,
+      shouldLogCommands: self.isVerbose
+    )
+    .trimmingCharacters(in: .whitespacesAndNewlines)
   }
 
   func runOnDockerContainer(id: String, command: String) async throws {
@@ -317,20 +318,6 @@ public actor SwiftSDKGenerator {
     default:
       throw FileOperationError.unknownArchiveFormat(file.extension)
     }
-  }
-
-  func buildCMakeProject(_ projectPath: FilePath, options: String) async throws -> FilePath {
-    try await Shell.run(
-      """
-      cmake -B build -G Ninja -S llvm -DCMAKE_BUILD_TYPE=Release \(options)
-      """,
-      currentDirectory: projectPath
-    )
-
-    let buildDirectory = projectPath.appending("build")
-    try await Shell.run("ninja", currentDirectory: buildDirectory)
-
-    return buildDirectory
   }
 
   func inTemporaryDirectory<T: Sendable>(

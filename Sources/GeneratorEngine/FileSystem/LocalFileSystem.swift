@@ -26,13 +26,14 @@ public actor LocalFileSystem: FileSystem {
     _ body: (OpenReadableFile) async throws -> T
   ) async throws -> T {
     let fd = try FileDescriptor.open(path, .readOnly)
+    // Can't use ``FileDescriptor//closeAfter` here, as that doesn't support async closures.
     do {
       let result = try await body(.init(readChunkSize: readChunkSize, fileHandle: .local(fd)))
       try fd.close()
       return result
     } catch {
       try fd.close()
-      throw error
+      throw error.attach(path: path)
     }
   }
 
@@ -47,7 +48,7 @@ public actor LocalFileSystem: FileSystem {
       return result
     } catch {
       try fd.close()
-      throw error
+      throw error.attach(path: path)
     }
   }
 }
