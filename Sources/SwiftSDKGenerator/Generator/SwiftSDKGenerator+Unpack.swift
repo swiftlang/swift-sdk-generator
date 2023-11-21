@@ -93,7 +93,7 @@ extension SwiftSDKGenerator {
       try await self.engine[CMakeBuildQuery(
         sourcesDirectory: untarDestination,
         outputBinarySubpath: ["bin", "lld"],
-        options: "-DLLVM_ENABLE_PROJECTS=lld -DLLVM_TARGETS_TO_BUILD=\(self.targetTriple.cpu.llvmTargetConventionName)"
+        options: "-DLLVM_ENABLE_PROJECTS=lld -DLLVM_TARGETS_TO_BUILD=''"
       )].path
     }
 
