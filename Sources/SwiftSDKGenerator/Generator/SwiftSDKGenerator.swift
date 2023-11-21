@@ -27,9 +27,8 @@ public actor SwiftSDKGenerator {
   let baseDockerImage: String
   let isIncremental: Bool
   let isVerbose: Bool
-
-  let engine: Engine
-  private var isShutDown = false
+  let engineCachePath: SQLite.Location
+  let logger: Logger
 
   public init(
     hostCPUArchitecture: Triple.CPU?,
@@ -97,27 +96,8 @@ public actor SwiftSDKGenerator {
     self.isIncremental = isIncremental
     self.isVerbose = isVerbose
 
-    let engineCachePath = self.pathsConfiguration.artifactsCachePath.appending("cache.db")
-    self.engine = .init(
-      LocalFileSystem(),
-      logger,
-      cacheLocation: .path(engineCachePath)
-    )
-  }
-
-  func shutDown() async throws {
-    precondition(!self.isShutDown, "`SwiftSDKGenerator/shutDown` should be called only once")
-    try await self.engine.shutDown()
-
-    self.isShutDown = true
-  }
-
-  deinit {
-    let isShutDown = self.isShutDown
-    precondition(
-      isShutDown,
-      "`Engine/shutDown` should be called explicitly on instances of `Engine` before deinitialization"
-    )
+    self.engineCachePath = .path(self.pathsConfiguration.artifactsCachePath.appending("cache.db"))
+    self.logger = logger
   }
 
   private let fileManager = FileManager.default

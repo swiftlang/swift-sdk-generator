@@ -93,13 +93,17 @@ final class Shell {
       return try self.check(exitCode: self.process.terminationStatus)
     }
 
-    let exitCode = await withCheckedContinuation { continuation in
-      self.process.terminationHandler = {
-        continuation.resume(returning: $0.terminationStatus)
+    try await withTaskCancellationHandler {
+      let exitCode = await withCheckedContinuation { continuation in
+        self.process.terminationHandler = {
+          continuation.resume(returning: $0.terminationStatus)
+        }
       }
-    }
 
-    try check(exitCode: exitCode)
+      try check(exitCode: exitCode)
+    } onCancel: {
+      self.process.interrupt()
+    }
   }
 
   /// Launch and wait until a shell command exists. Throws an error for non-zero exit codes.
