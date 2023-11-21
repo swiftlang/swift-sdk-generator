@@ -14,7 +14,6 @@ import ArgumentParser
 import Logging
 import ServiceLifecycle
 import SwiftSDKGenerator
-import UnixSignals
 
 @main
 struct GeneratorCLI: AsyncParsableCommand {
@@ -91,13 +90,7 @@ struct GeneratorCLI: AsyncParsableCommand {
   )
   var targetArch: Triple.CPU? = nil
 
-  enum State {
-    case generatorFinished
-    case generatorFailed(Error)
-    case signalReceived(UnixSignal)
-  }
-
-  mutating func run() async throws {
+  func run() async throws {
     let linuxDistributionDefaultVersion = switch self.linuxDistributionName {
     case .rhel:
       "ubi9"
