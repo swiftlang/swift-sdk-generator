@@ -37,7 +37,7 @@ let package = Package(
       dependencies: [
         "SwiftSDKGenerator",
         .product(name: "ArgumentParser", package: "swift-argument-parser"),
-        .product(name: "UnixSignals", package: "swift-service-lifecycle"),
+        .product(name: "ServiceLifecycle", package: "swift-service-lifecycle"),
       ],
       swiftSettings: [
         .enableExperimentalFeature("StrictConcurrency=complete"),
@@ -50,6 +50,7 @@ let package = Package(
         .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
         .product(name: "AsyncHTTPClient", package: "async-http-client"),
         .product(name: "Logging", package: "swift-log"),
+        .product(name: "ServiceLifecycle", package: "swift-service-lifecycle"),
         .product(name: "SystemPackage", package: "swift-system"),
         "GeneratorEngine",
       ],

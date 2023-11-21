@@ -10,6 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+import Logging
 @testable import SwiftSDKGenerator
 import XCTest
 
@@ -60,7 +61,8 @@ final class ArchitectureMappingTests: XCTestCase {
       baseDockerImage: nil,
       artifactID: nil,
       isIncremental: false,
-      isVerbose: false
+      isVerbose: false,
+      logger: Logger(label: "org.swift.swift-sdk-generator")
     )
 
     let sdkArtifactID = await sdk.artifactID

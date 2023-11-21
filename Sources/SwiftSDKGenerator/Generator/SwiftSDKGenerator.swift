@@ -42,7 +42,8 @@ public actor SwiftSDKGenerator {
     baseDockerImage: String?,
     artifactID: String?,
     isIncremental: Bool,
-    isVerbose: Bool
+    isVerbose: Bool,
+    logger: Logger
   ) async throws {
     logGenerationStep("Looking up configuration values...")
 
@@ -99,12 +100,12 @@ public actor SwiftSDKGenerator {
     let engineCachePath = self.pathsConfiguration.artifactsCachePath.appending("cache.db")
     self.engine = .init(
       LocalFileSystem(),
-      Logger(label: "org.swift.swift-sdk-generator"),
+      logger,
       cacheLocation: .path(engineCachePath)
     )
   }
 
-  public func shutDown() async throws {
+  func shutDown() async throws {
     precondition(!self.isShutDown, "`SwiftSDKGenerator/shutDown` should be called only once")
     try await self.engine.shutDown()
 

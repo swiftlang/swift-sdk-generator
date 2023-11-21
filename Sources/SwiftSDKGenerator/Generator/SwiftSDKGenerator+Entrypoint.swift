@@ -14,6 +14,7 @@ import AsyncAlgorithms
 import AsyncHTTPClient
 import Foundation
 import RegexBuilder
+import ServiceLifecycle
 import SystemPackage
 
 public extension Triple.CPU {
@@ -26,8 +27,8 @@ public extension Triple.CPU {
   }
 }
 
-public extension SwiftSDKGenerator {
-  func generateBundle() async throws {
+extension SwiftSDKGenerator: Service {
+  public func run() async throws {
     var configuration = HTTPClient.Configuration(redirectConfiguration: .follow(max: 5, allowCycles: false))
     // Workaround an issue with github.com returning 400 instead of 404 status to HEAD requests from AHC.
     configuration.httpVersion = .http1Only
@@ -35,10 +36,6 @@ public extension SwiftSDKGenerator {
       eventLoopGroupProvider: .singleton,
       configuration: configuration
     )
-
-    defer {
-      try! client.syncShutdown()
-    }
 
     if !self.isIncremental {
       try removeRecursively(at: pathsConfiguration.sdkDirPath)
@@ -91,6 +88,9 @@ public extension SwiftSDKGenerator {
     try generateDestinationJSON(toolsetPath: toolsetJSONPath)
 
     try generateArtifactBundleManifest()
+
+    try await client.shutdown()
+    try await self.shutDown()
 
     logGenerationStep(
       """

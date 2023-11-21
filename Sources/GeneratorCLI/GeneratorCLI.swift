@@ -11,6 +11,8 @@
 //===----------------------------------------------------------------------===//
 
 import ArgumentParser
+import Logging
+import ServiceLifecycle
 import SwiftSDKGenerator
 import UnixSignals
 
@@ -106,6 +108,7 @@ struct GeneratorCLI: AsyncParsableCommand {
     let linuxDistribution = try LinuxDistribution(name: linuxDistributionName, version: linuxDistributionVersion)
 
     let elapsed = try await ContinuousClock().measure {
+      let logger = Logger(label: "org.swift.swift-sdk-generator")
       let generator = try await SwiftSDKGenerator(
         hostCPUArchitecture: self.hostArch,
         targetCPUArchitecture: self.targetArch,
@@ -117,45 +120,22 @@ struct GeneratorCLI: AsyncParsableCommand {
         baseDockerImage: self.fromContainerImage,
         artifactID: self.sdkName,
         isIncremental: self.incremental,
-        isVerbose: self.verbose
+        isVerbose: self.verbose,
+        logger: logger
       )
-      do {
-        let cancellationSignals = await UnixSignalsSequence(trapping: [.sigint])
-        let (stateStream, stateContinuation) = AsyncStream.makeStream(of: State.self)
-        let generatorTask = Task {
-          do {
-            try await generator.generateBundle()
-            stateContinuation.yield(.generatorFinished)
-          } catch {
-            stateContinuation.yield(.generatorFailed(error))
-          }
-        }
-        let signalsTask = Task {
-          for await signal in cancellationSignals {
-            stateContinuation.yield(.signalReceived(signal))
-          }
-        }
 
-        for try await state in stateStream {
-          switch state {
-          case let .signalReceived(signal):
-            print("\nGenerator was cancelled due to receiving \(signal) signal.")
-            generatorTask.cancel()
-            signalsTask.cancel()
-            stateContinuation.finish()
-          case let .generatorFailed(error):
-            throw error
-          case .generatorFinished:
-            signalsTask.cancel()
-            stateContinuation.finish()
-          }
-        }
+      let serviceGroup = ServiceGroup(
+        configuration: .init(
+          services: [.init(
+            service: generator,
+            successTerminationBehavior: .gracefullyShutdownGroup
+          )],
+          cancellationSignals: [.sigint],
+          logger: logger
+        )
+      )
 
-        try await generator.shutDown()
-      } catch {
-        try await generator.shutDown()
-        throw error
-      }
+      try await serviceGroup.run()
     }
 
     print("\nTime taken for this generator run: \(elapsed.intervalString).")
