@@ -75,8 +75,8 @@ struct Shell {
       switch result {
       case let .exit(code):
         throw GeneratorError.nonZeroExitCode(code, self.commandInfo)
-      case .signal:
-        fatalError()
+      case let .signal(signal):
+        throw GeneratorError.unhandledChildProcessSignal(signal, self.commandInfo)
       }
     }
   }

@@ -10,6 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+import GeneratorEngine
 import struct SystemPackage.FilePath
 
 private let unusedDarwinPlatforms = [
@@ -69,7 +70,7 @@ extension SwiftSDKGenerator {
     }
   }
 
-  func prepareLLDLinker() async throws {
+  func prepareLLDLinker(_ engine: Engine) async throws {
     logGenerationStep("Unpacking and copying `lld` linker...")
     let downloadableArtifacts = self.downloadableArtifacts
     let pathsConfiguration = self.pathsConfiguration
@@ -90,10 +91,10 @@ extension SwiftSDKGenerator {
     let unpackedLLDPath = if llvmArtifact.isPrebuilt {
       untarDestination.appending("bin/lld")
     } else {
-      try await self.engine[CMakeBuildQuery(
+      try await engine[CMakeBuildQuery(
         sourcesDirectory: untarDestination,
         outputBinarySubpath: ["bin", "lld"],
-        options: "-DLLVM_ENABLE_PROJECTS=lld -DLLVM_TARGETS_TO_BUILD=\(self.targetTriple.cpu.llvmTargetConventionName)"
+        options: "-DLLVM_ENABLE_PROJECTS=lld -DLLVM_TARGETS_TO_BUILD=''"
       )].path
     }
 

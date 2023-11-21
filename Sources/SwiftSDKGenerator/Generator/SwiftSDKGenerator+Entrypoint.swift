@@ -13,7 +13,9 @@
 import AsyncAlgorithms
 import AsyncHTTPClient
 import Foundation
+import GeneratorEngine
 import RegexBuilder
+import ServiceLifecycle
 import SystemPackage
 
 public extension Triple.CPU {
@@ -26,81 +28,90 @@ public extension Triple.CPU {
   }
 }
 
-public extension SwiftSDKGenerator {
-  func generateBundle(shouldGenerateFromScratch: Bool) async throws {
-    var configuration = HTTPClient.Configuration(redirectConfiguration: .follow(max: 5, allowCycles: false))
-    // Workaround an issue with github.com returning 400 instead of 404 status to HEAD requests from AHC.
-    configuration.httpVersion = .http1Only
-    let client = HTTPClient(
-      eventLoopGroupProvider: .singleton,
-      configuration: configuration
-    )
+private func withHTTPClient(
+  _ configuration: HTTPClient.Configuration,
+  _ body: @Sendable (HTTPClient) async throws -> ()
+) async throws {
+  let client = HTTPClient(eventLoopGroupProvider: .singleton, configuration: configuration)
+  do {
+    try await body(client)
+    try await client.shutdown()
+  } catch {
+    try await client.shutdown()
+  }
+}
 
-    defer {
-      try! client.syncShutdown()
-    }
+extension SwiftSDKGenerator: Service {
+  public func run() async throws {
+    try await withEngine(LocalFileSystem(), self.logger, cacheLocation: self.engineCachePath) { engine in
+      var configuration = HTTPClient.Configuration(redirectConfiguration: .follow(max: 5, allowCycles: false))
+      // Workaround an issue with github.com returning 400 instead of 404 status to HEAD requests from AHC.
+      configuration.httpVersion = .http1Only
+      try await withHTTPClient(configuration) { client in
+        if !self.isIncremental {
+          try await self.removeRecursively(at: pathsConfiguration.sdkDirPath)
+          try await self.removeRecursively(at: pathsConfiguration.toolchainDirPath)
+        }
 
-    if shouldGenerateFromScratch {
-      try removeRecursively(at: pathsConfiguration.sdkDirPath)
-      try removeRecursively(at: pathsConfiguration.toolchainDirPath)
-    }
+        try await self.createDirectoryIfNeeded(at: pathsConfiguration.artifactsCachePath)
+        try await self.createDirectoryIfNeeded(at: pathsConfiguration.sdkDirPath)
+        try await self.createDirectoryIfNeeded(at: pathsConfiguration.toolchainDirPath)
 
-    try createDirectoryIfNeeded(at: pathsConfiguration.artifactsCachePath)
-    try createDirectoryIfNeeded(at: pathsConfiguration.sdkDirPath)
-    try createDirectoryIfNeeded(at: pathsConfiguration.toolchainDirPath)
+        try await self.downloadArtifacts(client, engine)
 
-    try await self.downloadArtifacts(client)
+        if !shouldUseDocker {
+          guard case let .ubuntu(version) = versionsConfiguration.linuxDistribution else {
+            throw GeneratorError
+              .distributionSupportsOnlyDockerGenerator(versionsConfiguration.linuxDistribution)
+          }
 
-    if !shouldUseDocker {
-      guard case let .ubuntu(version) = versionsConfiguration.linuxDistribution else {
-        throw GeneratorError.distributionSupportsOnlyDockerGenerator(versionsConfiguration.linuxDistribution)
+          try await self.downloadUbuntuPackages(client, engine, requiredPackages: version.requiredPackages)
+        }
+
+        try await self.unpackHostSwift()
+
+        if shouldUseDocker {
+          try await self.copyTargetSwiftFromDocker()
+        } else {
+          try await self.unpackTargetSwiftPackage()
+        }
+
+        try await self.prepareLLDLinker(engine)
+
+        try await self.fixAbsoluteSymlinks()
+
+        let targetCPU = self.targetTriple.cpu
+        try await self.fixGlibcModuleMap(
+          at: pathsConfiguration.toolchainDirPath
+            .appending("/usr/lib/swift/linux/\(targetCPU.linuxConventionName)/glibc.modulemap")
+        )
+
+        try await self.symlinkClangHeaders()
+
+        let autolinkExtractPath = pathsConfiguration.toolchainBinDirPath.appending("swift-autolink-extract")
+
+        if await !self.doesFileExist(at: autolinkExtractPath) {
+          logGenerationStep("Fixing `swift-autolink-extract` symlink...")
+          try await createSymlink(at: autolinkExtractPath, pointingTo: "swift")
+        }
+
+        let toolsetJSONPath = try await generateToolsetJSON()
+
+        try await generateDestinationJSON(toolsetPath: toolsetJSONPath)
+
+        try await generateArtifactBundleManifest()
+
+        logGenerationStep(
+          """
+          All done! Install the newly generated SDK with this command:
+          swift experimental-sdk install \(pathsConfiguration.artifactBundlePath)
+
+          After that, use the newly installed SDK when building with this command:
+          swift build --experimental-swift-sdk \(artifactID)
+          """
+        )
       }
-
-      try await self.downloadUbuntuPackages(client, requiredPackages: version.requiredPackages)
     }
-
-    try await self.unpackHostSwift()
-
-    if shouldUseDocker {
-      try await self.copyTargetSwiftFromDocker()
-    } else {
-      try await self.unpackTargetSwiftPackage()
-    }
-
-    try await self.prepareLLDLinker()
-
-    try self.fixAbsoluteSymlinks()
-
-    let targetCPU = self.targetTriple.cpu
-    try self.fixGlibcModuleMap(
-      at: pathsConfiguration.toolchainDirPath
-        .appending("/usr/lib/swift/linux/\(targetCPU.linuxConventionName)/glibc.modulemap")
-    )
-
-    try self.symlinkClangHeaders()
-
-    let autolinkExtractPath = pathsConfiguration.toolchainBinDirPath.appending("swift-autolink-extract")
-
-    if !doesFileExist(at: autolinkExtractPath) {
-      logGenerationStep("Fixing `swift-autolink-extract` symlink...")
-      try createSymlink(at: autolinkExtractPath, pointingTo: "swift")
-    }
-
-    let toolsetJSONPath = try generateToolsetJSON()
-
-    try generateDestinationJSON(toolsetPath: toolsetJSONPath)
-
-    try generateArtifactBundleManifest()
-
-    logGenerationStep(
-      """
-      All done! Install the newly generated SDK with this command:
-      swift experimental-sdk install \(pathsConfiguration.artifactBundlePath)
-
-      After that, use the newly installed SDK when building with this command:
-      swift build --experimental-swift-sdk \(artifactID)
-      """
-    )
   }
 }
 
