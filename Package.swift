@@ -26,6 +26,7 @@ let package = Package(
     .package(url: "https://github.com/apple/swift-nio.git", from: "2.58.0"),
     .package(url: "https://github.com/apple/swift-nio-extras.git", from: "1.19.0"),
     .package(url: "https://github.com/apple/swift-log.git", from: "1.5.3"),
+    .package(url: "https://github.com/swift-server/swift-service-lifecycle.git", from: "2.3.0"),
     .package(url: "https://github.com/apple/swift-syntax.git", from: "509.0.2"),
   ],
   targets: [
@@ -36,6 +37,7 @@ let package = Package(
       dependencies: [
         "SwiftSDKGenerator",
         .product(name: "ArgumentParser", package: "swift-argument-parser"),
+        .product(name: "ServiceLifecycle", package: "swift-service-lifecycle"),
       ],
       swiftSettings: [
         .enableExperimentalFeature("StrictConcurrency=complete"),
@@ -48,6 +50,7 @@ let package = Package(
         .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
         .product(name: "AsyncHTTPClient", package: "async-http-client"),
         .product(name: "Logging", package: "swift-log"),
+        .product(name: "ServiceLifecycle", package: "swift-service-lifecycle"),
         .product(name: "SystemPackage", package: "swift-system"),
         "GeneratorEngine",
       ],

@@ -29,7 +29,7 @@ struct CMakeBuildQuery {
     )
 
     let buildDirectory = self.sourcesDirectory.appending("build")
-    try await Shell.run("ninja \(FilePath(".").appending(outputBinarySubpath))", currentDirectory: buildDirectory)
+    try await Shell.run("ninja \(FilePath(".").appending(self.outputBinarySubpath))", currentDirectory: buildDirectory)
 
     return self.outputBinarySubpath.reduce(into: buildDirectory) { $0.append($1) }
   }

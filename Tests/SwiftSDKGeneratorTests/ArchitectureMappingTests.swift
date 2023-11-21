@@ -10,6 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+import Logging
 @testable import SwiftSDKGenerator
 import XCTest
 
@@ -57,7 +58,11 @@ final class ArchitectureMappingTests: XCTestCase {
       lldVersion: "16.0.4",
       linuxDistribution: .ubuntu(.jammy),
       shouldUseDocker: false,
-      isVerbose: false
+      baseDockerImage: nil,
+      artifactID: nil,
+      isIncremental: false,
+      isVerbose: false,
+      logger: Logger(label: "org.swift.swift-sdk-generator")
     )
 
     let sdkArtifactID = await sdk.artifactID
@@ -104,8 +109,6 @@ final class ArchitectureMappingTests: XCTestCase {
       paths.artifactBundlePath.string + sdkDirPathSuffix,
       "Unexpected sdkDirPathSuffix"
     )
-
-    try await sdk.shutDown()
   }
 
   func testX86ToX86SDKGenerator() async throws {
