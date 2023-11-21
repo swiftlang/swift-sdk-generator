@@ -25,10 +25,10 @@ public actor SwiftSDKGenerator {
   var downloadableArtifacts: DownloadableArtifacts
   let shouldUseDocker: Bool
   let baseDockerImage: String
+  let isIncremental: Bool
   let isVerbose: Bool
-
-  let engine: Engine
-  private var isShutDown = false
+  let engineCachePath: SQLite.Location
+  let logger: Logger
 
   public init(
     hostCPUArchitecture: Triple.CPU?,
@@ -40,7 +40,9 @@ public actor SwiftSDKGenerator {
     shouldUseDocker: Bool,
     baseDockerImage: String?,
     artifactID: String?,
-    isVerbose: Bool
+    isIncremental: Bool,
+    isVerbose: Bool,
+    logger: Logger
   ) async throws {
     logGenerationStep("Looking up configuration values...")
 
@@ -91,29 +93,11 @@ public actor SwiftSDKGenerator {
     )
     self.shouldUseDocker = shouldUseDocker
     self.baseDockerImage = baseDockerImage ?? self.versionsConfiguration.swiftBaseDockerImage
+    self.isIncremental = isIncremental
     self.isVerbose = isVerbose
 
-    let engineCachePath = self.pathsConfiguration.artifactsCachePath.appending("cache.db")
-    self.engine = .init(
-      LocalFileSystem(),
-      Logger(label: "org.swift.swift-sdk-generator"),
-      cacheLocation: .path(engineCachePath)
-    )
-  }
-
-  public func shutDown() async throws {
-    precondition(!self.isShutDown, "`SwiftSDKGenerator/shutDown` should be called only once")
-    try await self.engine.shutDown()
-
-    self.isShutDown = true
-  }
-
-  deinit {
-    let isShutDown = self.isShutDown
-    precondition(
-      isShutDown,
-      "`Engine/shutDown` should be called explicitly on instances of `Engine` before deinitialization"
-    )
+    self.engineCachePath = .path(self.pathsConfiguration.artifactsCachePath.appending("cache.db"))
+    self.logger = logger
   }
 
   private let fileManager = FileManager.default

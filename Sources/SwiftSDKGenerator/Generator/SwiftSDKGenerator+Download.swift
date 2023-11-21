@@ -27,7 +27,7 @@ private let ubuntuARM64Mirror = "http://ports.ubuntu.com/ubuntu-ports"
 let byteCountFormatter = ByteCountFormatter()
 
 extension SwiftSDKGenerator {
-  func downloadArtifacts(_ client: HTTPClient) async throws {
+  func downloadArtifacts(_ client: HTTPClient, _ engine: Engine) async throws {
     logGenerationStep("Downloading required toolchain packages...")
     var headRequest = HTTPClientRequest(url: downloadableArtifacts.hostLLVM.remoteURL.absoluteString)
     headRequest.method = .HEAD
@@ -42,7 +42,7 @@ extension SwiftSDKGenerator {
     let results = try await withThrowingTaskGroup(of: FileCacheRecord.self) { group in
       for item in self.downloadableArtifacts.allItems {
         group.addTask {
-          try await self.engine[DownloadArtifactQuery(artifact: item)]
+          try await engine[DownloadArtifactQuery(artifact: item)]
         }
       }
 
@@ -59,7 +59,7 @@ extension SwiftSDKGenerator {
     }
   }
 
-  func downloadUbuntuPackages(_ client: HTTPClient, requiredPackages: [String]) async throws {
+  func downloadUbuntuPackages(_ client: HTTPClient, _ engine: Engine, requiredPackages: [String]) async throws {
     logGenerationStep("Parsing Ubuntu packages list...")
 
     async let mainPackages = try await client.parseUbuntuPackagesList(
@@ -102,7 +102,7 @@ extension SwiftSDKGenerator {
     let pathsConfiguration = self.pathsConfiguration
 
     try await inTemporaryDirectory { fs, tmpDir in
-      let downloadedFiles = try await self.downloadFiles(from: urls, to: tmpDir)
+      let downloadedFiles = try await self.downloadFiles(from: urls, to: tmpDir, engine)
       report(downloadedFiles: downloadedFiles)
 
       for fileName in urls.map(\.lastPathComponent) {
@@ -113,11 +113,11 @@ extension SwiftSDKGenerator {
     try createDirectoryIfNeeded(at: pathsConfiguration.toolchainBinDirPath)
   }
 
-  func downloadFiles(from urls: [URL], to directory: FilePath) async throws -> [(URL, UInt64)] {
+  func downloadFiles(from urls: [URL], to directory: FilePath, _ engine: Engine) async throws -> [(URL, UInt64)] {
     try await withThrowingTaskGroup(of: (URL, UInt64).self) {
       for url in urls {
         $0.addTask {
-          let downloadedFilePath = try await self.engine[DownloadFileQuery(remoteURL: url, localDirectory: directory)]
+          let downloadedFilePath = try await engine[DownloadFileQuery(remoteURL: url, localDirectory: directory)]
           let filePath = downloadedFilePath.path
           guard let fileSize = try FileManager.default.attributesOfItem(
             atPath: filePath.string
