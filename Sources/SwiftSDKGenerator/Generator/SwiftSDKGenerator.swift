@@ -24,7 +24,7 @@ public actor SwiftSDKGenerator {
   let pathsConfiguration: PathsConfiguration
   var downloadableArtifacts: DownloadableArtifacts
   let shouldUseDocker: Bool
-  let baseDockerImage: String
+  let baseDockerImage: String?
   let isIncremental: Bool
   let isVerbose: Bool
   let engineCachePath: SQLite.Location
@@ -92,7 +92,11 @@ public actor SwiftSDKGenerator {
       self.pathsConfiguration
     )
     self.shouldUseDocker = shouldUseDocker
-    self.baseDockerImage = baseDockerImage ?? self.versionsConfiguration.swiftBaseDockerImage
+    self.baseDockerImage = if shouldUseDocker {
+      baseDockerImage ?? self.versionsConfiguration.swiftBaseDockerImage
+    } else {
+      nil
+    }
     self.isIncremental = isIncremental
     self.isVerbose = isVerbose
 
