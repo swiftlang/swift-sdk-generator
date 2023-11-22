@@ -50,10 +50,10 @@ struct GeneratorCLI: AsyncParsableCommand {
   var swiftBranch: String? = nil
 
   @Option(help: "Version of Swift to supply in the bundle.")
-  var swiftVersion = "5.9-RELEASE"
+  var swiftVersion = "5.9.1-RELEASE"
 
   @Option(help: "Version of LLD linker to supply in the bundle.")
-  var lldVersion = "16.0.6"
+  var lldVersion = "17.0.5"
 
   @Option(
     help: """
