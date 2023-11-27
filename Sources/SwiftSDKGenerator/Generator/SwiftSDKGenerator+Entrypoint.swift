@@ -38,6 +38,7 @@ private func withHTTPClient(
     try await client.shutdown()
   } catch {
     try await client.shutdown()
+    throw error
   }
 }
 
