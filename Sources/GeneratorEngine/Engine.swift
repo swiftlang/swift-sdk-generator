@@ -32,6 +32,7 @@ public func withEngine(
     try await engine.shutDown()
   } catch {
     try await engine.shutDown()
+    throw error
   }
 }
 
