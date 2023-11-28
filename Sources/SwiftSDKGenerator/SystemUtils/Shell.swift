@@ -119,7 +119,8 @@ struct Shell {
       ["-c", command],
       collectStandardOutput: true,
       collectStandardError: false,
-      perStreamCollectionLimitBytes: 100 * 1024 * 1024
+      perStreamCollectionLimitBytes: 100 * 1024 * 1024,
+      environment: ProcessInfo.processInfo.environment
     )
 
     try result.exitReason.throwIfNonZero()
