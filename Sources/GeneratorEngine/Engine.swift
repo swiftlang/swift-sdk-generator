@@ -14,6 +14,7 @@ import class AsyncHTTPClient.HTTPClient
 @_exported import Crypto
 import struct Logging.Logger
 @_exported import struct SystemPackage.FilePath
+import Helpers
 
 public func withEngine(
   _ fileSystem: any FileSystem,
@@ -27,12 +28,10 @@ public func withEngine(
     cacheLocation: cacheLocation
   )
 
-  do {
+  try await withAsyncThrowingDefer {
     try await body(engine)
+  } deferring: {
     try await engine.shutDown()
-  } catch {
-    try await engine.shutDown()
-    throw error
   }
 }
 

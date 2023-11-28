@@ -17,6 +17,7 @@ import GeneratorEngine
 import RegexBuilder
 import ServiceLifecycle
 import SystemPackage
+import Helpers
 
 public extension Triple.CPU {
   /// Returns the value of `cpu` converted to a convention used in Debian package names
@@ -33,12 +34,10 @@ private func withHTTPClient(
   _ body: @Sendable (HTTPClient) async throws -> ()
 ) async throws {
   let client = HTTPClient(eventLoopGroupProvider: .singleton, configuration: configuration)
-  do {
+  try await withAsyncThrowingDefer {
     try await body(client)
+  } deferring: {
     try await client.shutdown()
-  } catch {
-    try await client.shutdown()
-    throw error
   }
 }
 
