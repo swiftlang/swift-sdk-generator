@@ -53,6 +53,7 @@ let package = Package(
         .product(name: "ServiceLifecycle", package: "swift-service-lifecycle"),
         .product(name: "SystemPackage", package: "swift-system"),
         "GeneratorEngine",
+        "Helpers",
       ],
       exclude: ["Dockerfiles"],
       swiftSettings: [
@@ -75,6 +76,7 @@ let package = Package(
         .product(name: "Crypto", package: "swift-crypto"),
         .product(name: "Logging", package: "swift-log"),
         .product(name: "SystemPackage", package: "swift-system"),
+        "Helpers",
         "Macros",
         "SystemSQLite",
       ]
@@ -83,6 +85,18 @@ let package = Package(
       name: "GeneratorEngineTests",
       dependencies: [
         "GeneratorEngine",
+      ]
+    ),
+    .target(
+      name: "Helpers",
+      swiftSettings: [
+        .enableExperimentalFeature("StrictConcurrency=complete"),
+      ]
+    ),
+    .testTarget(
+      name: "HelpersTests",
+      dependencies: [
+        "Helpers",
       ]
     ),
     .macro(
