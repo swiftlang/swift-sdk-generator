@@ -47,29 +47,37 @@ extension SwiftSDKGenerator {
           )
         }
 
-        let sdkUsrLib64Path = sdkUsrPath.appending("lib64")
-        try await generator.copyFromDockerContainer(
-          id: containerID,
-          from: FilePath("/usr/lib64"),
-          to: sdkUsrLib64Path
-        )
-        try await createSymlink(at: pathsConfiguration.sdkDirPath.appending("lib64"), pointingTo: "./usr/lib64")
+        if case let containerLib64 = FilePath("/usr/lib64"),
+           try await generator.doesPathExist(containerLib64, inContainer: containerID) {
+          let sdkUsrLib64Path = sdkUsrPath.appending("lib64")
+          try await generator.copyFromDockerContainer(
+            id: containerID,
+            from: containerLib64,
+            to: sdkUsrLib64Path,
+            failIfNotExists: false
+          )
+          try await createSymlink(at: pathsConfiguration.sdkDirPath.appending("lib64"), pointingTo: "./usr/lib64")
+        }
 
         try await generator.createDirectoryIfNeeded(at: sdkUsrLibPath)
-        var subpaths = ["clang", "gcc", "swift", "swift_static"]
+        var subpaths: [(subpath: String, failIfNotExists: Bool)] = [
+          ("clang", true), ("gcc", true), ("swift", true), ("swift_static", true)
+        ]
 
         // Ubuntu's multiarch directory scheme puts some libraries in
         // architecture-specific directories:
         //   https://wiki.ubuntu.com/MultiarchSpec
+        // But not in all containers, so don't fail if it does not exist.
         if case .ubuntu = self.versionsConfiguration.linuxDistribution {
-          subpaths += ["\(targetTriple.cpu)-linux-gnu"]
+          subpaths += [("\(targetTriple.cpu)-linux-gnu", false)]
         }
 
-        for subpath in subpaths {
+        for (subpath, failIfNotExists) in subpaths {
           try await generator.copyFromDockerContainer(
             id: containerID,
             from: FilePath("/usr/lib").appending(subpath),
-            to: sdkUsrLibPath.appending(subpath)
+            to: sdkUsrLibPath.appending(subpath),
+            failIfNotExists: failIfNotExists
           )
         }
         try await generator.createSymlink(at: pathsConfiguration.sdkDirPath.appending("lib"), pointingTo: "usr/lib")
