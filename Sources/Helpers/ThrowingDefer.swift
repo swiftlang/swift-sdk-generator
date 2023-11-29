@@ -19,10 +19,10 @@
 /// - Returns: The result of `work`.
 /// - Note: If `work` **and** `deferred` throw an error,
 ///         the one thrown by `deferred` is thrown from this function.
-/// - SeeAlso: ``withAsyncThrowingDefer(do:deferring:)``
-public func withThrowingDefer<T>(
+/// - SeeAlso: ``withAsyncThrowing(do:defer:)``
+public func withThrowing<T>(
   do work: () throws -> T,
-  deferring deferred: () throws -> ()
+  defer deferred: () throws -> ()
 ) throws -> T {
   do {
     let result = try work()
@@ -43,10 +43,10 @@ public func withThrowingDefer<T>(
 /// - Returns: The result of `work`.
 /// - Note: If `work` **and** `deferred` throw an error,
 ///         the one thrown by `deferred` is thrown from this function.
-/// - SeeAlso: ``withThrowingDefer(do:deferring:)``
-public func withAsyncThrowingDefer<T: Sendable>(
+/// - SeeAlso: ``withThrowing(do:defer:)``
+public func withAsyncThrowing<T: Sendable>(
   do work: @Sendable () async throws -> T,
-  deferring deferred: @Sendable () async throws -> ()
+  defer deferred: @Sendable () async throws -> ()
 ) async throws -> T {
   do {
     let result = try await work()

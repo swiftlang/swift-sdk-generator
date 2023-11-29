@@ -171,9 +171,9 @@ public actor SwiftSDKGenerator {
   func withDockerContainer(fromImage imageName: String,
                            _ body: @Sendable (String) async throws -> ()) async throws {
     let containerID = try await launchDockerContainer(imageName: imageName)
-    try await withAsyncThrowingDefer {
+    try await withAsyncThrowing {
       try await body(containerID)
-    } deferring: {
+    } defer: {
       try await stopDockerContainer(id: containerID)
     }
   }

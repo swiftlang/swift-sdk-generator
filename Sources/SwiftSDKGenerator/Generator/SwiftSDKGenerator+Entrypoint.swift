@@ -34,9 +34,9 @@ private func withHTTPClient(
   _ body: @Sendable (HTTPClient) async throws -> ()
 ) async throws {
   let client = HTTPClient(eventLoopGroupProvider: .singleton, configuration: configuration)
-  try await withAsyncThrowingDefer {
+  try await withAsyncThrowing {
     try await body(client)
-  } deferring: {
+  } defer: {
     try await client.shutdown()
   }
 }

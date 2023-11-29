@@ -41,9 +41,9 @@ final class ThrowingDeferTests: XCTestCase {
     var didRunWork = false
     var didRunCleanup = false
 
-    try withThrowingDefer {
+    try withThrowing {
       didRunWork = true
-    } deferring: {
+    } defer: {
       didRunCleanup = true
     }
 
@@ -55,9 +55,9 @@ final class ThrowingDeferTests: XCTestCase {
     let workError = EquatableError()
     var didRunCleanup = false
 
-    XCTAssertThrowsError(try withThrowingDefer {
+    XCTAssertThrowsError(try withThrowing {
       throw workError
-    } deferring: {
+    } defer: {
       didRunCleanup = true
     }) {
       XCTAssertTrue($0 is EquatableError)
@@ -70,9 +70,9 @@ final class ThrowingDeferTests: XCTestCase {
     var didRunWork = false
     let cleanupError = EquatableError()
 
-    XCTAssertThrowsError(try withThrowingDefer {
+    XCTAssertThrowsError(try withThrowing {
       didRunWork = true
-    } deferring: {
+    } defer: {
       throw cleanupError
     }) {
       XCTAssertTrue($0 is EquatableError)
@@ -86,10 +86,10 @@ final class ThrowingDeferTests: XCTestCase {
     let workError = EquatableError()
     let cleanupError = EquatableError()
 
-    XCTAssertThrowsError(try withThrowingDefer {
+    XCTAssertThrowsError(try withThrowing {
       didRunWork = true
       throw workError
-    } deferring: {
+    } defer: {
       throw cleanupError
     }) {
       XCTAssertTrue($0 is EquatableError)
@@ -103,9 +103,9 @@ final class ThrowingDeferTests: XCTestCase {
     let work = Worker()
     let cleanup = Worker()
 
-    try await withAsyncThrowingDefer {
+    try await withAsyncThrowing {
       try await work.run()
-    } deferring: {
+    } defer: {
       try await cleanup.run()
     }
 
@@ -121,9 +121,9 @@ final class ThrowingDeferTests: XCTestCase {
     let cleanup = Worker()
 
     do {
-      try await withAsyncThrowingDefer {
+      try await withAsyncThrowing {
         try await work.run()
-      } deferring: {
+      } defer: {
         try await cleanup.run()
       }
       XCTFail("No error was thrown!")
@@ -144,9 +144,9 @@ final class ThrowingDeferTests: XCTestCase {
     let cleanup = Worker(error: cleanupError)
 
     do {
-      try await withAsyncThrowingDefer {
+      try await withAsyncThrowing {
         try await work.run()
-      } deferring: {
+      } defer: {
         try await cleanup.run()
       }
       XCTFail("No error was thrown!")
@@ -168,10 +168,10 @@ final class ThrowingDeferTests: XCTestCase {
     let cleanup = Worker(error: cleanupError)
 
     do {
-      try await withAsyncThrowingDefer {
+      try await withAsyncThrowing {
         try await work.run()
         XCTFail("No error was thrown from work!")
-      } deferring: {
+      } defer: {
         try await cleanup.run()
       }
       XCTFail("No error was thrown!")

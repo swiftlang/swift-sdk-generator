@@ -28,9 +28,9 @@ public func withEngine(
     cacheLocation: cacheLocation
   )
 
-  try await withAsyncThrowingDefer {
+  try await withAsyncThrowing {
     try await body(engine)
-  } deferring: {
+  } defer: {
     try await engine.shutDown()
   }
 }
