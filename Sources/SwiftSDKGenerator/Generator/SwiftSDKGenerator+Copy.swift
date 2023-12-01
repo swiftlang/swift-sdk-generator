@@ -15,8 +15,7 @@ import SystemPackage
 extension SwiftSDKGenerator {
   func copyTargetSwiftFromDocker() async throws {
     logGenerationStep("Launching a Docker container to copy Swift SDK for the target triple from it...")
-    let containerID = try await launchDockerContainer(imageName: self.baseDockerImage!)
-    do {
+    try await withDockerContainer(fromImage: baseDockerImage!) { containerID in
       let pathsConfiguration = self.pathsConfiguration
 
       try await inTemporaryDirectory { generator, _ in
@@ -89,8 +88,6 @@ extension SwiftSDKGenerator {
         try await generator.copyTargetSwift(from: sdkUsrLibPath)
         try await generator.stopDockerContainer(id: containerID)
       }
-    } catch {
-      try await stopDockerContainer(id: containerID)
     }
   }
 

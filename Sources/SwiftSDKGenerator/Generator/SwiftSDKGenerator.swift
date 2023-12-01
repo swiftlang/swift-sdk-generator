@@ -14,6 +14,7 @@ import Foundation
 import GeneratorEngine
 import Logging
 import SystemPackage
+import Helpers
 
 /// Top-level actor that sequences all of the required SDK generation steps.
 public actor SwiftSDKGenerator {
@@ -165,6 +166,16 @@ public actor SwiftSDKGenerator {
       """,
       shouldLogCommands: self.isVerbose
     )
+  }
+
+  func withDockerContainer(fromImage imageName: String,
+                           _ body: @Sendable (String) async throws -> ()) async throws {
+    let containerID = try await launchDockerContainer(imageName: imageName)
+    try await withAsyncThrowing {
+      try await body(containerID)
+    } defer: {
+      try await stopDockerContainer(id: containerID)
+    }
   }
 
   func doesFileExist(at path: FilePath) -> Bool {
