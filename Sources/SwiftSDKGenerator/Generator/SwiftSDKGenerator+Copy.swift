@@ -79,7 +79,6 @@ extension SwiftSDKGenerator {
 
         try await generator.removeRecursively(at: sdkUsrLibPath.appending("ssl"))
         try await generator.copyTargetSwift(from: sdkUsrLibPath)
-        try await generator.stopDockerContainer(id: containerID)
       }
     }
   }
