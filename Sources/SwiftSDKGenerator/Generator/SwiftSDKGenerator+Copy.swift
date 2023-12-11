@@ -50,11 +50,11 @@ extension SwiftSDKGenerator {
         if case let containerLib64 = FilePath("/usr/lib64"),
            try await generator.doesPathExist(containerLib64, inContainer: containerID) {
           let sdkUsrLib64Path = sdkUsrPath.appending("lib64")
+          // we already checked that the path exists above, so we don't pass `failIfNotExists: false` here.
           try await generator.copyFromDockerContainer(
             id: containerID,
             from: containerLib64,
-            to: sdkUsrLib64Path,
-            failIfNotExists: false
+            to: sdkUsrLib64Path
           )
           try await createSymlink(at: pathsConfiguration.sdkDirPath.appending("lib64"), pointingTo: "./usr/lib64")
         }
