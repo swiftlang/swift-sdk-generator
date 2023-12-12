@@ -55,13 +55,6 @@ extension SwiftSDKGenerator {
         )
         try await createSymlink(at: pathsConfiguration.sdkDirPath.appending("lib64"), pointingTo: "./usr/lib64")
 
-        if case .rhel = self.versionsConfiguration.linuxDistribution {
-          // `libc.so` is a linker script with absolute paths on RHEL, replace with a relative symlink
-          let libcSO = sdkUsrLib64Path.appending("libc.so")
-          try await removeFile(at: libcSO)
-          try await createSymlink(at: libcSO, pointingTo: "libc.so.6")
-        }
-
         try await generator.createDirectoryIfNeeded(at: sdkUsrLibPath)
         var subpaths = ["clang", "gcc", "swift", "swift_static"]
 
@@ -86,7 +79,6 @@ extension SwiftSDKGenerator {
 
         try await generator.removeRecursively(at: sdkUsrLibPath.appending("ssl"))
         try await generator.copyTargetSwift(from: sdkUsrLibPath)
-        try await generator.stopDockerContainer(id: containerID)
       }
     }
   }
