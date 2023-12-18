@@ -148,11 +148,28 @@ public actor SwiftSDKGenerator {
     )
   }
 
+  func doesPathExist(
+    _ containerPath: FilePath,
+    inContainer id: String
+  ) async throws -> Bool {
+    let result = try await Shell.readStdout(
+      #"\#(Self.dockerCommand) exec \#(id) sh -c 'test -e "\#(containerPath)" && echo "y" || echo "n"'"#,
+      shouldLogCommands: self.isVerbose
+    )
+    .trimmingCharacters(in: .whitespacesAndNewlines)
+    return result == "y"
+  }
+
   func copyFromDockerContainer(
     id: String,
     from containerPath: FilePath,
-    to localPath: FilePath
+    to localPath: FilePath,
+    failIfNotExists: Bool = true
   ) async throws {
+    if !failIfNotExists {
+      guard try await doesPathExist(containerPath, inContainer: id)
+      else { return }
+    }
     try await Shell.run(
       "\(Self.dockerCommand) cp \(id):\(containerPath) \(localPath)",
       shouldLogCommands: self.isVerbose
