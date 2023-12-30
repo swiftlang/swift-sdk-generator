@@ -33,6 +33,7 @@ final class ArchitectureMappingTests: XCTestCase {
   /// and Linux is the only supported target environment.
 
   public func verifySDKSpec(
+    bundleVersion: String,
     hostCPUArchitecture: Triple.CPU, // CPU architecture of the build system
     targetCPUArchitecture: Triple.CPU, // CPU architecture of the target
 
@@ -45,6 +46,7 @@ final class ArchitectureMappingTests: XCTestCase {
   ) async throws {
     // LocalSwiftSDKGenerator constructs URLs and paths which depend on architectures
     let sdk = try await SwiftSDKGenerator(
+      bundleVersion: bundleVersion,
       // macOS is currently the only supported build environment
       hostCPUArchitecture: hostCPUArchitecture,
 
@@ -113,6 +115,7 @@ final class ArchitectureMappingTests: XCTestCase {
 
   func testX86ToX86SDKGenerator() async throws {
     try await self.verifySDKSpec(
+      bundleVersion: "0.0.1",
       hostCPUArchitecture: .x86_64,
       targetCPUArchitecture: .x86_64,
       artifactID: "5.8-RELEASE_ubuntu_jammy_x86_64",
@@ -125,6 +128,7 @@ final class ArchitectureMappingTests: XCTestCase {
 
   func testX86ToArmSDKGenerator() async throws {
     try await self.verifySDKSpec(
+      bundleVersion: "0.0.1",
       hostCPUArchitecture: .x86_64,
       targetCPUArchitecture: .arm64,
       artifactID: "5.8-RELEASE_ubuntu_jammy_aarch64",
@@ -137,6 +141,7 @@ final class ArchitectureMappingTests: XCTestCase {
 
   func testArmToArmSDKGenerator() async throws {
     try await self.verifySDKSpec(
+      bundleVersion: "0.0.1",
       hostCPUArchitecture: .arm64,
       targetCPUArchitecture: .arm64,
       artifactID: "5.8-RELEASE_ubuntu_jammy_aarch64",
@@ -149,6 +154,7 @@ final class ArchitectureMappingTests: XCTestCase {
 
   func testArmToX86SDKGenerator() async throws {
     try await self.verifySDKSpec(
+      bundleVersion: "0.0.1",
       hostCPUArchitecture: .arm64,
       targetCPUArchitecture: .x86_64,
       artifactID: "5.8-RELEASE_ubuntu_jammy_x86_64",
