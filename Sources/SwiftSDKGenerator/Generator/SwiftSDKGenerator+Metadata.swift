@@ -108,7 +108,7 @@ extension SwiftSDKGenerator {
           artifacts: [
             artifactID: .init(
               type: .swiftSDK,
-              version: "0.0.1",
+              version: self.bundleVersion,
               variants: [
                 .init(
                   path: FilePath(artifactID).appending(self.targetTriple.linuxConventionDescription).string,

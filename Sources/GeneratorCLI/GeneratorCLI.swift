@@ -19,6 +19,9 @@ import SwiftSDKGenerator
 struct GeneratorCLI: AsyncParsableCommand {
   static let configuration = CommandConfiguration(commandName: "swift-sdk-generator")
 
+  @Option(help: "An arbitrary version number for informational purposes.")
+  var bundleVersion = "0.0.1"
+
   @Flag(help: "Delegate to Docker for copying files for the target triple.")
   var withDocker: Bool = false
 
@@ -27,7 +30,7 @@ struct GeneratorCLI: AsyncParsableCommand {
 
   @Option(
     help: """
-    Name of the SDK bundle.  Defaults to a string composed of Swift version, Linux distribution, Linux release
+    Name of the SDK bundle. Defaults to a string composed of Swift version, Linux distribution, Linux release \
     and target CPU architecture.
     """
   )
@@ -103,6 +106,7 @@ struct GeneratorCLI: AsyncParsableCommand {
     let elapsed = try await ContinuousClock().measure {
       let logger = Logger(label: "org.swift.swift-sdk-generator")
       let generator = try await SwiftSDKGenerator(
+        bundleVersion: self.bundleVersion,
         hostCPUArchitecture: self.hostArch,
         targetCPUArchitecture: self.targetArch,
         swiftVersion: self.swiftVersion,

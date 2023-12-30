@@ -18,6 +18,7 @@ import Helpers
 
 /// Top-level actor that sequences all of the required SDK generation steps.
 public actor SwiftSDKGenerator {
+  let bundleVersion: String
   let hostTriple: Triple
   let targetTriple: Triple
   let artifactID: String
@@ -32,6 +33,7 @@ public actor SwiftSDKGenerator {
   let logger: Logger
 
   public init(
+    bundleVersion: String,
     hostCPUArchitecture: Triple.CPU?,
     targetCPUArchitecture: Triple.CPU?,
     swiftVersion: String,
@@ -52,6 +54,8 @@ public actor SwiftSDKGenerator {
       .removingLastComponent()
       .removingLastComponent()
       .removingLastComponent()
+
+    self.bundleVersion = bundleVersion
 
     var currentTriple = try await Self.getCurrentTriple(isVerbose: isVerbose)
     if let hostCPUArchitecture {
