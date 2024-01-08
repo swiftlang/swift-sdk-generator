@@ -18,6 +18,7 @@ import Helpers
 
 /// Top-level actor that sequences all of the required SDK generation steps.
 public actor SwiftSDKGenerator {
+  let bundleVersion: String
   let hostTriple: Triple
   let targetTriple: Triple
   let artifactID: String
@@ -32,6 +33,7 @@ public actor SwiftSDKGenerator {
   let logger: Logger
 
   public init(
+    bundleVersion: String,
     hostCPUArchitecture: Triple.CPU?,
     targetCPUArchitecture: Triple.CPU?,
     swiftVersion: String,
@@ -52,6 +54,8 @@ public actor SwiftSDKGenerator {
       .removingLastComponent()
       .removingLastComponent()
       .removingLastComponent()
+
+    self.bundleVersion = bundleVersion
 
     var currentTriple = try await Self.getCurrentTriple(isVerbose: isVerbose)
     if let hostCPUArchitecture {
@@ -148,11 +152,28 @@ public actor SwiftSDKGenerator {
     )
   }
 
+  func doesPathExist(
+    _ containerPath: FilePath,
+    inContainer id: String
+  ) async throws -> Bool {
+    let result = try await Shell.readStdout(
+      #"\#(Self.dockerCommand) exec \#(id) sh -c 'test -e "\#(containerPath)" && echo "y" || echo "n"'"#,
+      shouldLogCommands: self.isVerbose
+    )
+    .trimmingCharacters(in: .whitespacesAndNewlines)
+    return result == "y"
+  }
+
   func copyFromDockerContainer(
     id: String,
     from containerPath: FilePath,
-    to localPath: FilePath
+    to localPath: FilePath,
+    failIfNotExists: Bool = true
   ) async throws {
+    if !failIfNotExists {
+      guard try await doesPathExist(containerPath, inContainer: id)
+      else { return }
+    }
     try await Shell.run(
       "\(Self.dockerCommand) cp \(id):\(containerPath) \(localPath)",
       shouldLogCommands: self.isVerbose
