@@ -120,11 +120,12 @@ struct GeneratorCLI: AsyncParsableCommand {
         isVerbose: self.verbose,
         logger: logger
       )
+      let recipe = LinuxRecipe()
 
       let serviceGroup = ServiceGroup(
         configuration: .init(
           services: [.init(
-            service: generator,
+            service: SwiftSDKGeneratorService(recipe: recipe, generator: generator),
             successTerminationBehavior: .gracefullyShutdownGroup
           )],
           cancellationSignals: [.sigint],
@@ -160,4 +161,13 @@ extension Duration {
       return "\(components.second ?? 0) seconds"
     }
   }
+}
+
+struct SwiftSDKGeneratorService: Service {
+    let recipe: SwiftSDKRecipe
+    let generator: SwiftSDKGenerator
+
+    func run() async throws {
+        try await generator.run(recipe: recipe)
+    }
 }
