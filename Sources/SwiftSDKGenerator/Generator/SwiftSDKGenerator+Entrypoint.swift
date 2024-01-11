@@ -15,7 +15,6 @@ import AsyncHTTPClient
 import Foundation
 import GeneratorEngine
 import RegexBuilder
-import ServiceLifecycle
 import SystemPackage
 import Helpers
 
@@ -41,8 +40,8 @@ private func withHTTPClient(
   }
 }
 
-extension SwiftSDKGenerator: Service {
-  public func run() async throws {
+extension SwiftSDKGenerator {
+  public func run(recipe: SwiftSDKRecipe) async throws {
     try await withEngine(LocalFileSystem(), self.logger, cacheLocation: self.engineCachePath) { engine in
       var configuration = HTTPClient.Configuration(redirectConfiguration: .follow(max: 5, allowCycles: false))
       // Workaround an issue with github.com returning 400 instead of 404 status to HEAD requests from AHC.
@@ -57,43 +56,7 @@ extension SwiftSDKGenerator: Service {
         try await self.createDirectoryIfNeeded(at: pathsConfiguration.sdkDirPath)
         try await self.createDirectoryIfNeeded(at: pathsConfiguration.toolchainDirPath)
 
-        try await self.downloadArtifacts(client, engine)
-
-        if !shouldUseDocker {
-          guard case let .ubuntu(version) = versionsConfiguration.linuxDistribution else {
-            throw GeneratorError
-              .distributionSupportsOnlyDockerGenerator(versionsConfiguration.linuxDistribution)
-          }
-
-          try await self.downloadUbuntuPackages(client, engine, requiredPackages: version.requiredPackages)
-        }
-
-        try await self.unpackHostSwift()
-
-        if shouldUseDocker {
-          try await self.copyTargetSwiftFromDocker()
-        } else {
-          try await self.unpackTargetSwiftPackage()
-        }
-
-        try await self.prepareLLDLinker(engine)
-
-        try await self.fixAbsoluteSymlinks()
-
-        let targetCPU = self.targetTriple.cpu
-        try await self.fixGlibcModuleMap(
-          at: pathsConfiguration.toolchainDirPath
-            .appending("/usr/lib/swift/linux/\(targetCPU.linuxConventionName)/glibc.modulemap")
-        )
-
-        try await self.symlinkClangHeaders()
-
-        let autolinkExtractPath = pathsConfiguration.toolchainBinDirPath.appending("swift-autolink-extract")
-
-        if await !self.doesFileExist(at: autolinkExtractPath) {
-          logGenerationStep("Fixing `swift-autolink-extract` symlink...")
-          try await createSymlink(at: autolinkExtractPath, pointingTo: "swift")
-        }
+        try await recipe.makeSwiftSDK(generator: self, engine: engine, httpClient: client)
 
         let toolsetJSONPath = try await generateToolsetJSON()
 
