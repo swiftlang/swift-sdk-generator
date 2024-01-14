@@ -58,7 +58,7 @@ extension SwiftSDKGenerator {
 
         try await recipe.makeSwiftSDK(generator: self, engine: engine, httpClient: client)
 
-        let toolsetJSONPath = try await generateToolsetJSON()
+        let toolsetJSONPath = try await generateToolsetJSON(recipe: recipe)
 
         try await generateDestinationJSON(toolsetPath: toolsetJSONPath)
 

@@ -16,6 +16,13 @@ import GeneratorEngine
 public struct LinuxRecipe: SwiftSDKRecipe {
   public init() {}
 
+  public func applyPlatformOptions(toolset: inout Toolset) {
+    toolset.swiftCompiler = Toolset.ToolProperties(extraCLIOptions: ["-use-ld=lld", "-Xlinker", "-R/usr/lib/swift/linux/"])
+    toolset.cxxCompiler = Toolset.ToolProperties(extraCLIOptions: ["-lstdc++"])
+    toolset.linker = Toolset.ToolProperties(path: "ld.lld")
+    toolset.librarian = Toolset.ToolProperties(path: "llvm-ar")
+  }
+
   public func makeSwiftSDK(generator: SwiftSDKGenerator, engine: Engine, httpClient client: HTTPClient) async throws {
     try await generator.downloadArtifacts(client, engine)
 
