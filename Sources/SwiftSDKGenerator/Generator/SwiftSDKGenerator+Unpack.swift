@@ -32,13 +32,12 @@ private let unusedHostBinaries = [
 ]
 
 extension SwiftSDKGenerator {
-  func unpackHostSwift() async throws {
+  func unpackHostSwift(hostSwiftPackagePath: FilePath) async throws {
     logGenerationStep("Unpacking and copying Swift binaries for the host triple...")
-    let downloadableArtifacts = self.downloadableArtifacts
     let pathsConfiguration = self.pathsConfiguration
 
     try await inTemporaryDirectory { fileSystem, tmpDir in
-      try await fileSystem.unpack(file: downloadableArtifacts.hostSwift.localPath, into: tmpDir)
+      try await fileSystem.unpack(file: hostSwiftPackagePath, into: tmpDir)
       // Remove libraries for platforms we don't intend cross-compiling to
       for platform in unusedDarwinPlatforms {
         try await fileSystem.removeRecursively(at: tmpDir.appending("usr/lib/swift/\(platform)"))
@@ -54,29 +53,21 @@ extension SwiftSDKGenerator {
     }
   }
 
-  func unpackTargetSwiftPackage() async throws {
+  func unpackTargetSwiftPackage(targetSwiftPackagePath: FilePath, relativePathToRoot: [FilePath.Component], sdkDirPath: FilePath) async throws {
     logGenerationStep("Unpacking Swift distribution for the target triple...")
-    let packagePath = downloadableArtifacts.targetSwift.localPath
 
     try await inTemporaryDirectory { fs, tmpDir in
-      try await fs.unpack(file: packagePath, into: tmpDir)
+      try await fs.unpack(file: targetSwiftPackagePath, into: tmpDir)
       try await fs.copyTargetSwift(
-        from: tmpDir.appending(
-          """
-          \(self.versionsConfiguration.swiftDistributionName())/usr/lib
-          """
-        )
+        from: tmpDir.appending(relativePathToRoot).appending("usr/lib"), sdkDirPath: sdkDirPath
       )
     }
   }
 
-  func prepareLLDLinker(_ engine: Engine) async throws {
+  func prepareLLDLinker(_ engine: Engine, llvmArtifact: DownloadableArtifacts.Item) async throws {
     logGenerationStep("Unpacking and copying `lld` linker...")
-    let downloadableArtifacts = self.downloadableArtifacts
     let pathsConfiguration = self.pathsConfiguration
     let targetOS = self.targetTriple.os
-
-    let llvmArtifact = downloadableArtifacts.hostLLVM
 
     let untarDestination = pathsConfiguration.artifactsCachePath.appending(
       FilePath.Component(llvmArtifact.localPath.stem!)!.stem
@@ -104,7 +95,7 @@ extension SwiftSDKGenerator {
     case .wasi:
       pathsConfiguration.toolchainBinDirPath.appending("wasm-ld")
     default:
-      fatalError()
+      fatalError("Unknown target OS to prepare lld \"\(targetOS)\"")
     }
 
     try self.copy(from: unpackedLLDPath, to: toolchainLLDPath)

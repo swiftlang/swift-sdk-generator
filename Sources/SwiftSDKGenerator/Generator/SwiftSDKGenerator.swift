@@ -20,13 +20,10 @@ import Helpers
 public actor SwiftSDKGenerator {
   let bundleVersion: String
   let hostTriple: Triple
-  let targetTriple: Triple
+  // FIXME: This is temporaliry public while refactoring
+  public let targetTriple: Triple
   let artifactID: String
-  let versionsConfiguration: VersionsConfiguration
   let pathsConfiguration: PathsConfiguration
-  var downloadableArtifacts: DownloadableArtifacts
-  let shouldUseDocker: Bool
-  let baseDockerImage: String?
   let isIncremental: Bool
   let isVerbose: Bool
   let engineCachePath: SQLite.Location
@@ -37,11 +34,7 @@ public actor SwiftSDKGenerator {
     hostCPUArchitecture: Triple.CPU?,
     targetCPUArchitecture: Triple.CPU?,
     swiftVersion: String,
-    swiftBranch: String?,
-    lldVersion: String,
     linuxDistribution: LinuxDistribution,
-    shouldUseDocker: Bool,
-    baseDockerImage: String?,
     artifactID: String?,
     isIncremental: Bool,
     isVerbose: Bool,
@@ -76,32 +69,11 @@ public actor SwiftSDKGenerator {
     )
     """
 
-    self.versionsConfiguration = try .init(
-      swiftVersion: swiftVersion,
-      swiftBranch: swiftBranch,
-      lldVersion: lldVersion,
-      linuxDistribution: linuxDistribution,
-      targetTriple: self.targetTriple
-    )
     self.pathsConfiguration = .init(
       sourceRoot: sourceRoot,
       artifactID: self.artifactID,
-      linuxDistribution: self.versionsConfiguration.linuxDistribution,
       targetTriple: self.targetTriple
     )
-    self.downloadableArtifacts = try .init(
-      hostTriple: self.hostTriple,
-      targetTriple: self.targetTriple,
-      shouldUseDocker: shouldUseDocker,
-      self.versionsConfiguration,
-      self.pathsConfiguration
-    )
-    self.shouldUseDocker = shouldUseDocker
-    self.baseDockerImage = if shouldUseDocker {
-      baseDockerImage ?? self.versionsConfiguration.swiftBaseDockerImage
-    } else {
-      nil
-    }
     self.isIncremental = isIncremental
     self.isVerbose = isVerbose
 

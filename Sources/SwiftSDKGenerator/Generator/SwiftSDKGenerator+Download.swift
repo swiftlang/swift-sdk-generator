@@ -27,7 +27,10 @@ private let ubuntuARM64Mirror = "http://ports.ubuntu.com/ubuntu-ports"
 let byteCountFormatter = ByteCountFormatter()
 
 extension SwiftSDKGenerator {
-  func downloadArtifacts(_ client: HTTPClient, _ engine: Engine) async throws {
+  func downloadArtifacts(
+    _ client: HTTPClient, _ engine: Engine,
+    downloadableArtifacts: inout DownloadableArtifacts
+  ) async throws {
     logGenerationStep("Downloading required toolchain packages...")
     var headRequest = HTTPClientRequest(url: downloadableArtifacts.hostLLVM.remoteURL.absoluteString)
     headRequest.method = .HEAD
@@ -40,7 +43,7 @@ extension SwiftSDKGenerator {
     }
 
     let results = try await withThrowingTaskGroup(of: FileCacheRecord.self) { group in
-      for item in self.downloadableArtifacts.allItems {
+      for item in downloadableArtifacts.allItems {
         group.addTask {
           try await engine[DownloadArtifactQuery(artifact: item)]
         }
@@ -59,18 +62,24 @@ extension SwiftSDKGenerator {
     }
   }
 
-  func downloadUbuntuPackages(_ client: HTTPClient, _ engine: Engine, requiredPackages: [String]) async throws {
+  func downloadUbuntuPackages(
+    _ client: HTTPClient,
+    _ engine: Engine,
+    requiredPackages: [String],
+    versionsConfiguration: VersionsConfiguration,
+    sdkDirPath: FilePath
+  ) async throws {
     logGenerationStep("Parsing Ubuntu packages list...")
 
     async let mainPackages = try await client.parseUbuntuPackagesList(
-      ubuntuRelease: self.versionsConfiguration.linuxDistribution.release,
+      ubuntuRelease: versionsConfiguration.linuxDistribution.release,
       repository: "main",
       targetTriple: self.targetTriple,
       isVerbose: self.isVerbose
     )
 
     async let updatesPackages = try await client.parseUbuntuPackagesList(
-      ubuntuRelease: self.versionsConfiguration.linuxDistribution.release,
+      ubuntuRelease: versionsConfiguration.linuxDistribution.release,
       releaseSuffix: "-updates",
       repository: "main",
       targetTriple: self.targetTriple,
@@ -106,7 +115,7 @@ extension SwiftSDKGenerator {
       report(downloadedFiles: downloadedFiles)
 
       for fileName in urls.map(\.lastPathComponent) {
-        try await fs.unpack(file: tmpDir.appending(fileName), into: pathsConfiguration.sdkDirPath)
+        try await fs.unpack(file: tmpDir.appending(fileName), into: sdkDirPath)
       }
     }
 

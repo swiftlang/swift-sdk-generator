@@ -12,6 +12,11 @@
 
 import AsyncHTTPClient
 import GeneratorEngine
+import struct SystemPackage.FilePath
+
+public struct SwiftSDKProduct {
+  let sdkDirPath: FilePath
+}
 
 /// A protocol describing a set of platform specific instructions to make a Swift SDK
 public protocol SwiftSDKRecipe: Sendable {
@@ -19,7 +24,7 @@ public protocol SwiftSDKRecipe: Sendable {
   func applyPlatformOptions(toolset: inout Toolset)
 
   /// The main entrypoint of the recipe to make a Swift SDK
-  func makeSwiftSDK(generator: SwiftSDKGenerator, engine: Engine, httpClient: HTTPClient) async throws
+  func makeSwiftSDK(generator: SwiftSDKGenerator, engine: Engine, httpClient: HTTPClient) async throws -> SwiftSDKProduct
 }
 
 extension SwiftSDKRecipe {

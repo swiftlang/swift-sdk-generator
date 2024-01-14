@@ -110,17 +110,21 @@ struct GeneratorCLI: AsyncParsableCommand {
         hostCPUArchitecture: self.hostArch,
         targetCPUArchitecture: self.targetArch,
         swiftVersion: self.swiftVersion,
-        swiftBranch: self.swiftBranch,
-        lldVersion: self.lldVersion,
         linuxDistribution: linuxDistribution,
-        shouldUseDocker: self.withDocker,
-        baseDockerImage: self.fromContainerImage,
         artifactID: self.sdkName,
         isIncremental: self.incremental,
         isVerbose: self.verbose,
         logger: logger
       )
-      let recipe = LinuxRecipe()
+      let recipe = try await LinuxRecipe(
+        targetTriple: generator.targetTriple,
+        linuxDistribution: linuxDistribution,
+        swiftVersion: swiftVersion,
+        swiftBranch: swiftBranch,
+        lldVersion: lldVersion,
+        withDocker: withDocker,
+        fromContainerImage: fromContainerImage
+      )
 
       let serviceGroup = ServiceGroup(
         configuration: .init(

@@ -56,22 +56,33 @@ final class ArchitectureMappingTests: XCTestCase {
       // Remaining fields are placeholders which are the same for all
       // combinations of build and runtime architecture
       swiftVersion: "5.8-RELEASE",
-      swiftBranch: nil,
-      lldVersion: "16.0.4",
       linuxDistribution: .ubuntu(.jammy),
-      shouldUseDocker: false,
-      baseDockerImage: nil,
       artifactID: nil,
       isIncremental: false,
       isVerbose: false,
       logger: Logger(label: "org.swift.swift-sdk-generator")
+    )
+    let recipe = try await LinuxRecipe(
+      targetTriple: sdk.targetTriple,
+      linuxDistribution: .ubuntu(.jammy),
+      swiftVersion: "5.8-RELEASE",
+      swiftBranch: nil,
+      lldVersion: "16.0.4",
+      withDocker: false,
+      fromContainerImage: nil
     )
 
     let sdkArtifactID = await sdk.artifactID
     XCTAssertEqual(sdkArtifactID, artifactID, "Unexpected artifactID")
 
     // Verify download URLs
-    let artifacts = await sdk.downloadableArtifacts
+    let artifacts = try await DownloadableArtifacts(
+      hostTriple: sdk.hostTriple,
+      targetTriple: sdk.targetTriple,
+      shouldUseDocker: recipe.shouldUseDocker,
+      recipe.versionsConfiguration,
+      sdk.pathsConfiguration
+    )
 
     // The build-time Swift SDK is a multiarch package and so is always the same
     XCTAssertEqual(
@@ -107,7 +118,7 @@ final class ArchitectureMappingTests: XCTestCase {
 
     // The SDK path must use Swift's name for the architecture
     XCTAssertEqual(
-      paths.sdkDirPath.string,
+      recipe.sdkDirPath(paths: paths).string,
       paths.artifactBundlePath.string + sdkDirPathSuffix,
       "Unexpected sdkDirPathSuffix"
     )
