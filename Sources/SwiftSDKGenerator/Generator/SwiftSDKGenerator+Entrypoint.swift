@@ -24,6 +24,7 @@ public extension Triple.CPU {
     switch self {
     case .arm64: "arm64"
     case .x86_64: "amd64"
+    case .wasm32: "wasm32"
     }
   }
 }
