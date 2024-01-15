@@ -21,7 +21,7 @@ private let encoder: JSONEncoder = {
 }()
 
 extension SwiftSDKGenerator {
-  func generateToolsetJSON() throws -> FilePath {
+  func generateToolsetJSON(recipe: SwiftSDKRecipe) throws -> FilePath {
     logGenerationStep("Generating toolset JSON file...")
 
     let toolsetJSONPath = pathsConfiguration.swiftSDKRootPath.appending("toolset.json")
@@ -36,26 +36,9 @@ extension SwiftSDKGenerator {
       )
     }
 
-    try writeFile(
-      at: toolsetJSONPath,
-      encoder.encode(
-        Toolset(
-          rootPath: relativeToolchainBinDir.string,
-          swiftCompiler: .init(
-            extraCLIOptions: ["-use-ld=lld", "-Xlinker", "-R/usr/lib/swift/linux/"]
-          ),
-          cxxCompiler: .init(
-            extraCLIOptions: ["-lstdc++"]
-          ),
-          linker: .init(
-            path: "ld.lld"
-          ),
-          librarian: .init(
-            path: "llvm-ar"
-          )
-        )
-      )
-    )
+    var toolset = Toolset(rootPath: relativeToolchainBinDir.string)
+    recipe.applyPlatformOptions(toolset: &toolset)
+    try writeFile(at: toolsetJSONPath, encoder.encode(toolset))
 
     return toolsetJSONPath
   }
