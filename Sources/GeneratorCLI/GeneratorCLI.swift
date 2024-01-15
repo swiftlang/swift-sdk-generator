@@ -121,6 +121,11 @@ extension GeneratorCLI {
   }
 
   struct MakeLinuxSDK: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(
+      commandName: "make-linux-sdk",
+      abstract: "Generate a Swift SDK bundle for Linux."
+    )
+
     @OptionGroup
     var generatorOptions: GeneratorOptions
 
@@ -151,6 +156,9 @@ extension GeneratorCLI {
     var linuxDistributionVersion: String?
 
     func run() async throws {
+      if isInvokedAsDefaultSubcommand() {
+        print("deprecated: Please explicity specify the subcommand to run. For example: $ swift-sdk-generator make-linux-sdk")
+      }
       let linuxDistributionDefaultVersion = switch self.linuxDistributionName {
       case .rhel:
         "ubi9"
@@ -171,6 +179,20 @@ extension GeneratorCLI {
         fromContainerImage: fromContainerImage
       )
       try await GeneratorCLI.run(recipe: recipe, options: generatorOptions)
+    }
+
+    func isInvokedAsDefaultSubcommand() -> Bool {
+      let arguments = CommandLine.arguments
+      guard arguments.count >= 2 else {
+        // No subcommand nor option: $ swift-sdk-generator
+        return true
+      }
+      let maybeSubcommand = arguments[1]
+      guard maybeSubcommand == Self.configuration.commandName else {
+        // No subcommand but with option: $ swift-sdk-generator --with-docker
+        return true
+      }
+      return false
     }
   }
 }
