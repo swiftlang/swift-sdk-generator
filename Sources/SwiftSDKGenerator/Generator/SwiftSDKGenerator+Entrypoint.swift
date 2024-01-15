@@ -49,19 +49,17 @@ extension SwiftSDKGenerator {
       configuration.httpVersion = .http1Only
       try await withHTTPClient(configuration) { client in
         if !self.isIncremental {
-          try await self.removeRecursively(at: pathsConfiguration.sdkDirPath)
           try await self.removeRecursively(at: pathsConfiguration.toolchainDirPath)
         }
 
         try await self.createDirectoryIfNeeded(at: pathsConfiguration.artifactsCachePath)
-        try await self.createDirectoryIfNeeded(at: pathsConfiguration.sdkDirPath)
         try await self.createDirectoryIfNeeded(at: pathsConfiguration.toolchainDirPath)
 
-        try await recipe.makeSwiftSDK(generator: self, engine: engine, httpClient: client)
+        let swiftSDKProduct = try await recipe.makeSwiftSDK(generator: self, engine: engine, httpClient: client)
 
         let toolsetJSONPath = try await generateToolsetJSON(recipe: recipe)
 
-        try await generateDestinationJSON(toolsetPath: toolsetJSONPath)
+        try await generateDestinationJSON(toolsetPath: toolsetJSONPath, sdkDirPath: swiftSDKProduct.sdkDirPath)
 
         try await generateArtifactBundleManifest()
 

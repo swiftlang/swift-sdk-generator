@@ -105,22 +105,31 @@ struct GeneratorCLI: AsyncParsableCommand {
 
     let elapsed = try await ContinuousClock().measure {
       let logger = Logger(label: "org.swift.swift-sdk-generator")
+      let hostTriple = try await SwiftSDKGenerator.getHostTriple(explicitArch: hostArch, isVerbose: verbose)
+      let targetTriple = Triple(
+        cpu: targetArch ?? hostTriple.cpu,
+        vendor: .unknown,
+        os: .linux,
+        environment: .gnu
+      )
+      let recipe = try LinuxRecipe(
+        targetTriple: targetTriple,
+        linuxDistribution: linuxDistribution,
+        swiftVersion: swiftVersion,
+        swiftBranch: swiftBranch,
+        lldVersion: lldVersion,
+        withDocker: withDocker,
+        fromContainerImage: fromContainerImage
+      )
       let generator = try await SwiftSDKGenerator(
         bundleVersion: self.bundleVersion,
-        hostCPUArchitecture: self.hostArch,
-        targetCPUArchitecture: self.targetArch,
-        swiftVersion: self.swiftVersion,
-        swiftBranch: self.swiftBranch,
-        lldVersion: self.lldVersion,
-        linuxDistribution: linuxDistribution,
-        shouldUseDocker: self.withDocker,
-        baseDockerImage: self.fromContainerImage,
-        artifactID: self.sdkName,
+        hostTriple: hostTriple,
+        targetTriple: targetTriple,
+        artifactID: self.sdkName ?? recipe.defaultArtifactID,
         isIncremental: self.incremental,
         isVerbose: self.verbose,
         logger: logger
       )
-      let recipe = LinuxRecipe()
 
       let serviceGroup = ServiceGroup(
         configuration: .init(

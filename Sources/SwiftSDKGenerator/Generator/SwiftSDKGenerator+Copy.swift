@@ -13,13 +13,11 @@
 import SystemPackage
 
 extension SwiftSDKGenerator {
-  func copyTargetSwiftFromDocker() async throws {
+  func copyTargetSwiftFromDocker(targetDistribution: LinuxDistribution, baseDockerImage: String, sdkDirPath: FilePath) async throws {
     logGenerationStep("Launching a Docker container to copy Swift SDK for the target triple from it...")
-    try await withDockerContainer(fromImage: baseDockerImage!) { containerID in
-      let pathsConfiguration = self.pathsConfiguration
-
+    try await withDockerContainer(fromImage: baseDockerImage) { containerID in
       try await inTemporaryDirectory { generator, _ in
-        let sdkUsrPath = pathsConfiguration.sdkDirPath.appending("usr")
+        let sdkUsrPath = sdkDirPath.appending("usr")
         let sdkUsrLibPath = sdkUsrPath.appending("lib")
         try await generator.createDirectoryIfNeeded(at: sdkUsrPath)
         try await generator.copyFromDockerContainer(
@@ -28,7 +26,7 @@ extension SwiftSDKGenerator {
           to: sdkUsrPath.appending("include")
         )
 
-        if case .rhel = self.versionsConfiguration.linuxDistribution {
+        if case .rhel = targetDistribution {
           try await generator.runOnDockerContainer(
             id: containerID,
             command: #"""
@@ -56,7 +54,7 @@ extension SwiftSDKGenerator {
             from: containerLib64,
             to: sdkUsrLib64Path
           )
-          try await createSymlink(at: pathsConfiguration.sdkDirPath.appending("lib64"), pointingTo: "./usr/lib64")
+          try await createSymlink(at: sdkDirPath.appending("lib64"), pointingTo: "./usr/lib64")
         }
 
         try await generator.createDirectoryIfNeeded(at: sdkUsrLibPath)
@@ -68,7 +66,7 @@ extension SwiftSDKGenerator {
         // architecture-specific directories:
         //   https://wiki.ubuntu.com/MultiarchSpec
         // But not in all containers, so don't fail if it does not exist.
-        if case .ubuntu = self.versionsConfiguration.linuxDistribution {
+        if case .ubuntu = targetDistribution {
           subpaths += [("\(targetTriple.cpu)-linux-gnu", false)]
         }
 
@@ -80,27 +78,27 @@ extension SwiftSDKGenerator {
             failIfNotExists: failIfNotExists
           )
         }
-        try await generator.createSymlink(at: pathsConfiguration.sdkDirPath.appending("lib"), pointingTo: "usr/lib")
+        try await generator.createSymlink(at: sdkDirPath.appending("lib"), pointingTo: "usr/lib")
 
         // Python artifacts are redundant.
         try await generator.removeRecursively(at: sdkUsrLibPath.appending("python3.10"))
 
         try await generator.removeRecursively(at: sdkUsrLibPath.appending("ssl"))
-        try await generator.copyTargetSwift(from: sdkUsrLibPath)
+        try await generator.copyTargetSwift(from: sdkUsrLibPath, sdkDirPath: sdkDirPath)
       }
     }
   }
 
-  func copyTargetSwift(from distributionPath: FilePath) async throws {
+  func copyTargetSwift(from distributionPath: FilePath, sdkDirPath: FilePath) async throws {
     logGenerationStep("Copying Swift core libraries for the target triple into Swift SDK bundle...")
 
     for (pathWithinPackage, pathWithinSwiftSDK) in [
       ("swift/linux", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift")),
       ("swift_static/linux", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static")),
       ("swift_static/shims", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static")),
-      ("swift/dispatch", pathsConfiguration.sdkDirPath.appending("usr/include")),
-      ("swift/os", pathsConfiguration.sdkDirPath.appending("usr/include")),
-      ("swift/CoreFoundation", pathsConfiguration.sdkDirPath.appending("usr/include")),
+      ("swift/dispatch", sdkDirPath.appending("usr/include")),
+      ("swift/os", sdkDirPath.appending("usr/include")),
+      ("swift/CoreFoundation", sdkDirPath.appending("usr/include")),
     ] {
       try await rsync(from: distributionPath.appending(pathWithinPackage), to: pathWithinSwiftSDK)
     }

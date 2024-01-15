@@ -44,24 +44,27 @@ final class ArchitectureMappingTests: XCTestCase {
     artifactBundlePathSuffix: String, // Path to the generated bundle
     sdkDirPathSuffix: String // Path of the SDK within the bundle
   ) async throws {
+    let targetTriple = Triple(cpu: targetCPUArchitecture, vendor: .unknown, os: .linux, environment: .gnu)
+    let recipe = try LinuxRecipe(
+      targetTriple: targetTriple,
+      linuxDistribution: .ubuntu(.jammy),
+      swiftVersion: "5.8-RELEASE",
+      swiftBranch: nil,
+      lldVersion: "16.0.4",
+      withDocker: false,
+      fromContainerImage: nil
+    )
     // LocalSwiftSDKGenerator constructs URLs and paths which depend on architectures
     let sdk = try await SwiftSDKGenerator(
       bundleVersion: bundleVersion,
       // macOS is currently the only supported build environment
-      hostCPUArchitecture: hostCPUArchitecture,
+      hostTriple: Triple(cpu: hostCPUArchitecture, vendor: .apple, os: .macosx(version: "13")),
 
       // Linux is currently the only supported runtime environment
-      targetCPUArchitecture: targetCPUArchitecture,
-
+      targetTriple: targetTriple,
+      artifactID: recipe.defaultArtifactID,
       // Remaining fields are placeholders which are the same for all
       // combinations of build and runtime architecture
-      swiftVersion: "5.8-RELEASE",
-      swiftBranch: nil,
-      lldVersion: "16.0.4",
-      linuxDistribution: .ubuntu(.jammy),
-      shouldUseDocker: false,
-      baseDockerImage: nil,
-      artifactID: nil,
       isIncremental: false,
       isVerbose: false,
       logger: Logger(label: "org.swift.swift-sdk-generator")
@@ -71,7 +74,13 @@ final class ArchitectureMappingTests: XCTestCase {
     XCTAssertEqual(sdkArtifactID, artifactID, "Unexpected artifactID")
 
     // Verify download URLs
-    let artifacts = await sdk.downloadableArtifacts
+    let artifacts = try await DownloadableArtifacts(
+      hostTriple: sdk.hostTriple,
+      targetTriple: sdk.targetTriple,
+      shouldUseDocker: recipe.shouldUseDocker,
+      recipe.versionsConfiguration,
+      sdk.pathsConfiguration
+    )
 
     // The build-time Swift SDK is a multiarch package and so is always the same
     XCTAssertEqual(
@@ -107,7 +116,7 @@ final class ArchitectureMappingTests: XCTestCase {
 
     // The SDK path must use Swift's name for the architecture
     XCTAssertEqual(
-      paths.sdkDirPath.string,
+      recipe.sdkDirPath(paths: paths).string,
       paths.artifactBundlePath.string + sdkDirPathSuffix,
       "Unexpected sdkDirPathSuffix"
     )

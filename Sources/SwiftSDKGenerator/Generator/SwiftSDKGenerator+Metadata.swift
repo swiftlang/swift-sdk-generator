@@ -43,13 +43,13 @@ extension SwiftSDKGenerator {
     return toolsetJSONPath
   }
 
-  func generateDestinationJSON(toolsetPath: FilePath) throws {
+  func generateDestinationJSON(toolsetPath: FilePath, sdkDirPath: FilePath) throws {
     logGenerationStep("Generating destination JSON file...")
 
     let destinationJSONPath = pathsConfiguration.swiftSDKRootPath.appending("swift-sdk.json")
 
     var relativeToolchainBinDir = pathsConfiguration.toolchainBinDirPath
-    var relativeSDKDir = pathsConfiguration.sdkDirPath
+    var relativeSDKDir = sdkDirPath
     var relativeToolsetPath = toolsetPath
 
     guard
