@@ -85,7 +85,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     toolset.librarian = Toolset.ToolProperties(path: "llvm-ar")
   }
 
-  public func defaultArtifactID() -> String {
+  public var defaultArtifactID: String {
     """
     \(versionsConfiguration.swiftVersion)_\(linuxDistribution.name.rawValue)_\(linuxDistribution.release)_\(
     mainTargetTriple.cpu.linuxConventionName

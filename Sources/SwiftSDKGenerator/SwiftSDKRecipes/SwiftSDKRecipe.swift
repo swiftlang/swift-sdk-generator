@@ -23,8 +23,8 @@ public protocol SwiftSDKRecipe: Sendable {
   /// Update the given toolset with platform specific options
   func applyPlatformOptions(toolset: inout Toolset)
 
-  /// Returns the default identifier of the Swift SDK
-  func defaultArtifactID() -> String
+  /// The default identifier of the Swift SDK
+  var defaultArtifactID: String { get }
 
   /// The main entrypoint of the recipe to make a Swift SDK
   func makeSwiftSDK(generator: SwiftSDKGenerator, engine: Engine, httpClient: HTTPClient) async throws -> SwiftSDKProduct

@@ -125,7 +125,7 @@ struct GeneratorCLI: AsyncParsableCommand {
         bundleVersion: self.bundleVersion,
         hostTriple: hostTriple,
         targetTriple: targetTriple,
-        artifactID: self.sdkName ?? recipe.defaultArtifactID(),
+        artifactID: self.sdkName ?? recipe.defaultArtifactID,
         isIncremental: self.incremental,
         isVerbose: self.verbose,
         logger: logger
