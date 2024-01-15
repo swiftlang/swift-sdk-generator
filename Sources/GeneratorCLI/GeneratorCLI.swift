@@ -17,117 +17,24 @@ import SwiftSDKGenerator
 
 @main
 struct GeneratorCLI: AsyncParsableCommand {
-  static let configuration = CommandConfiguration(commandName: "swift-sdk-generator")
-
-  @Option(help: "An arbitrary version number for informational purposes.")
-  var bundleVersion = "0.0.1"
-
-  @Flag(help: "Delegate to Docker for copying files for the target triple.")
-  var withDocker: Bool = false
-
-  @Option(help: "Container image from which to copy the target triple.")
-  var fromContainerImage: String? = nil
-
-  @Option(
-    help: """
-    Name of the SDK bundle. Defaults to a string composed of Swift version, Linux distribution, Linux release \
-    and target CPU architecture.
-    """
+  static let configuration = CommandConfiguration(
+    commandName: "swift-sdk-generator",
+    subcommands: [MakeLinuxSDK.self],
+    defaultSubcommand: MakeLinuxSDK.self
   )
-  var sdkName: String? = nil
 
-  @Flag(
-    help: "Experimental: avoid cleaning up toolchain and SDK directories and regenerate the SDK bundle incrementally."
-  )
-  var incremental: Bool = false
-
-  @Flag(name: .shortAndLong, help: "Provide verbose logging output.")
-  var verbose = false
-
-  @Option(
-    help: """
-    Branch of Swift to use when downloading nightly snapshots. Specify `development` for snapshots off the `main` \
-    branch of Swift open source project repositories.
-    """
-  )
-  var swiftBranch: String? = nil
-
-  @Option(help: "Version of Swift to supply in the bundle.")
-  var swiftVersion = "5.9.2-RELEASE"
-
-  @Option(help: "Version of LLD linker to supply in the bundle.")
-  var lldVersion = "17.0.5"
-
-  @Option(
-    help: """
-    Linux distribution to use if the target platform is Linux. Available options: `ubuntu`, `rhel`. Default is `ubuntu`.
-    """,
-    transform: LinuxDistribution.Name.init(nameString:)
-  )
-  var linuxDistributionName = LinuxDistribution.Name.ubuntu
-
-  @Option(
-    help: """
-    Version of the Linux distribution used as a target platform. Available options for Ubuntu: `20.04`, \
-    `22.04` (default when `--linux-distribution-name` is `ubuntu`). Available options for RHEL: `ubi9` (default when \
-    `--linux-distribution-name` is `rhel`).
-    """
-  )
-  var linuxDistributionVersion: String?
-
-  @Option(
-    help: """
-    CPU architecture of the host triple of the bundle. Defaults to a triple of the machine this generator is \
-    running on if unspecified. Available options: \(
-      Triple.CPU.allCases.map { "`\($0.rawValue)`" }.joined(separator: ", ")
-    ).
-    """
-  )
-  var hostArch: Triple.CPU? = nil
-
-  @Option(
-    help: """
-    CPU architecture of the target triple of the bundle. Same as the host triple CPU architecture if unspecified. \
-    Available options: \(Triple.CPU.allCases.map { "`\($0.rawValue)`" }.joined(separator: ", ")).
-    """
-  )
-  var targetArch: Triple.CPU? = nil
-
-  func run() async throws {
-    let linuxDistributionDefaultVersion = switch self.linuxDistributionName {
-    case .rhel:
-      "ubi9"
-    case .ubuntu:
-      "22.04"
-    }
-    let linuxDistributionVersion = self.linuxDistributionVersion ?? linuxDistributionDefaultVersion
-    let linuxDistribution = try LinuxDistribution(name: linuxDistributionName, version: linuxDistributionVersion)
-
+  static func run<Recipe: SwiftSDKRecipe>(recipe: Recipe, options: GeneratorOptions) async throws {
     let elapsed = try await ContinuousClock().measure {
       let logger = Logger(label: "org.swift.swift-sdk-generator")
-      let hostTriple = try await SwiftSDKGenerator.getHostTriple(explicitArch: hostArch, isVerbose: verbose)
-      let targetTriple = Triple(
-        cpu: targetArch ?? hostTriple.cpu,
-        vendor: .unknown,
-        os: .linux,
-        environment: .gnu
-      )
-      let recipe = try LinuxRecipe(
-        targetTriple: targetTriple,
-        linuxDistribution: linuxDistribution,
-        swiftVersion: swiftVersion,
-        swiftBranch: swiftBranch,
-        lldVersion: lldVersion,
-        withDocker: withDocker,
-        fromContainerImage: fromContainerImage
-      )
+
+      let (hostTriple, targetTriple) = try await options.deriveTriples()
       let generator = try await SwiftSDKGenerator(
-        bundleVersion: self.bundleVersion,
+        bundleVersion: options.bundleVersion,
         hostTriple: hostTriple,
         targetTriple: targetTriple,
-        artifactID: self.sdkName ?? recipe.defaultArtifactID,
-        isIncremental: self.incremental,
-        isVerbose: self.verbose,
+        artifactID: options.sdkName ?? recipe.defaultArtifactID,
+        isIncremental: options.incremental,
+        isVerbose: options.verbose,
         logger: logger
       )
 
@@ -150,6 +57,123 @@ struct GeneratorCLI: AsyncParsableCommand {
 }
 
 extension Triple.CPU: ExpressibleByArgument {}
+
+extension GeneratorCLI {
+  struct GeneratorOptions: ParsableArguments {
+    @Option(help: "An arbitrary version number for informational purposes.")
+    var bundleVersion = "0.0.1"
+
+    @Option(
+      help: """
+      Name of the SDK bundle. Defaults to a string composed of Swift version, Linux distribution, Linux release \
+      and target CPU architecture.
+      """
+    )
+    var sdkName: String? = nil
+
+    @Flag(
+      help: "Experimental: avoid cleaning up toolchain and SDK directories and regenerate the SDK bundle incrementally."
+    )
+    var incremental: Bool = false
+
+    @Flag(name: .shortAndLong, help: "Provide verbose logging output.")
+    var verbose = false
+
+    @Option(
+      help: """
+      Branch of Swift to use when downloading nightly snapshots. Specify `development` for snapshots off the `main` \
+      branch of Swift open source project repositories.
+      """
+    )
+    var swiftBranch: String? = nil
+
+    @Option(help: "Version of Swift to supply in the bundle.")
+    var swiftVersion = "5.9.2-RELEASE"
+
+    @Option(
+      help: """
+      CPU architecture of the host triple of the bundle. Defaults to a triple of the machine this generator is \
+      running on if unspecified. Available options: \(
+        Triple.CPU.allCases.map { "`\($0.rawValue)`" }.joined(separator: ", ")
+      ).
+      """
+    )
+    var hostArch: Triple.CPU? = nil
+
+    @Option(
+      help: """
+      CPU architecture of the target triple of the bundle. Same as the host triple CPU architecture if unspecified. \
+      Available options: \(Triple.CPU.allCases.map { "`\($0.rawValue)`" }.joined(separator: ", ")).
+      """
+    )
+    var targetArch: Triple.CPU? = nil
+
+    func deriveTriples() async throws -> (hostTriple: Triple, targetTriple: Triple) {
+      let hostTriple = try await SwiftSDKGenerator.getHostTriple(explicitArch: hostArch, isVerbose: verbose)
+      let targetTriple = Triple(
+        cpu: targetArch ?? hostTriple.cpu,
+        vendor: .unknown,
+        os: .linux,
+        environment: .gnu
+      )
+      return (hostTriple, targetTriple)
+    }
+  }
+
+  struct MakeLinuxSDK: AsyncParsableCommand {
+    @OptionGroup
+    var generatorOptions: GeneratorOptions
+
+    @Flag(help: "Delegate to Docker for copying files for the target triple.")
+    var withDocker: Bool = false
+
+    @Option(help: "Container image from which to copy the target triple.")
+    var fromContainerImage: String? = nil
+
+    @Option(help: "Version of LLD linker to supply in the bundle.")
+    var lldVersion = "17.0.5"
+
+    @Option(
+      help: """
+      Linux distribution to use if the target platform is Linux. Available options: `ubuntu`, `rhel`. Default is `ubuntu`.
+      """,
+      transform: LinuxDistribution.Name.init(nameString:)
+    )
+    var linuxDistributionName = LinuxDistribution.Name.ubuntu
+
+    @Option(
+      help: """
+      Version of the Linux distribution used as a target platform. Available options for Ubuntu: `20.04`, \
+      `22.04` (default when `--linux-distribution-name` is `ubuntu`). Available options for RHEL: `ubi9` (default when \
+      `--linux-distribution-name` is `rhel`).
+      """
+    )
+    var linuxDistributionVersion: String?
+
+    func run() async throws {
+      let linuxDistributionDefaultVersion = switch self.linuxDistributionName {
+      case .rhel:
+        "ubi9"
+      case .ubuntu:
+        "22.04"
+      }
+      let linuxDistributionVersion = self.linuxDistributionVersion ?? linuxDistributionDefaultVersion
+      let linuxDistribution = try LinuxDistribution(name: linuxDistributionName, version: linuxDistributionVersion)
+      let (_, targetTriple) = try await generatorOptions.deriveTriples()
+
+      let recipe = try LinuxRecipe(
+        targetTriple: targetTriple,
+        linuxDistribution: linuxDistribution,
+        swiftVersion: generatorOptions.swiftVersion,
+        swiftBranch: generatorOptions.swiftBranch,
+        lldVersion: lldVersion,
+        withDocker: withDocker,
+        fromContainerImage: fromContainerImage
+      )
+      try await GeneratorCLI.run(recipe: recipe, options: generatorOptions)
+    }
+  }
+}
 
 // FIXME: replace this with a call on `.formatted()` on `Duration` when it's available in swift-foundation.
 import Foundation
