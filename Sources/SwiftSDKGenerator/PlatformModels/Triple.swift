@@ -15,6 +15,7 @@ public struct Triple: Sendable, CustomStringConvertible {
   public enum CPU: String, Sendable, Decodable, CaseIterable {
     case x86_64
     case arm64
+    case wasm32
 
     public init?(rawValue: String) {
       switch rawValue {
@@ -22,6 +23,8 @@ public struct Triple: Sendable, CustomStringConvertible {
         self = .x86_64
       case "aarch64", "arm64":
         self = .arm64
+      case "wasm32":
+        self = .wasm32
       default:
         return nil
       }
@@ -32,6 +35,7 @@ public struct Triple: Sendable, CustomStringConvertible {
       switch self {
       case .arm64: "aarch64"
       case .x86_64: "x86_64"
+      case .wasm32: "wasm32"
       }
     }
 
@@ -40,6 +44,7 @@ public struct Triple: Sendable, CustomStringConvertible {
       switch self {
       case .x86_64: "X86"
       case .arm64: "AArch64"
+      case .wasm32: "WebAssembly"
       }
     }
   }
