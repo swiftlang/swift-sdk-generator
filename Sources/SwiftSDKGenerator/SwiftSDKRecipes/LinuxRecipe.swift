@@ -85,6 +85,14 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     toolset.librarian = Toolset.ToolProperties(path: "llvm-ar")
   }
 
+  public func defaultArtifactID() -> String {
+    """
+    \(versionsConfiguration.swiftVersion)_\(linuxDistribution.name.rawValue)_\(linuxDistribution.release)_\(
+    mainTargetTriple.cpu.linuxConventionName
+    )
+    """
+  }
+
   func sdkDirPath(paths: PathsConfiguration) -> FilePath {
     paths.swiftSDKRootPath
       .appending("\(linuxDistribution.name.rawValue)-\(linuxDistribution.release).sdk")

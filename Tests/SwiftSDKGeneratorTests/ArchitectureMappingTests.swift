@@ -44,32 +44,30 @@ final class ArchitectureMappingTests: XCTestCase {
     artifactBundlePathSuffix: String, // Path to the generated bundle
     sdkDirPathSuffix: String // Path of the SDK within the bundle
   ) async throws {
-    // LocalSwiftSDKGenerator constructs URLs and paths which depend on architectures
-    let sdk = try await SwiftSDKGenerator(
-      bundleVersion: bundleVersion,
-      // macOS is currently the only supported build environment
-      hostCPUArchitecture: hostCPUArchitecture,
-
-      // Linux is currently the only supported runtime environment
-      targetCPUArchitecture: targetCPUArchitecture,
-
-      // Remaining fields are placeholders which are the same for all
-      // combinations of build and runtime architecture
-      swiftVersion: "5.8-RELEASE",
-      linuxDistribution: .ubuntu(.jammy),
-      artifactID: nil,
-      isIncremental: false,
-      isVerbose: false,
-      logger: Logger(label: "org.swift.swift-sdk-generator")
-    )
-    let recipe = try await LinuxRecipe(
-      targetTriple: sdk.targetTriple,
+    let targetTriple = Triple(cpu: targetCPUArchitecture, vendor: .unknown, os: .linux, environment: .gnu)
+    let recipe = try LinuxRecipe(
+      targetTriple: targetTriple,
       linuxDistribution: .ubuntu(.jammy),
       swiftVersion: "5.8-RELEASE",
       swiftBranch: nil,
       lldVersion: "16.0.4",
       withDocker: false,
       fromContainerImage: nil
+    )
+    // LocalSwiftSDKGenerator constructs URLs and paths which depend on architectures
+    let sdk = try await SwiftSDKGenerator(
+      bundleVersion: bundleVersion,
+      // macOS is currently the only supported build environment
+      hostTriple: Triple(cpu: hostCPUArchitecture, vendor: .apple, os: .macosx(version: "13")),
+
+      // Linux is currently the only supported runtime environment
+      targetTriple: targetTriple,
+      artifactID: recipe.defaultArtifactID(),
+      // Remaining fields are placeholders which are the same for all
+      // combinations of build and runtime architecture
+      isIncremental: false,
+      isVerbose: false,
+      logger: Logger(label: "org.swift.swift-sdk-generator")
     )
 
     let sdkArtifactID = await sdk.artifactID

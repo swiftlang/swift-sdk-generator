@@ -20,8 +20,7 @@ import Helpers
 public actor SwiftSDKGenerator {
   let bundleVersion: String
   let hostTriple: Triple
-  // FIXME: This is temporaliry public while refactoring
-  public let targetTriple: Triple
+  let targetTriple: Triple
   let artifactID: String
   let pathsConfiguration: PathsConfiguration
   let isIncremental: Bool
@@ -31,11 +30,9 @@ public actor SwiftSDKGenerator {
 
   public init(
     bundleVersion: String,
-    hostCPUArchitecture: Triple.CPU?,
-    targetCPUArchitecture: Triple.CPU?,
-    swiftVersion: String,
-    linuxDistribution: LinuxDistribution,
-    artifactID: String?,
+    hostTriple: Triple,
+    targetTriple: Triple,
+    artifactID: String,
     isIncremental: Bool,
     isVerbose: Bool,
     logger: Logger
@@ -49,25 +46,10 @@ public actor SwiftSDKGenerator {
       .removingLastComponent()
 
     self.bundleVersion = bundleVersion
+    self.hostTriple = hostTriple
 
-    var currentTriple = try await Self.getCurrentTriple(isVerbose: isVerbose)
-    if let hostCPUArchitecture {
-      currentTriple.cpu = hostCPUArchitecture
-    }
-
-    self.hostTriple = currentTriple
-
-    self.targetTriple = Triple(
-      cpu: targetCPUArchitecture ?? self.hostTriple.cpu,
-      vendor: .unknown,
-      os: .linux,
-      environment: .gnu
-    )
-    self.artifactID = artifactID ?? """
-    \(swiftVersion)_\(linuxDistribution.name.rawValue)_\(linuxDistribution.release)_\(
-      self.targetTriple.cpu.linuxConventionName
-    )
-    """
+    self.targetTriple = targetTriple
+    self.artifactID = artifactID
 
     self.pathsConfiguration = .init(
       sourceRoot: sourceRoot,
@@ -83,6 +65,14 @@ public actor SwiftSDKGenerator {
 
   private let fileManager = FileManager.default
   private static let dockerCommand = "docker"
+
+  public static func getHostTriple(explicitArch hostCPUArchitecture: Triple.CPU?, isVerbose: Bool) async throws -> Triple {
+    var currentTriple = try await Self.getCurrentTriple(isVerbose: isVerbose)
+    if let hostCPUArchitecture {
+      currentTriple.cpu = hostCPUArchitecture
+    }
+    return currentTriple
+  }
 
   static func getCurrentTriple(isVerbose: Bool) async throws -> Triple {
     let cpuString = try await Shell.readStdout("uname -m", shouldLogCommands: isVerbose)
