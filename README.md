@@ -50,7 +50,7 @@ need CMake and Ninja preinstalled (e.g. via `brew install cmake ninja`).
 Clone this repository into a directory of your choice and make it the current directory. Build and run it with this command:
 
 ```
-swift run swift-sdk-generator
+swift run swift-sdk-generator make-linux-sdk
 ```
 
 This will download required components and produce a Swift SDK for Ubuntu Jammy in the `Bundles` subdirectory. Follow the steps
@@ -60,7 +60,7 @@ Additional command-line options are available for specifying target platform fea
 version, and target CPU architecture. Pass `--help` flag to see all of the available options:
 
 ```
-swift run swift-sdk-generator --help
+swift run swift-sdk-generator make-linux-sdk --help
 ```
 
 After installing a Swift SDK, verify that it's available to SwiftPM:
@@ -111,22 +111,22 @@ You can base your SDK on a container image, such as one of the
 default, the command below will build an SDK based on the Ubuntu
 Jammy image:
 ```
-swift run swift-sdk-generator --with-docker
+swift run swift-sdk-generator make-linux-sdk --with-docker
 ```
 To build a RHEL images, use the `--linux-distribution-name` option.
 The following command will build a `ubi9`-based image:
 ```
-swift run swift-sdk-generator --with-docker --linux-distribution-name rhel
+swift run swift-sdk-generator make-linux-sdk --with-docker --linux-distribution-name rhel
 ```
 
 You can also specify the base container image by name:
 
 ```
-swift run swift-sdk-generator --with-docker --from-container-image swift:5.9-jammy
+swift run swift-sdk-generator make-linux-sdk --with-docker --from-container-image swift:5.9-jammy
 ```
 
 ```
-swift run swift-sdk-generator --with-docker --linux-distribution-name rhel --from-container-image swift:5.9-rhel-ubi9
+swift run swift-sdk-generator make-linux-sdk --with-docker --linux-distribution-name rhel --from-container-image swift:5.9-rhel-ubi9
 ```
 
 ### Including extra Linux libraries
@@ -151,7 +151,7 @@ docker build -t my-custom-image -f Dockerfile .
 
 Finally, build your custom SDK:
 ```
-swift run swift-sdk-generator --with-docker --from-container-image my-custom-image:latest --sdk-name 5.9-ubuntu-with-sqlite
+swift run swift-sdk-generator make-linux-sdk --with-docker --from-container-image my-custom-image:latest --sdk-name 5.9-ubuntu-with-sqlite
 ```
 
 ## Swift SDK distribution
