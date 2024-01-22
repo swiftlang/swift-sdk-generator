@@ -101,8 +101,8 @@ final class Shell {
       }
 
       try check(exitCode: exitCode)
-    } onCancel: {
-      self.process.interrupt()
+    } onCancel: { [process] in
+      process.interrupt()
     }
   }
 
