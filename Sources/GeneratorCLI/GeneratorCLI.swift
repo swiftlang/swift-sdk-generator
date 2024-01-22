@@ -14,12 +14,13 @@ import ArgumentParser
 import Logging
 import ServiceLifecycle
 import SwiftSDKGenerator
+import struct SystemPackage.FilePath
 
 @main
 struct GeneratorCLI: AsyncParsableCommand {
   static let configuration = CommandConfiguration(
     commandName: "swift-sdk-generator",
-    subcommands: [MakeLinuxSDK.self],
+    subcommands: [MakeLinuxSDK.self, MakeWasmSDK.self],
     defaultSubcommand: MakeLinuxSDK.self
   )
 
@@ -236,6 +237,56 @@ extension GeneratorCLI {
         return true
       }
       return false
+    }
+  }
+
+  struct MakeWasmSDK: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(
+      commandName: "make-wasm-sdk",
+      abstract: "Experimental: Generate a Swift SDK bundle for WebAssembly.",
+      discussion: """
+      The default `--target` triple is wasm32-unknown-wasi
+      """
+    )
+
+    @OptionGroup
+    var generatorOptions: GeneratorOptions
+
+    @Option(
+      help: """
+      Path to the Swift toolchain package containing the Swift compiler that runs on the host platform.
+      """
+    )
+    var hostSwiftPackagePath: String
+
+    @Option(
+      help: """
+      Path to the Swift toolchain package containing the Swift standard library that runs on the target platform.
+      """
+    )
+    var targetSwiftPackagePath: String
+
+    @Option(
+      help: """
+      Path to the WASI sysroot directory containing the WASI libc headers and libraries.
+      """
+    )
+    var wasiSysroot: String
+
+    func deriveTargetTriple(hostTriple: Triple) -> Triple {
+      self.generatorOptions.target ?? Triple("wasm32-unknown-wasi")
+    }
+
+    func run() async throws {
+      let recipe = WebAssemblyRecipe(
+        hostSwiftPackagePath: FilePath(hostSwiftPackagePath),
+        targetSwiftPackagePath: FilePath(targetSwiftPackagePath),
+        wasiSysroot: FilePath(wasiSysroot),
+        swiftVersion: generatorOptions.swiftVersion
+      )
+      let hostTriple = try self.generatorOptions.deriveHostTriple()
+      let targetTriple = self.deriveTargetTriple(hostTriple: hostTriple)
+      try await GeneratorCLI.run(recipe: recipe, hostTriple: hostTriple, targetTriple: targetTriple, options: generatorOptions)
     }
   }
 }
