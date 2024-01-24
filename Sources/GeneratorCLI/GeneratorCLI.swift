@@ -100,26 +100,33 @@ extension GeneratorCLI {
 
     @Option(
       help: """
-      CPU architecture of the host triple of the bundle. Defaults to a triple of the machine this generator is \
-      running on if unspecified. Available options: \(
-        Triple.Arch.allCases.map { "`\($0.rawValue)`" }.joined(separator: ", ")
-      ).
+      The host triple of the bundle. Defaults to a triple of the machine this generator is \
+      running on if unspecified.
       """
     )
-    var hostArch: Triple.Arch? = nil
+    var host: Triple? = nil
 
     @Option(
       help: """
-      CPU architecture of the target triple of the bundle. Same as the host triple CPU architecture if unspecified. \
-      Available options: \(Triple.Arch.allCases.map { "`\($0.rawValue)`" }.joined(separator: ", ")).
+      The target triple of the bundle. The default depends on a recipe used for SDK generation. Pass `--help` to a specific recipe subcommand for more details.
       """
     )
+    var target: Triple? = nil
+
+    @Option(help: "Deprecated. Use `--host` instead")
+    var hostArch: Triple.Arch? = nil
+    @Option(help: "Deprecated. Use `--target` instead")
     var targetArch: Triple.Arch? = nil
 
     func deriveHostTriple() throws -> Triple {
+      if let host {
+        return host
+      }
       let current = try SwiftSDKGenerator.getCurrentTriple(isVerbose: verbose)
-      if let explicitArch = hostArch {
-        return Triple(arch: explicitArch, vendor: current.vendor, os: current.os!)
+      if let arch = hostArch {
+        let target = Triple(arch: arch, vendor: current.vendor!, os: current.os!)
+        print("deprecated: Please use `--host \(target.triple)` instead of `--host-arch \(arch)`")
+        return target
       }
       return current
     }
@@ -128,7 +135,10 @@ extension GeneratorCLI {
   struct MakeLinuxSDK: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
       commandName: "make-linux-sdk",
-      abstract: "Generate a Swift SDK bundle for Linux."
+      abstract: "Generate a Swift SDK bundle for Linux.",
+      discussion: """
+      The default `--target` triple is Linux with the same CPU architecture with host triple
+      """
     )
 
     @OptionGroup
@@ -161,7 +171,14 @@ extension GeneratorCLI {
     var linuxDistributionVersion: String?
 
     func deriveTargetTriple(hostTriple: Triple) -> Triple {
-      Triple(arch: self.generatorOptions.targetArch ?? hostTriple.arch!, vendor: nil, os: .linux, environment: .gnu)
+      if let target = generatorOptions.target {
+        return target
+      }
+      if let arch = generatorOptions.targetArch {
+        let target = Triple(arch: arch, vendor: nil, os: .linux, environment: .gnu)
+        print("deprecated: Please use `--target \(target.triple)` instead of `--target-arch \(arch)`")
+      }
+      return Triple(arch: hostTriple.arch!, vendor: nil, os: .linux, environment: .gnu)
     }
 
     func run() async throws {
