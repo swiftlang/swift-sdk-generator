@@ -23,11 +23,14 @@ struct GeneratorCLI: AsyncParsableCommand {
     defaultSubcommand: MakeLinuxSDK.self
   )
 
-  static func run<Recipe: SwiftSDKRecipe>(recipe: Recipe, options: GeneratorOptions) async throws {
+  static func run<Recipe: SwiftSDKRecipe>(
+    recipe: Recipe,
+    hostTriple: Triple,
+    targetTriple: Triple,
+    options: GeneratorOptions
+  ) async throws {
     let elapsed = try await ContinuousClock().measure {
       let logger = Logger(label: "org.swift.swift-sdk-generator")
-
-      let (hostTriple, targetTriple) = try await options.deriveTriples()
       let generator = try await SwiftSDKGenerator(
         bundleVersion: options.bundleVersion,
         hostTriple: hostTriple,
@@ -56,7 +59,12 @@ struct GeneratorCLI: AsyncParsableCommand {
   }
 }
 
-extension Triple.CPU: ExpressibleByArgument {}
+extension Triple.Arch: ExpressibleByArgument {}
+extension Triple: ExpressibleByArgument {
+  public init?(argument: String) {
+    self.init(argument, normalizing: true)
+  }
+}
 
 extension GeneratorCLI {
   struct GeneratorOptions: ParsableArguments {
@@ -94,29 +102,26 @@ extension GeneratorCLI {
       help: """
       CPU architecture of the host triple of the bundle. Defaults to a triple of the machine this generator is \
       running on if unspecified. Available options: \(
-        Triple.CPU.allCases.map { "`\($0.rawValue)`" }.joined(separator: ", ")
+        Triple.Arch.allCases.map { "`\($0.rawValue)`" }.joined(separator: ", ")
       ).
       """
     )
-    var hostArch: Triple.CPU? = nil
+    var hostArch: Triple.Arch? = nil
 
     @Option(
       help: """
       CPU architecture of the target triple of the bundle. Same as the host triple CPU architecture if unspecified. \
-      Available options: \(Triple.CPU.allCases.map { "`\($0.rawValue)`" }.joined(separator: ", ")).
+      Available options: \(Triple.Arch.allCases.map { "`\($0.rawValue)`" }.joined(separator: ", ")).
       """
     )
-    var targetArch: Triple.CPU? = nil
+    var targetArch: Triple.Arch? = nil
 
-    func deriveTriples() async throws -> (hostTriple: Triple, targetTriple: Triple) {
-      let hostTriple = try await SwiftSDKGenerator.getHostTriple(explicitArch: hostArch, isVerbose: verbose)
-      let targetTriple = Triple(
-        cpu: targetArch ?? hostTriple.cpu,
-        vendor: .unknown,
-        os: .linux,
-        environment: .gnu
-      )
-      return (hostTriple, targetTriple)
+    func deriveHostTriple() throws -> Triple {
+      let current = try SwiftSDKGenerator.getCurrentTriple(isVerbose: verbose)
+      if let explicitArch = hostArch {
+        return Triple(arch: explicitArch, vendor: current.vendor, os: current.os!)
+      }
+      return current
     }
   }
 
@@ -155,6 +160,10 @@ extension GeneratorCLI {
     )
     var linuxDistributionVersion: String?
 
+    func deriveTargetTriple(hostTriple: Triple) -> Triple {
+      Triple(arch: self.generatorOptions.targetArch ?? hostTriple.arch!, vendor: nil, os: .linux, environment: .gnu)
+    }
+
     func run() async throws {
       if isInvokedAsDefaultSubcommand() {
         print("deprecated: Please explicity specify the subcommand to run. For example: $ swift-sdk-generator make-linux-sdk")
@@ -167,7 +176,8 @@ extension GeneratorCLI {
       }
       let linuxDistributionVersion = self.linuxDistributionVersion ?? linuxDistributionDefaultVersion
       let linuxDistribution = try LinuxDistribution(name: linuxDistributionName, version: linuxDistributionVersion)
-      let (_, targetTriple) = try await generatorOptions.deriveTriples()
+      let hostTriple = try self.generatorOptions.deriveHostTriple()
+      let targetTriple = self.deriveTargetTriple(hostTriple: hostTriple)
 
       let recipe = try LinuxRecipe(
         targetTriple: targetTriple,
@@ -178,7 +188,7 @@ extension GeneratorCLI {
         withDocker: withDocker,
         fromContainerImage: fromContainerImage
       )
-      try await GeneratorCLI.run(recipe: recipe, options: generatorOptions)
+      try await GeneratorCLI.run(recipe: recipe, hostTriple: hostTriple, targetTriple: targetTriple, options: generatorOptions)
     }
 
     func isInvokedAsDefaultSubcommand() -> Bool {

@@ -176,7 +176,7 @@ extension HTTPClient {
     targetTriple: Triple,
     isVerbose: Bool
   ) async throws -> [String: URL] {
-    let mirrorURL: String = if targetTriple.cpu == .x86_64 {
+    let mirrorURL: String = if targetTriple.arch == .x86_64 {
       ubuntuAMD64Mirror
     } else {
       ubuntuARM64Mirror
@@ -184,7 +184,7 @@ extension HTTPClient {
 
     let packagesListURL = """
     \(mirrorURL)/dists/\(ubuntuRelease)\(releaseSuffix)/\(repository)/binary-\(
-      targetTriple.cpu
+      targetTriple.arch!
         .debianConventionName
     )/Packages.gz
     """

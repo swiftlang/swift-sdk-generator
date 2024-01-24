@@ -14,37 +14,19 @@ import struct Foundation.URL
 import GeneratorEngine
 import struct SystemPackage.FilePath
 
-/// Information about the OS for which the artifact is built, if it's downloaded as prebuilt.
-enum ArtifactOS: Hashable {
-  init(_ tripleOS: Triple.OS, _ versions: VersionsConfiguration) {
-    switch tripleOS {
-    case .linux:
-      self = .linux(versions.linuxDistribution)
-    case .macosx, .darwin:
-      self = .macOS
-    case .wasi:
-      self = .wasi
-    case .win32:
-      self = .windows
-    }
-  }
-
-  case linux(LinuxDistribution)
-  case macOS
-  case wasi
-  case windows
-
+private extension Triple {
   var llvmBinaryURLSuffix: String {
-    switch self {
-    case .linux: "linux-gnu"
-    case .macOS: "apple-darwin22.0"
-    case .wasi: fatalError()
-    case .windows: fatalError()
+    switch (self.os, self.arch) {
+    case (.linux, .aarch64): "aarch64-linux-gnu"
+    case (.linux, .x86_64): "x86_64-linux-gnu-ubuntu-22.04"
+    case (.macosx, .aarch64): "arm64-apple-darwin22.0"
+    case (.macosx, .x86_64): "x86_64-apple-darwin22.0"
+    default: fatalError("\(self) is not supported as LLVM host platform yet")
     }
   }
 }
 
-typealias CPUMapping = [Triple.CPU: String]
+typealias CPUMapping = [Triple.Arch: String]
 
 struct DownloadableArtifacts: Sendable {
   @CacheKey
@@ -80,7 +62,6 @@ struct DownloadableArtifacts: Sendable {
     self.versions = versions
     self.paths = paths
 
-    let hostArtifactsOS = ArtifactOS(hostTriple.os, versions)
     self.hostSwift = .init(
       remoteURL: versions.swiftDownloadURL(
         subdirectory: "xcode",
@@ -88,7 +69,7 @@ struct DownloadableArtifacts: Sendable {
         fileExtension: "pkg"
       ),
       localPath: paths.artifactsCachePath
-        .appending("host_swift_\(versions.swiftVersion)_\(hostTriple).pkg"),
+        .appending("host_swift_\(versions.swiftVersion)_\(hostTriple.triple).pkg"),
       isPrebuilt: true
     )
 
@@ -99,18 +80,18 @@ struct DownloadableArtifacts: Sendable {
           versions.lldVersion
         )/clang+llvm-\(
           versions.lldVersion
-        )-\(hostTriple.cpu)-\(hostArtifactsOS.llvmBinaryURLSuffix).tar.xz
+        )-\(hostTriple.llvmBinaryURLSuffix).tar.xz
         """
       )!,
       localPath: paths.artifactsCachePath
-        .appending("host_llvm_\(versions.lldVersion)_\(hostTriple).tar.xz"),
+        .appending("host_llvm_\(versions.lldVersion)_\(hostTriple.triple).tar.xz"),
       isPrebuilt: true
     )
 
     self.targetSwift = .init(
       remoteURL: versions.swiftDownloadURL(),
       localPath: paths.artifactsCachePath
-        .appending("target_swift_\(versions.swiftVersion)_\(targetTriple).tar.gz"),
+        .appending("target_swift_\(versions.swiftVersion)_\(targetTriple.triple).tar.gz"),
       isPrebuilt: true
     )
 

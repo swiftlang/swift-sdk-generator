@@ -95,7 +95,7 @@ extension SwiftSDKGenerator {
     case .wasi:
       pathsConfiguration.toolchainBinDirPath.appending("wasm-ld")
     default:
-      fatalError("Unknown target OS to prepare lld \"\(targetOS)\"")
+      fatalError("Unknown target OS to prepare lld \"\(targetOS?.rawValue ?? "nil")\"")
     }
 
     try self.copy(from: unpackedLLDPath, to: toolchainLLDPath)

@@ -67,7 +67,7 @@ extension SwiftSDKGenerator {
         //   https://wiki.ubuntu.com/MultiarchSpec
         // But not in all containers, so don't fail if it does not exist.
         if case .ubuntu = targetDistribution {
-          subpaths += [("\(targetTriple.cpu)-linux-gnu", false)]
+          subpaths += [("\(targetTriple.archName)-linux-gnu", false)]
         }
 
         for (subpath, failIfNotExists) in subpaths {

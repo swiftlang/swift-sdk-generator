@@ -88,7 +88,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
   public var defaultArtifactID: String {
     """
     \(versionsConfiguration.swiftVersion)_\(linuxDistribution.name.rawValue)_\(linuxDistribution.release)_\(
-    mainTargetTriple.cpu.linuxConventionName
+    mainTargetTriple.arch!.linuxConventionName
     )
     """
   }
@@ -157,7 +157,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
 
     try await generator.fixAbsoluteSymlinks(sdkDirPath: sdkDirPath)
 
-    let targetCPU = generator.targetTriple.cpu
+    let targetCPU = generator.targetTriple.arch!
     try await generator.fixGlibcModuleMap(
       at: generator.pathsConfiguration.toolchainDirPath
         .appending("/usr/lib/swift/linux/\(targetCPU.linuxConventionName)/glibc.modulemap")
