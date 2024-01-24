@@ -113,8 +113,22 @@ extension GeneratorCLI {
     )
     var target: Triple? = nil
 
+    @Option(help: "Deprecated. Use `--target` instead")
+    var hostArch: Triple.Arch? = nil
+    @Option(help: "Deprecated. Use `--target` instead")
+    var targetArch: Triple.Arch? = nil
+
     func deriveHostTriple() throws -> Triple {
-      try host ?? (try SwiftSDKGenerator.getCurrentTriple(isVerbose: verbose))
+      if let host {
+        return host
+      }
+      let current = try SwiftSDKGenerator.getCurrentTriple(isVerbose: verbose)
+      if let arch = hostArch {
+        let target = Triple(arch: arch, vendor: current.vendor!, os: current.os!)
+        print("deprecated: Please use `--host \(target.triple)` instead of `--host-arch \(arch)`")
+        return target
+      }
+      return current
     }
   }
 
@@ -157,7 +171,14 @@ extension GeneratorCLI {
     var linuxDistributionVersion: String?
 
     func deriveTargetTriple(hostTriple: Triple) -> Triple {
-      self.generatorOptions.target ?? Triple(arch: hostTriple.arch!, vendor: nil, os: .linux, environment: .gnu)
+      if let target = generatorOptions.target {
+        return target
+      }
+      if let arch = generatorOptions.targetArch {
+        let target = Triple(arch: arch, vendor: nil, os: .linux, environment: .gnu)
+        print("deprecated: Please use `--target \(target.triple)` instead of `--target-arch \(arch)`")
+      }
+      return Triple(arch: hostTriple.arch!, vendor: nil, os: .linux, environment: .gnu)
     }
 
     func run() async throws {
