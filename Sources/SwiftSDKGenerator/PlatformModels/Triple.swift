@@ -15,6 +15,7 @@ public struct Triple: Sendable, CustomStringConvertible {
   public enum CPU: String, Sendable, Decodable, CaseIterable {
     case x86_64
     case arm64
+    case wasm32
 
     public init?(rawValue: String) {
       switch rawValue {
@@ -22,6 +23,8 @@ public struct Triple: Sendable, CustomStringConvertible {
         self = .x86_64
       case "aarch64", "arm64":
         self = .arm64
+      case "wasm32":
+        self = .wasm32
       default:
         return nil
       }
@@ -32,6 +35,7 @@ public struct Triple: Sendable, CustomStringConvertible {
       switch self {
       case .arm64: "aarch64"
       case .x86_64: "x86_64"
+      case .wasm32: "wasm32"
       }
     }
 
@@ -40,23 +44,24 @@ public struct Triple: Sendable, CustomStringConvertible {
       switch self {
       case .x86_64: "X86"
       case .arm64: "AArch64"
+      case .wasm32: "WebAssembly"
       }
     }
   }
 
-  enum Vendor: String {
+  public enum Vendor: String, Sendable {
     case apple
     case unknown
   }
 
-  enum OS: Hashable, CustomStringConvertible {
+  public enum OS: Hashable, CustomStringConvertible, Sendable {
     case linux
     case darwin(version: String)
     case macosx(version: String)
     case wasi
     case win32
 
-    var description: String {
+    public var description: String {
       switch self {
       case .linux:
         "linux"
@@ -72,14 +77,21 @@ public struct Triple: Sendable, CustomStringConvertible {
     }
   }
 
-  enum Environment {
+  public enum Environment: Sendable {
     case gnu
   }
 
-  var cpu: CPU
-  var vendor: Vendor
-  var os: OS
-  var environment: Environment?
+  public var cpu: CPU
+  public var vendor: Vendor
+  public var os: OS
+  public var environment: Environment?
+
+  public init(cpu: CPU, vendor: Vendor, os: OS, environment: Environment? = nil) {
+    self.cpu = cpu
+    self.vendor = vendor
+    self.os = os
+    self.environment = environment
+  }
 
   public var linuxConventionDescription: String {
     "\(self.cpu.linuxConventionName)-\(self.vendor)-\(self.os)\(self.environment != nil ? "-\(self.environment!)" : "")"

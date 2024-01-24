@@ -22,11 +22,7 @@ public actor SwiftSDKGenerator {
   let hostTriple: Triple
   let targetTriple: Triple
   let artifactID: String
-  let versionsConfiguration: VersionsConfiguration
   let pathsConfiguration: PathsConfiguration
-  var downloadableArtifacts: DownloadableArtifacts
-  let shouldUseDocker: Bool
-  let baseDockerImage: String?
   let isIncremental: Bool
   let isVerbose: Bool
   let engineCachePath: SQLite.Location
@@ -34,15 +30,9 @@ public actor SwiftSDKGenerator {
 
   public init(
     bundleVersion: String,
-    hostCPUArchitecture: Triple.CPU?,
-    targetCPUArchitecture: Triple.CPU?,
-    swiftVersion: String,
-    swiftBranch: String?,
-    lldVersion: String,
-    linuxDistribution: LinuxDistribution,
-    shouldUseDocker: Bool,
-    baseDockerImage: String?,
-    artifactID: String?,
+    hostTriple: Triple,
+    targetTriple: Triple,
+    artifactID: String,
     isIncremental: Bool,
     isVerbose: Bool,
     logger: Logger
@@ -56,52 +46,16 @@ public actor SwiftSDKGenerator {
       .removingLastComponent()
 
     self.bundleVersion = bundleVersion
+    self.hostTriple = hostTriple
 
-    var currentTriple = try await Self.getCurrentTriple(isVerbose: isVerbose)
-    if let hostCPUArchitecture {
-      currentTriple.cpu = hostCPUArchitecture
-    }
+    self.targetTriple = targetTriple
+    self.artifactID = artifactID
 
-    self.hostTriple = currentTriple
-
-    self.targetTriple = Triple(
-      cpu: targetCPUArchitecture ?? self.hostTriple.cpu,
-      vendor: .unknown,
-      os: .linux,
-      environment: .gnu
-    )
-    self.artifactID = artifactID ?? """
-    \(swiftVersion)_\(linuxDistribution.name.rawValue)_\(linuxDistribution.release)_\(
-      self.targetTriple.cpu.linuxConventionName
-    )
-    """
-
-    self.versionsConfiguration = try .init(
-      swiftVersion: swiftVersion,
-      swiftBranch: swiftBranch,
-      lldVersion: lldVersion,
-      linuxDistribution: linuxDistribution,
-      targetTriple: self.targetTriple
-    )
     self.pathsConfiguration = .init(
       sourceRoot: sourceRoot,
       artifactID: self.artifactID,
-      linuxDistribution: self.versionsConfiguration.linuxDistribution,
       targetTriple: self.targetTriple
     )
-    self.downloadableArtifacts = try .init(
-      hostTriple: self.hostTriple,
-      targetTriple: self.targetTriple,
-      shouldUseDocker: shouldUseDocker,
-      self.versionsConfiguration,
-      self.pathsConfiguration
-    )
-    self.shouldUseDocker = shouldUseDocker
-    self.baseDockerImage = if shouldUseDocker {
-      baseDockerImage ?? self.versionsConfiguration.swiftBaseDockerImage
-    } else {
-      nil
-    }
     self.isIncremental = isIncremental
     self.isVerbose = isVerbose
 
@@ -111,6 +65,14 @@ public actor SwiftSDKGenerator {
 
   private let fileManager = FileManager.default
   private static let dockerCommand = "docker"
+
+  public static func getHostTriple(explicitArch hostCPUArchitecture: Triple.CPU?, isVerbose: Bool) async throws -> Triple {
+    var currentTriple = try await Self.getCurrentTriple(isVerbose: isVerbose)
+    if let hostCPUArchitecture {
+      currentTriple.cpu = hostCPUArchitecture
+    }
+    return currentTriple
+  }
 
   static func getCurrentTriple(isVerbose: Bool) async throws -> Triple {
     let cpuString = try await Shell.readStdout("uname -m", shouldLogCommands: isVerbose)

@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 /// A raw decoding of toolset configuration stored on disk.
-struct Toolset: Encodable {
+public struct Toolset: Encodable {
   /// Properties of a tool in a ``DecodedToolset``.
   struct ToolProperties: Encodable {
     /// Either a relative or an absolute path to the tool on the filesystem.

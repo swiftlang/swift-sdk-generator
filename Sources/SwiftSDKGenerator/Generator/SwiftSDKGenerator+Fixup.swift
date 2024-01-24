@@ -16,10 +16,10 @@ import SystemPackage
 import struct Foundation.Data
 
 extension SwiftSDKGenerator {
-  func fixAbsoluteSymlinks() throws {
+  func fixAbsoluteSymlinks(sdkDirPath: FilePath) throws {
     logGenerationStep("Fixing up absolute symlinks...")
 
-    for (source, absoluteDestination) in try findSymlinks(at: pathsConfiguration.sdkDirPath).filter({
+    for (source, absoluteDestination) in try findSymlinks(at: sdkDirPath).filter({
       $1.string.hasPrefix("/")
     }) {
       guard !absoluteDestination.string.hasPrefix("/etc") else {
@@ -29,7 +29,7 @@ extension SwiftSDKGenerator {
       var relativeSource = source
       var relativeDestination = FilePath()
 
-      let isPrefixRemoved = relativeSource.removePrefix(pathsConfiguration.sdkDirPath)
+      let isPrefixRemoved = relativeSource.removePrefix(sdkDirPath)
       precondition(isPrefixRemoved)
       for _ in relativeSource.removingLastComponent().components {
         relativeDestination.append("..")

@@ -15,7 +15,6 @@ import AsyncHTTPClient
 import Foundation
 import GeneratorEngine
 import RegexBuilder
-import ServiceLifecycle
 import SystemPackage
 import Helpers
 
@@ -25,6 +24,7 @@ public extension Triple.CPU {
     switch self {
     case .arm64: "arm64"
     case .x86_64: "amd64"
+    case .wasm32: "wasm32"
     }
   }
 }
@@ -41,63 +41,25 @@ private func withHTTPClient(
   }
 }
 
-extension SwiftSDKGenerator: Service {
-  public func run() async throws {
+extension SwiftSDKGenerator {
+  public func run(recipe: SwiftSDKRecipe) async throws {
     try await withEngine(LocalFileSystem(), self.logger, cacheLocation: self.engineCachePath) { engine in
       var configuration = HTTPClient.Configuration(redirectConfiguration: .follow(max: 5, allowCycles: false))
       // Workaround an issue with github.com returning 400 instead of 404 status to HEAD requests from AHC.
       configuration.httpVersion = .http1Only
       try await withHTTPClient(configuration) { client in
         if !self.isIncremental {
-          try await self.removeRecursively(at: pathsConfiguration.sdkDirPath)
           try await self.removeRecursively(at: pathsConfiguration.toolchainDirPath)
         }
 
         try await self.createDirectoryIfNeeded(at: pathsConfiguration.artifactsCachePath)
-        try await self.createDirectoryIfNeeded(at: pathsConfiguration.sdkDirPath)
         try await self.createDirectoryIfNeeded(at: pathsConfiguration.toolchainDirPath)
 
-        try await self.downloadArtifacts(client, engine)
+        let swiftSDKProduct = try await recipe.makeSwiftSDK(generator: self, engine: engine, httpClient: client)
 
-        if !shouldUseDocker {
-          guard case let .ubuntu(version) = versionsConfiguration.linuxDistribution else {
-            throw GeneratorError
-              .distributionSupportsOnlyDockerGenerator(versionsConfiguration.linuxDistribution)
-          }
+        let toolsetJSONPath = try await generateToolsetJSON(recipe: recipe)
 
-          try await self.downloadUbuntuPackages(client, engine, requiredPackages: version.requiredPackages)
-        }
-
-        try await self.unpackHostSwift()
-
-        if shouldUseDocker {
-          try await self.copyTargetSwiftFromDocker()
-        } else {
-          try await self.unpackTargetSwiftPackage()
-        }
-
-        try await self.prepareLLDLinker(engine)
-
-        try await self.fixAbsoluteSymlinks()
-
-        let targetCPU = self.targetTriple.cpu
-        try await self.fixGlibcModuleMap(
-          at: pathsConfiguration.toolchainDirPath
-            .appending("/usr/lib/swift/linux/\(targetCPU.linuxConventionName)/glibc.modulemap")
-        )
-
-        try await self.symlinkClangHeaders()
-
-        let autolinkExtractPath = pathsConfiguration.toolchainBinDirPath.appending("swift-autolink-extract")
-
-        if await !self.doesFileExist(at: autolinkExtractPath) {
-          logGenerationStep("Fixing `swift-autolink-extract` symlink...")
-          try await createSymlink(at: autolinkExtractPath, pointingTo: "swift")
-        }
-
-        let toolsetJSONPath = try await generateToolsetJSON()
-
-        try await generateDestinationJSON(toolsetPath: toolsetJSONPath)
+        try await generateDestinationJSON(toolsetPath: toolsetJSONPath, sdkDirPath: swiftSDKProduct.sdkDirPath)
 
         try await generateArtifactBundleManifest()
 
