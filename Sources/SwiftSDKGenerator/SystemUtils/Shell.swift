@@ -119,28 +119,22 @@ struct Shell {
       ["-c", command],
       collectStandardOutput: true,
       collectStandardError: false,
-      perStreamCollectionLimitBytes: 100 * 1024 * 1024,
+      perStreamCollectionLimitBytes: 10 * 1024 * 1024,
       environment: ProcessInfo.processInfo.environment
     )
 
     try result.exitReason.throwIfNonZero()
 
-    guard
-      var buffer = result.standardOutput,
-      let result = buffer.readString(length: buffer.readableBytes)
-    else {
-      throw GeneratorError.noProcessOutput(command)
-    }
+    guard let stdOutBuffer = result.standardOutput else { throw GeneratorError.noProcessOutput(command) }
 
-    return result
+    return String(buffer: stdOutBuffer)
   }
 }
 
 extension ChunkSequence {
   func printChunksAsStrings() async throws {
-    for try await var chunk in self {
-      guard let string = chunk.readString(length: chunk.readableBytes) else { continue }
-      print(string)
-    }
+      for try await line in self.splitIntoLines(dropTerminator: true) {
+          print(line)
+      }
   }
 }

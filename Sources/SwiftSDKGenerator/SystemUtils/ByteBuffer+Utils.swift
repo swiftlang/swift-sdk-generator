@@ -22,7 +22,7 @@ public extension ByteBuffer {
       standardInput: [self].async,
       collectStandardOutput: true,
       collectStandardError: false,
-      perStreamCollectionLimitBytes: 100 * 1024 * 1024
+      perStreamCollectionLimitBytes: 10 * 1024 * 1024
     )
 
     try result.exitReason.throwIfNonZero()

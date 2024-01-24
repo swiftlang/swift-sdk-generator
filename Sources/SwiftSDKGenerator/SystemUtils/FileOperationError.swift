@@ -17,7 +17,7 @@ import struct SystemPackage.FilePath
 public enum FileOperationError: Error {
   case downloadFailed(URL, HTTPResponseStatus)
   case directoryCreationFailed(FilePath)
-  case downloadFailed(URL)
+  case downloadFailed(String)
   case unknownArchiveFormat(String?)
   case symlinkFixupFailed(source: FilePath, destination: FilePath)
 }
