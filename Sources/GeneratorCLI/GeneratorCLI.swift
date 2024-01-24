@@ -100,28 +100,21 @@ extension GeneratorCLI {
 
     @Option(
       help: """
-      CPU architecture of the host triple of the bundle. Defaults to a triple of the machine this generator is \
-      running on if unspecified. Available options: \(
-        Triple.Arch.allCases.map { "`\($0.rawValue)`" }.joined(separator: ", ")
-      ).
+      The host triple of the bundle. Defaults to a triple of the machine this generator is \
+      running on if unspecified.
       """
     )
-    var hostArch: Triple.Arch? = nil
+    var host: Triple? = nil
 
     @Option(
       help: """
-      CPU architecture of the target triple of the bundle. Same as the host triple CPU architecture if unspecified. \
-      Available options: \(Triple.Arch.allCases.map { "`\($0.rawValue)`" }.joined(separator: ", ")).
+      The target triple of the bundle. Same as the host triple if unspecified.
       """
     )
-    var targetArch: Triple.Arch? = nil
+    var target: Triple? = nil
 
     func deriveHostTriple() throws -> Triple {
-      let current = try SwiftSDKGenerator.getCurrentTriple(isVerbose: verbose)
-      if let explicitArch = hostArch {
-        return Triple(arch: explicitArch, vendor: current.vendor, os: current.os!)
-      }
-      return current
+      try host ?? (try SwiftSDKGenerator.getCurrentTriple(isVerbose: verbose))
     }
   }
 
@@ -161,7 +154,7 @@ extension GeneratorCLI {
     var linuxDistributionVersion: String?
 
     func deriveTargetTriple(hostTriple: Triple) -> Triple {
-      Triple(arch: self.generatorOptions.targetArch ?? hostTriple.arch!, vendor: nil, os: .linux, environment: .gnu)
+      self.generatorOptions.target ?? Triple(arch: hostTriple.arch!, vendor: nil, os: .linux, environment: .gnu)
     }
 
     func run() async throws {
