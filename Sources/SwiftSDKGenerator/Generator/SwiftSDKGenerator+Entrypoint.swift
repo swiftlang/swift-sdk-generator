@@ -18,13 +18,14 @@ import RegexBuilder
 import SystemPackage
 import Helpers
 
-public extension Triple.CPU {
+public extension Triple.Arch {
   /// Returns the value of `cpu` converted to a convention used in Debian package names
   var debianConventionName: String {
     switch self {
-    case .arm64: "arm64"
+    case .aarch64: "arm64"
     case .x86_64: "amd64"
     case .wasm32: "wasm32"
+    default: fatalError("\(self) is not supported yet")
     }
   }
 }

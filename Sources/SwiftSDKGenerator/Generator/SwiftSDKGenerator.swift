@@ -66,30 +66,15 @@ public actor SwiftSDKGenerator {
   private let fileManager = FileManager.default
   private static let dockerCommand = "docker"
 
-  public static func getHostTriple(explicitArch hostCPUArchitecture: Triple.CPU?, isVerbose: Bool) async throws -> Triple {
-    var currentTriple = try await Self.getCurrentTriple(isVerbose: isVerbose)
-    if let hostCPUArchitecture {
-      currentTriple.cpu = hostCPUArchitecture
-    }
-    return currentTriple
-  }
-
-  static func getCurrentTriple(isVerbose: Bool) async throws -> Triple {
-    let cpuString = try await Shell.readStdout("uname -m", shouldLogCommands: isVerbose)
-      .trimmingCharacters(in: .whitespacesAndNewlines)
-
-    guard let cpu = Triple.CPU(rawValue: cpuString) else {
-      throw GeneratorError.unknownCPUArchitecture(cpuString)
-    }
+  public static func getCurrentTriple(isVerbose: Bool) throws -> Triple {
+    let current = UnixName.current!
+    let cpu = current.machine
     #if os(macOS)
-    let macOSVersion = try await Shell.readStdout("sw_vers -productVersion", shouldLogCommands: isVerbose)
-
-    guard let majorMacOSVersion = macOSVersion.split(separator: ".").first else {
-      throw GeneratorError.unknownMacOSVersion(macOSVersion)
-    }
-    return Triple(cpu: cpu, vendor: .apple, os: .macosx(version: "\(majorMacOSVersion).0"))
+    let darwinVersion = current.release
+    let darwinTriple = Triple("\(cpu)-apple-darwin\(darwinVersion)")
+    return Triple("\(cpu)-apple-macos\(darwinTriple._macOSVersion?.description ?? "")")
     #elseif os(Linux)
-    return Triple(cpu: cpu, vendor: .unknown, os: .linux)
+    return Triple("\(cpu)-unknown-linux")
     #else
     fatalError("Triple detection not implemented for the platform that this generator was built on.")
     #endif
@@ -99,7 +84,7 @@ public actor SwiftSDKGenerator {
     try await Shell.readStdout(
       """
       \(Self.dockerCommand) run --rm --platform=linux/\(
-        self.targetTriple.cpu.debianConventionName
+        self.targetTriple.arch!.debianConventionName
       ) -d \(imageName) tail -f /dev/null
       """,
       shouldLogCommands: self.isVerbose

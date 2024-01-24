@@ -24,7 +24,7 @@ public struct VersionsConfiguration: Sendable {
     self.swiftBranch = swiftBranch ?? "swift-\(swiftVersion.lowercased())"
     self.lldVersion = lldVersion
     self.linuxDistribution = linuxDistribution
-    self.linuxArchSuffix = targetTriple.cpu == .arm64 ? "-\(Triple.CPU.arm64.linuxConventionName)" : ""
+    self.linuxArchSuffix = targetTriple.arch == .aarch64 ? "-\(Triple.Arch.aarch64.linuxConventionName)" : ""
   }
 
   let swiftVersion: String
