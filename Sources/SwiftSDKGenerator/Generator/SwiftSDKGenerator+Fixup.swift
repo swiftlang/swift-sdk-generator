@@ -63,7 +63,7 @@ extension SwiftSDKGenerator {
       #/\n( *header )"\/+usr\/include\//#
       Capture {
         Optionally {
-          hostTriple.cpu.linuxConventionName
+          hostTriple.arch!.linuxConventionName
           "-linux-gnu"
         }
       }

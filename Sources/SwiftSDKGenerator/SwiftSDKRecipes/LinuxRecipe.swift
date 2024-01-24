@@ -18,12 +18,19 @@ import struct SystemPackage.FilePath
 public struct LinuxRecipe: SwiftSDKRecipe {
   public enum TargetSwiftSource: Sendable {
     case docker(baseSwiftDockerImage: String)
-    case tarball
+    case localPackage(FilePath)
+    case remoteTarball
+  }
+
+  public enum HostSwiftSource: Sendable {
+    case localPackage(FilePath)
+    case remoteTarball
   }
 
   let mainTargetTriple: Triple
   let linuxDistribution: LinuxDistribution
   let targetSwiftSource: TargetSwiftSource
+  let hostSwiftSource: HostSwiftSource
   let versionsConfiguration: VersionsConfiguration
 
   var shouldUseDocker: Bool {
@@ -40,7 +47,9 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     swiftBranch: String?,
     lldVersion: String,
     withDocker: Bool,
-    fromContainerImage: String?
+    fromContainerImage: String?,
+    hostSwiftPackagePath: String?,
+    targetSwiftPackagePath: String?
   ) throws {
     let versionsConfiguration = try VersionsConfiguration(
       swiftVersion: swiftVersion,
@@ -51,17 +60,28 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     )
 
     let targetSwiftSource: LinuxRecipe.TargetSwiftSource
-    if withDocker {
-      let imageName = fromContainerImage ?? versionsConfiguration.swiftBaseDockerImage
-      targetSwiftSource = .docker(baseSwiftDockerImage: imageName)
+    if let targetSwiftPackagePath {
+      targetSwiftSource = .localPackage(FilePath(targetSwiftPackagePath))
     } else {
-      targetSwiftSource = .tarball
+      if withDocker {
+        let imageName = fromContainerImage ?? versionsConfiguration.swiftBaseDockerImage
+        targetSwiftSource = .docker(baseSwiftDockerImage: imageName)
+      } else {
+        targetSwiftSource = .remoteTarball
+      }
+    }
+    let hostSwiftSource: HostSwiftSource
+    if let hostSwiftPackagePath {
+      hostSwiftSource = .localPackage(FilePath(hostSwiftPackagePath))
+    } else {
+      hostSwiftSource = .remoteTarball
     }
 
     self.init(
       mainTargetTriple: targetTriple,
       linuxDistribution: linuxDistribution,
       targetSwiftSource: targetSwiftSource,
+      hostSwiftSource: hostSwiftSource,
       versionsConfiguration: versionsConfiguration
     )
   }
@@ -70,11 +90,13 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     mainTargetTriple: Triple,
     linuxDistribution: LinuxDistribution,
     targetSwiftSource: TargetSwiftSource,
+    hostSwiftSource: HostSwiftSource,
     versionsConfiguration: VersionsConfiguration
   ) {
     self.mainTargetTriple = mainTargetTriple
     self.linuxDistribution = linuxDistribution
     self.targetSwiftSource = targetSwiftSource
+    self.hostSwiftSource = hostSwiftSource
     self.versionsConfiguration = versionsConfiguration
   }
 
@@ -88,7 +110,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
   public var defaultArtifactID: String {
     """
     \(versionsConfiguration.swiftVersion)_\(linuxDistribution.name.rawValue)_\(linuxDistribution.release)_\(
-    mainTargetTriple.cpu.linuxConventionName
+    mainTargetTriple.arch!.linuxConventionName
     )
     """
   }
@@ -112,12 +134,29 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     var downloadableArtifacts = try DownloadableArtifacts(
       hostTriple: generator.hostTriple,
       targetTriple: generator.targetTriple,
-      shouldUseDocker: shouldUseDocker,
       versionsConfiguration,
       generator.pathsConfiguration
     )
 
-    try await generator.downloadArtifacts(client, engine, downloadableArtifacts: &downloadableArtifacts)
+    try await generator.downloadArtifacts(
+      client,
+      engine,
+      downloadableArtifacts: &downloadableArtifacts,
+      itemsToDownload: { artifacts in
+        var items = [artifacts.hostLLVM]
+        switch targetSwiftSource {
+        case .remoteTarball:
+          items.append(artifacts.targetSwift)
+        case .docker, .localPackage: break
+        }
+        switch hostSwiftSource {
+        case .remoteTarball:
+          items.append(artifacts.hostSwift)
+        case .localPackage: break
+        }
+        return items
+      }
+    )
 
     if !self.shouldUseDocker {
       guard case let .ubuntu(version) = linuxDistribution else {
@@ -134,9 +173,16 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       )
     }
 
-    try await generator.unpackHostSwift(
-      hostSwiftPackagePath: downloadableArtifacts.hostSwift.localPath
-    )
+    switch self.hostSwiftSource {
+    case .localPackage(let filePath):
+      try await generator.rsync(
+        from: filePath.appending("usr"), to: generator.pathsConfiguration.toolchainDirPath
+      )
+    case .remoteTarball:
+      try await generator.unpackHostSwift(
+        hostSwiftPackagePath: downloadableArtifacts.hostSwift.localPath
+      )
+    }
 
     switch self.targetSwiftSource {
     case let .docker(baseSwiftDockerImage):
@@ -145,7 +191,11 @@ public struct LinuxRecipe: SwiftSDKRecipe {
         baseDockerImage: baseSwiftDockerImage,
         sdkDirPath: sdkDirPath
       )
-    case .tarball:
+    case .localPackage(let filePath):
+      try await generator.copyTargetSwift(
+        from: filePath.appending("usr/lib"), sdkDirPath: sdkDirPath
+      )
+    case .remoteTarball:
       try await generator.unpackTargetSwiftPackage(
         targetSwiftPackagePath: downloadableArtifacts.targetSwift.localPath,
         relativePathToRoot: [FilePath.Component(versionsConfiguration.swiftDistributionName())!],
@@ -157,7 +207,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
 
     try await generator.fixAbsoluteSymlinks(sdkDirPath: sdkDirPath)
 
-    let targetCPU = generator.targetTriple.cpu
+    let targetCPU = generator.targetTriple.arch!
     try await generator.fixGlibcModuleMap(
       at: generator.pathsConfiguration.toolchainDirPath
         .appending("/usr/lib/swift/linux/\(targetCPU.linuxConventionName)/glibc.modulemap")

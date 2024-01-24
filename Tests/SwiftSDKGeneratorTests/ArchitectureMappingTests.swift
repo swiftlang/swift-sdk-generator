@@ -34,8 +34,8 @@ final class ArchitectureMappingTests: XCTestCase {
 
   public func verifySDKSpec(
     bundleVersion: String,
-    hostCPUArchitecture: Triple.CPU, // CPU architecture of the build system
-    targetCPUArchitecture: Triple.CPU, // CPU architecture of the target
+    hostTriple: Triple,
+    targetTriple: Triple,
 
     artifactID: String, // Base name of the generated bundle
     hostLLVMDownloadURL: String, // URL of the host LLVM package
@@ -44,7 +44,6 @@ final class ArchitectureMappingTests: XCTestCase {
     artifactBundlePathSuffix: String, // Path to the generated bundle
     sdkDirPathSuffix: String // Path of the SDK within the bundle
   ) async throws {
-    let targetTriple = Triple(cpu: targetCPUArchitecture, vendor: .unknown, os: .linux, environment: .gnu)
     let recipe = try LinuxRecipe(
       targetTriple: targetTriple,
       linuxDistribution: .ubuntu(.jammy),
@@ -52,13 +51,15 @@ final class ArchitectureMappingTests: XCTestCase {
       swiftBranch: nil,
       lldVersion: "16.0.4",
       withDocker: false,
-      fromContainerImage: nil
+      fromContainerImage: nil,
+      hostSwiftPackagePath: nil,
+      targetSwiftPackagePath: nil
     )
     // LocalSwiftSDKGenerator constructs URLs and paths which depend on architectures
     let sdk = try await SwiftSDKGenerator(
       bundleVersion: bundleVersion,
       // macOS is currently the only supported build environment
-      hostTriple: Triple(cpu: hostCPUArchitecture, vendor: .apple, os: .macosx(version: "13")),
+      hostTriple: hostTriple,
 
       // Linux is currently the only supported runtime environment
       targetTriple: targetTriple,
@@ -77,7 +78,6 @@ final class ArchitectureMappingTests: XCTestCase {
     let artifacts = try await DownloadableArtifacts(
       hostTriple: sdk.hostTriple,
       targetTriple: sdk.targetTriple,
-      shouldUseDocker: recipe.shouldUseDocker,
       recipe.versionsConfiguration,
       sdk.pathsConfiguration
     )
@@ -125,8 +125,8 @@ final class ArchitectureMappingTests: XCTestCase {
   func testX86ToX86SDKGenerator() async throws {
     try await self.verifySDKSpec(
       bundleVersion: "0.0.1",
-      hostCPUArchitecture: .x86_64,
-      targetCPUArchitecture: .x86_64,
+      hostTriple: Triple("x86_64-apple-macosx13"),
+      targetTriple: Triple("x86_64-unknown-linux-gnu"),
       artifactID: "5.8-RELEASE_ubuntu_jammy_x86_64",
       hostLLVMDownloadURL: "https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.4/clang+llvm-16.0.4-x86_64-apple-darwin22.0.tar.xz",
       targetSwiftDownloadURL: "https://download.swift.org/swift-5.8-release/ubuntu2204/swift-5.8-RELEASE/swift-5.8-RELEASE-ubuntu22.04.tar.gz",
@@ -138,8 +138,8 @@ final class ArchitectureMappingTests: XCTestCase {
   func testX86ToArmSDKGenerator() async throws {
     try await self.verifySDKSpec(
       bundleVersion: "0.0.1",
-      hostCPUArchitecture: .x86_64,
-      targetCPUArchitecture: .arm64,
+      hostTriple: Triple("x86_64-apple-macosx13"),
+      targetTriple: Triple("aarch64-unknown-linux-gnu"),
       artifactID: "5.8-RELEASE_ubuntu_jammy_aarch64",
       hostLLVMDownloadURL: "https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.4/clang+llvm-16.0.4-x86_64-apple-darwin22.0.tar.xz",
       targetSwiftDownloadURL: "https://download.swift.org/swift-5.8-release/ubuntu2204-aarch64/swift-5.8-RELEASE/swift-5.8-RELEASE-ubuntu22.04-aarch64.tar.gz",
@@ -151,8 +151,8 @@ final class ArchitectureMappingTests: XCTestCase {
   func testArmToArmSDKGenerator() async throws {
     try await self.verifySDKSpec(
       bundleVersion: "0.0.1",
-      hostCPUArchitecture: .arm64,
-      targetCPUArchitecture: .arm64,
+      hostTriple: Triple("arm64-apple-macosx13"),
+      targetTriple: Triple("aarch64-unknown-linux-gnu"),
       artifactID: "5.8-RELEASE_ubuntu_jammy_aarch64",
       hostLLVMDownloadURL: "https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.4/clang+llvm-16.0.4-arm64-apple-darwin22.0.tar.xz",
       targetSwiftDownloadURL: "https://download.swift.org/swift-5.8-release/ubuntu2204-aarch64/swift-5.8-RELEASE/swift-5.8-RELEASE-ubuntu22.04-aarch64.tar.gz",
@@ -164,8 +164,8 @@ final class ArchitectureMappingTests: XCTestCase {
   func testArmToX86SDKGenerator() async throws {
     try await self.verifySDKSpec(
       bundleVersion: "0.0.1",
-      hostCPUArchitecture: .arm64,
-      targetCPUArchitecture: .x86_64,
+      hostTriple: Triple("arm64-apple-macosx13"),
+      targetTriple: Triple("x86_64-unknown-linux-gnu"),
       artifactID: "5.8-RELEASE_ubuntu_jammy_x86_64",
       hostLLVMDownloadURL: "https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.4/clang+llvm-16.0.4-arm64-apple-darwin22.0.tar.xz",
       targetSwiftDownloadURL: "https://download.swift.org/swift-5.8-release/ubuntu2204/swift-5.8-RELEASE/swift-5.8-RELEASE-ubuntu22.04.tar.gz",

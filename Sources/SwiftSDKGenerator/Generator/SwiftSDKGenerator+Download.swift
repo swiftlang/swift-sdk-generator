@@ -29,7 +29,8 @@ let byteCountFormatter = ByteCountFormatter()
 extension SwiftSDKGenerator {
   func downloadArtifacts(
     _ client: HTTPClient, _ engine: Engine,
-    downloadableArtifacts: inout DownloadableArtifacts
+    downloadableArtifacts: inout DownloadableArtifacts,
+    itemsToDownload: @Sendable (DownloadableArtifacts) -> [DownloadableArtifacts.Item]
   ) async throws {
     logGenerationStep("Downloading required toolchain packages...")
     var headRequest = HTTPClientRequest(url: downloadableArtifacts.hostLLVM.remoteURL.absoluteString)
@@ -43,7 +44,7 @@ extension SwiftSDKGenerator {
     }
 
     let results = try await withThrowingTaskGroup(of: FileCacheRecord.self) { group in
-      for item in downloadableArtifacts.allItems {
+      for item in itemsToDownload(downloadableArtifacts) {
         group.addTask {
           try await engine[DownloadArtifactQuery(artifact: item)]
         }
@@ -171,7 +172,7 @@ extension HTTPClient {
     targetTriple: Triple,
     isVerbose: Bool
   ) async throws -> [String: URL] {
-    let mirrorURL: String = if targetTriple.cpu == .x86_64 {
+    let mirrorURL: String = if targetTriple.arch == .x86_64 {
       ubuntuAMD64Mirror
     } else {
       ubuntuARM64Mirror
@@ -179,7 +180,7 @@ extension HTTPClient {
 
     let packagesListURL = """
     \(mirrorURL)/dists/\(ubuntuRelease)\(releaseSuffix)/\(repository)/binary-\(
-      targetTriple.cpu
+      targetTriple.arch!
         .debianConventionName
     )/Packages.gz
     """

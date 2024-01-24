@@ -95,7 +95,7 @@ extension SwiftSDKGenerator {
               variants: [
                 .init(
                   path: FilePath(artifactID).appending(self.targetTriple.linuxConventionDescription).string,
-                  supportedTriples: [self.hostTriple.description]
+                  supportedTriples: [self.hostTriple.triple]
                 ),
               ]
             ),
