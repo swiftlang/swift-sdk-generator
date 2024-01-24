@@ -113,7 +113,7 @@ extension GeneratorCLI {
     )
     var target: Triple? = nil
 
-    @Option(help: "Deprecated. Use `--target` instead")
+    @Option(help: "Deprecated. Use `--host` instead")
     var hostArch: Triple.Arch? = nil
     @Option(help: "Deprecated. Use `--target` instead")
     var targetArch: Triple.Arch? = nil
