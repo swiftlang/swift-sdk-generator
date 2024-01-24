@@ -254,20 +254,6 @@ extension GeneratorCLI {
 
     @Option(
       help: """
-      Path to the Swift toolchain package containing the Swift compiler that runs on the host platform.
-      """
-    )
-    var hostSwiftPackagePath: String
-
-    @Option(
-      help: """
-      Path to the Swift toolchain package containing the Swift standard library that runs on the target platform.
-      """
-    )
-    var targetSwiftPackagePath: String
-
-    @Option(
-      help: """
       Path to the WASI sysroot directory containing the WASI libc headers and libraries.
       """
     )
@@ -278,6 +264,10 @@ extension GeneratorCLI {
     }
 
     func run() async throws {
+      guard let hostSwiftPackagePath = generatorOptions.hostSwiftPackagePath,
+            let targetSwiftPackagePath = generatorOptions.targetSwiftPackagePath else {
+        throw StringError("Missing expected argument '--host-swift-package-path' or '--target-swift-package-path'")
+      }
       let recipe = WebAssemblyRecipe(
         hostSwiftPackagePath: FilePath(hostSwiftPackagePath),
         targetSwiftPackagePath: FilePath(targetSwiftPackagePath),
@@ -319,4 +309,11 @@ struct SwiftSDKGeneratorService: Service {
     func run() async throws {
         try await generator.run(recipe: recipe)
     }
+}
+
+struct StringError: Error, CustomStringConvertible {
+  let description: String
+  init(_ description: String) {
+    self.description = description
+  }
 }
