@@ -100,6 +100,20 @@ extension GeneratorCLI {
 
     @Option(
       help: """
+      Path to the Swift toolchain package containing the Swift compiler that runs on the host platform.
+      """
+    )
+    var hostSwiftPackagePath: String? = nil
+
+    @Option(
+      help: """
+      Path to the Swift toolchain package containing the Swift standard library that runs on the target platform.
+      """
+    )
+    var targetSwiftPackagePath: String? = nil
+
+    @Option(
+      help: """
       The host triple of the bundle. Defaults to a triple of the machine this generator is \
       running on if unspecified.
       """
@@ -203,7 +217,9 @@ extension GeneratorCLI {
         swiftBranch: generatorOptions.swiftBranch,
         lldVersion: lldVersion,
         withDocker: withDocker,
-        fromContainerImage: fromContainerImage
+        fromContainerImage: fromContainerImage,
+        hostSwiftPackagePath: generatorOptions.hostSwiftPackagePath,
+        targetSwiftPackagePath: generatorOptions.targetSwiftPackagePath
       )
       try await GeneratorCLI.run(recipe: recipe, hostTriple: hostTriple, targetTriple: targetTriple, options: generatorOptions)
     }

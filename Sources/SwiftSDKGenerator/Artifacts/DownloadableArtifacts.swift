@@ -40,22 +40,12 @@ struct DownloadableArtifacts: Sendable {
   private(set) var hostLLVM: Item
   let targetSwift: Item
 
-  private let shouldUseDocker: Bool
-  var allItems: [Item] {
-    if self.shouldUseDocker {
-      [self.hostSwift, self.hostLLVM]
-    } else {
-      [self.hostSwift, self.hostLLVM, self.targetSwift]
-    }
-  }
-
   private let versions: VersionsConfiguration
   private let paths: PathsConfiguration
 
   init(
     hostTriple: Triple,
     targetTriple: Triple,
-    shouldUseDocker: Bool,
     _ versions: VersionsConfiguration,
     _ paths: PathsConfiguration
   ) throws {
@@ -94,8 +84,6 @@ struct DownloadableArtifacts: Sendable {
         .appending("target_swift_\(versions.swiftVersion)_\(targetTriple.triple).tar.gz"),
       isPrebuilt: true
     )
-
-    self.shouldUseDocker = shouldUseDocker
   }
 
   mutating func useLLVMSources() {
