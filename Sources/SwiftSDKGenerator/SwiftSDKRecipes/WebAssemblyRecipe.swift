@@ -70,6 +70,7 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
     let pathsConfiguration = generator.pathsConfiguration
     logGenerationStep("Copying Swift core libraries for the target triple into Swift SDK bundle...")
     for (pathWithinPackage, pathWithinSwiftSDK) in [
+      ("clang", pathsConfiguration.toolchainDirPath.appending("usr/lib")),
       ("swift/wasi", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift")),
       ("swift_static/wasi", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static")),
       ("swift_static/shims", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static")),
