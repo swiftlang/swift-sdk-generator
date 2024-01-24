@@ -51,7 +51,9 @@ final class ArchitectureMappingTests: XCTestCase {
       swiftBranch: nil,
       lldVersion: "16.0.4",
       withDocker: false,
-      fromContainerImage: nil
+      fromContainerImage: nil,
+      hostSwiftPackagePath: nil,
+      targetSwiftPackagePath: nil
     )
     // LocalSwiftSDKGenerator constructs URLs and paths which depend on architectures
     let sdk = try await SwiftSDKGenerator(
@@ -76,7 +78,6 @@ final class ArchitectureMappingTests: XCTestCase {
     let artifacts = try await DownloadableArtifacts(
       hostTriple: sdk.hostTriple,
       targetTriple: sdk.targetTriple,
-      shouldUseDocker: recipe.shouldUseDocker,
       recipe.versionsConfiguration,
       sdk.pathsConfiguration
     )
