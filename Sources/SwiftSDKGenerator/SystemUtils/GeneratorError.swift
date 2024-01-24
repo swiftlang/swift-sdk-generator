@@ -16,8 +16,8 @@ import struct SystemPackage.FilePath
 
 enum GeneratorError: Error {
   case noProcessOutput(String)
-  case unhandledChildProcessSignal(Int32, CommandInfo)
-  case nonZeroExitCode(Int32, CommandInfo)
+  case unhandledChildProcessSignal(CInt, CommandInfo)
+  case nonZeroExitCode(CInt, CommandInfo)
   case unknownLinuxDistribution(name: String, version: String?)
   case unknownMacOSVersion(String)
   case unknownCPUArchitecture(String)

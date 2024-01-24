@@ -157,11 +157,11 @@ extension HTTPClient {
     from url: String,
     isVerbose: Bool
   ) async throws -> String? {
-    guard var packages = try await get(url: url).get().body?.unzip(isVerbose: isVerbose) else {
-      throw FileOperationError.downloadFailed(URL(string: url)!)
+    guard let packages = try await get(url: url).get().body?.unzip(isVerbose: isVerbose) else {
+      throw FileOperationError.downloadFailed(url)
     }
 
-    return packages.readString(length: packages.readableBytes)
+    return String(buffer: packages)
   }
 
   func parseUbuntuPackagesList(
