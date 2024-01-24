@@ -108,7 +108,7 @@ extension GeneratorCLI {
 
     @Option(
       help: """
-      The target triple of the bundle. Same as the host triple if unspecified.
+      The target triple of the bundle. The default depends on a recipe used for SDK generation. Pass `--help` to a specific recipe subcommand for more details.
       """
     )
     var target: Triple? = nil
@@ -121,7 +121,10 @@ extension GeneratorCLI {
   struct MakeLinuxSDK: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
       commandName: "make-linux-sdk",
-      abstract: "Generate a Swift SDK bundle for Linux."
+      abstract: "Generate a Swift SDK bundle for Linux.",
+      discussion: """
+      The default `--target` triple is Linux with the same CPU architecture with host triple
+      """
     )
 
     @OptionGroup
