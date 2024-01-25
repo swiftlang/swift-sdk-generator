@@ -89,6 +89,7 @@ let package = Package(
     ),
     .target(
       name: "Helpers",
+      exclude: ["Vendor/README.md"],
       swiftSettings: [
         .enableExperimentalFeature("StrictConcurrency=complete"),
       ]
