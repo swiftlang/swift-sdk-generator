@@ -167,6 +167,11 @@ public actor SwiftSDKGenerator {
     try await Shell.run("rsync -a \(source) \(destination)", shouldLogCommands: self.isVerbose)
   }
 
+  func rsyncContents(from source: FilePath, to destination: FilePath) async throws {
+    try self.createDirectoryIfNeeded(at: destination)
+    try await Shell.run("rsync -a \(source)/ \(destination)", shouldLogCommands: self.isVerbose)
+  }
+
   func createSymlink(at source: FilePath, pointingTo destination: FilePath) throws {
     try self.fileManager.createSymbolicLink(
       atPath: source.string,
