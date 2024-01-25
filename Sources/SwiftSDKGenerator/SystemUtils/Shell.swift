@@ -133,8 +133,8 @@ struct Shell {
 
 extension ChunkSequence {
   func printChunksAsStrings() async throws {
-      for try await line in self.splitIntoLines(dropTerminator: true) {
-          print(line)
-      }
+    for try await line in self.splitIntoLines(dropTerminator: true) {
+      print(String(buffer: line))
+    }
   }
 }

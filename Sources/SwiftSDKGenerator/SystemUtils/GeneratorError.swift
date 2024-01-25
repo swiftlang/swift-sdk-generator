@@ -34,6 +34,8 @@ extension GeneratorError: CustomStringConvertible {
     switch self {
     case let .noProcessOutput(process):
       "Failed to read standard output of a launched process: \(process)"
+    case let .unhandledChildProcessSignal(signal, commandInfo):
+      "Process launched with \(commandInfo) finished due to signal \(signal)"
     case let .nonZeroExitCode(exitCode, commandInfo):
       "Process launched with \(commandInfo) failed with exit code \(exitCode)"
     case let .unknownLinuxDistribution(name, version):
