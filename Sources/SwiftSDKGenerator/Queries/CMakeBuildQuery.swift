@@ -23,13 +23,16 @@ struct CMakeBuildQuery {
   func run(engine: Engine) async throws -> FilePath {
     try await Shell.run(
       """
-      cmake -B build -G Ninja -S llvm -DCMAKE_BUILD_TYPE=Release \(self.options)
+      cmake -S "\(self.sourcesDirectory)"/llvm -B "\(
+        self
+          .sourcesDirectory
+      )"/build -G Ninja -DCMAKE_BUILD_TYPE=Release \(self.options)
       """,
-      currentDirectory: self.sourcesDirectory
+      logStdout: true
     )
 
     let buildDirectory = self.sourcesDirectory.appending("build")
-    try await Shell.run("ninja \(FilePath(".").appending(self.outputBinarySubpath))", currentDirectory: buildDirectory)
+    try await Shell.run(#"ninja -C "\#(buildDirectory)""#, logStdout: true)
 
     return self.outputBinarySubpath.reduce(into: buildDirectory) { $0.append($1) }
   }

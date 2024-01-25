@@ -67,10 +67,13 @@ struct FileContentStream: AsyncSequence {
       guard let blockingPool else {
         throw IOError(errnoValue: EINVAL)
       }
-      let fileHandle = NIOFileHandle(descriptor: dupedFD)
+      let fileHandle = NIOLoopBound(
+        NIOFileHandle(descriptor: dupedFD),
+        eventLoop: eventLoop
+      )
       NonBlockingFileIO(threadPool: blockingPool)
         .readChunked(
-          fileHandle: fileHandle,
+          fileHandle: fileHandle.value,
           byteCount: .max,
           allocator: ByteBufferAllocator(),
           eventLoop: eventLoop,
@@ -81,7 +84,7 @@ struct FileContentStream: AsyncSequence {
           }
         )
         .whenComplete { result in
-          try! fileHandle.close()
+          try! fileHandle.value.close()
           switch result {
           case let .failure(error):
             asyncChannel.fail(error)
@@ -96,20 +99,16 @@ struct FileContentStream: AsyncSequence {
         }
         .withConnectedSocket(dupedFD)
     case S_IFIFO:
-      let deadPipe = Pipe()
       NIOPipeBootstrap(group: eventLoop)
         .channelInitializer { channel in
           channel.pipeline.addHandler(ReadIntoAsyncChannelHandler(sink: asyncChannel))
         }
-        .takingOwnershipOfDescriptors(
-          input: dupedFD,
-          output: dup(deadPipe.fileHandleForWriting.fileDescriptor)
+        .takingOwnershipOfDescriptor(
+          input: dupedFD
         )
         .whenSuccess { channel in
           channel.close(mode: .output, promise: nil)
         }
-      try! deadPipe.fileHandleForReading.close()
-      try! deadPipe.fileHandleForWriting.close()
     case S_IFDIR:
       throw IOError(errnoValue: EISDIR)
     case S_IFBLK, S_IFCHR, S_IFLNK:
@@ -206,25 +205,30 @@ private final class ReadIntoAsyncChannelHandler: ChannelDuplexHandler {
   private func sendOneItem(_ data: ReceivedEvent, context: ChannelHandlerContext) {
     context.eventLoop.assertInEventLoop()
     assert(self.shouldRead == false, "sendOneItem in unexpected state \(self.state)")
-    context.eventLoop.makeFutureWithTask {
+    let eventLoop = context.eventLoop
+    let sink = self.sink
+    let `self` = NIOLoopBound(self, eventLoop: context.eventLoop)
+    let context = NIOLoopBound(context, eventLoop: context.eventLoop)
+    eventLoop.makeFutureWithTask {
+      // note: We're _not_ on an EventLoop thread here
       switch data {
       case let .chunk(data):
-        await self.sink.send(data)
+        await sink.send(data)
       case .finish:
-        self.sink.finish()
+        sink.finish()
       }
     }.map {
-      if let moreToSend = self.state.didSendOne() {
-        self.sendOneItem(moreToSend, context: context)
+      if let moreToSend = self.value.state.didSendOne() {
+        self.value.sendOneItem(moreToSend, context: context.value)
       } else {
-        if self.heldUpRead {
-          context.eventLoop.execute {
-            context.read()
+        if self.value.heldUpRead {
+          eventLoop.execute {
+            context.value.read()
           }
         }
       }
     }.whenFailure { error in
-      self.state.fail(error)
+      self.value.state.fail(error)
     }
   }
 
@@ -268,7 +272,7 @@ extension FileContentStream {
   }
 }
 
-public extension AsyncSequence where Element == ByteBuffer {
+public extension AsyncSequence where Element == ByteBuffer, Self: Sendable {
   func splitIntoLines(
     dropTerminator: Bool = true,
     maximumAllowableBufferSize: Int = 1024 * 1024,

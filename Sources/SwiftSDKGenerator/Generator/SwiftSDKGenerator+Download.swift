@@ -157,17 +157,12 @@ extension HTTPClient {
   private func downloadUbuntuPackagesList(
     from url: String,
     isVerbose: Bool
-  ) async throws -> String {
-    guard let packages = try await get(url: url).get().body else {
-      throw FileOperationError.downloadFailed(URL(string: url)!)
+  ) async throws -> String? {
+    guard let packages = try await get(url: url).get().body?.unzip(isVerbose: isVerbose) else {
+      throw FileOperationError.downloadFailed(url)
     }
 
-    var result = ""
-    for try await chunk in try packages.unzip(isVerbose: isVerbose) {
-      result.append(String(data: chunk, encoding: .utf8)!)
-    }
-
-    return result
+    return String(buffer: packages)
   }
 
   func parseUbuntuPackagesList(
@@ -190,10 +185,12 @@ extension HTTPClient {
     )/Packages.gz
     """
 
-    let packages = try await downloadUbuntuPackagesList(
+    guard let packages = try await downloadUbuntuPackagesList(
       from: packagesListURL,
       isVerbose: isVerbose
-    )
+    ) else {
+      throw GeneratorError.ubuntuPackagesDecompressionFailure
+    }
 
     let packageRef = Reference(Substring.self)
     let pathRef = Reference(Substring.self)
