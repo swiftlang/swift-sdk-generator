@@ -227,7 +227,7 @@ public actor SwiftSDKGenerator {
   }
 
   func gunzip(file: FilePath, into directoryPath: FilePath) async throws {
-    try await Shell.run("gzip -d \(file)", currentDirectory: directoryPath, shouldLogCommands: self.isVerbose)
+    try await Shell.run(#"cd "\#(directoryPath)" && gzip -d "\#(file)""#, shouldLogCommands: self.isVerbose)
   }
 
   func untar(
@@ -241,8 +241,7 @@ public actor SwiftSDKGenerator {
       ""
     }
     try await Shell.run(
-      "tar \(stripComponentsOption) -xzf \(file)",
-      currentDirectory: directoryPath,
+      #"tar -C "\#(directoryPath)" \#(stripComponentsOption) -xzf \#(file)"#,
       shouldLogCommands: self.isVerbose
     )
   }
@@ -250,11 +249,11 @@ public actor SwiftSDKGenerator {
   func unpack(debFile: FilePath, into directoryPath: FilePath) async throws {
     let isVerbose = self.isVerbose
     try await self.inTemporaryDirectory { _, tmp in
-      try await Shell.run("ar -x \(debFile)", currentDirectory: tmp, shouldLogCommands: isVerbose)
+      try await Shell.run(#"cd "\#(tmp)" && ar -x "\#(debFile)""#, shouldLogCommands: isVerbose)
+      try await print(Shell.readStdout("ls \(tmp)"))
 
       try await Shell.run(
-        "tar -xf \(tmp)/data.tar.*",
-        currentDirectory: directoryPath,
+        #"tar -C "\#(directoryPath)" -xf "\#(tmp)"/data.tar.*"#,
         shouldLogCommands: isVerbose
       )
     }
@@ -263,10 +262,9 @@ public actor SwiftSDKGenerator {
   func unpack(pkgFile: FilePath, into directoryPath: FilePath) async throws {
     let isVerbose = self.isVerbose
     try await self.inTemporaryDirectory { _, tmp in
-      try await Shell.run("xar -xf \(pkgFile)", currentDirectory: tmp, shouldLogCommands: isVerbose)
+      try await Shell.run(#"xar -C "\#(tmp)" -xf "\#(pkgFile)""#, shouldLogCommands: isVerbose)
       try await Shell.run(
-        "cat \(tmp)/*.pkg/Payload | gunzip -cd | cpio -i",
-        currentDirectory: directoryPath,
+        #"cat "\#(tmp)"/*.pkg/Payload | gunzip -cd | (cd "\#(directoryPath)" && cpio -i)"#,
         shouldLogCommands: isVerbose
       )
     }
