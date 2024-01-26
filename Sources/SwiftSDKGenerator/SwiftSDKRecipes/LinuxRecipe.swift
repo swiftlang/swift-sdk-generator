@@ -126,7 +126,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     httpClient client: HTTPClient
   ) async throws -> SwiftSDKProduct {
     let sdkDirPath = self.sdkDirPath(paths: generator.pathsConfiguration)
-    if generator.isIncremental {
+    if !generator.isIncremental {
       try await generator.removeRecursively(at: sdkDirPath)
     }
     try await generator.createDirectoryIfNeeded(at: sdkDirPath)
