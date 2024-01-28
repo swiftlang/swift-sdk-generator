@@ -49,6 +49,22 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
     let pathsConfiguration = generator.pathsConfiguration
     logGenerationStep("Copying Swift binaries for the host triple...")
     try await generator.rsync(from: self.hostSwiftPackagePath.appending("usr"), to: pathsConfiguration.toolchainDirPath)
+
+    logGenerationStep("Removing unused toolchain components...")
+    let liblldbNames: [String] = try await {
+      let libDirPath = pathsConfiguration.toolchainDirPath.appending("usr/lib")
+      return try await generator.contentsOfDirectory(at: libDirPath).filter { dirEntry in
+        // liblldb is version suffixed: liblldb.so.17.0.0
+        dirEntry.hasPrefix("liblldb")
+      }
+    }()
+    try await generator.removeToolchainComponents(
+      pathsConfiguration.toolchainDirPath,
+      platforms: unusedDarwinPlatforms + ["linux", "embedded"],
+      libraries: unusedHostLibraries + liblldbNames,
+      binaries: unusedHostBinaries + ["lldb", "lldb-argdumper", "lldb-server"]
+    )
+
     try await self.copyTargetSwift(from: self.targetSwiftPackagePath.appending("usr/lib"), generator: generator)
 
     let autolinkExtractPath = generator.pathsConfiguration.toolchainBinDirPath.appending("swift-autolink-extract")

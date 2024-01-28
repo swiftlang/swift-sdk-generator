@@ -13,7 +13,7 @@
 import GeneratorEngine
 import struct SystemPackage.FilePath
 
-private let unusedDarwinPlatforms = [
+let unusedDarwinPlatforms = [
   "watchsimulator",
   "iphonesimulator",
   "appletvsimulator",
@@ -22,7 +22,7 @@ private let unusedDarwinPlatforms = [
   "appletvos",
 ]
 
-private let unusedHostBinaries = [
+let unusedHostBinaries = [
   "clangd",
   "docc",
   "dsymutil",
@@ -31,8 +31,9 @@ private let unusedHostBinaries = [
   "swift-package-collection",
 ]
 
-private let unusedHostLibraries = [
+let unusedHostLibraries = [
   "sourcekitd.framework",
+  "libsourcekitdInProc.so",
 ]
 
 extension SwiftSDKGenerator {
