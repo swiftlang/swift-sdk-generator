@@ -100,5 +100,41 @@ final class EndToEndTests: XCTestCase {
       }
     }
   }
+
+  func testRepeatedSDKBuilds() async throws {
+    let fm = FileManager.default
+
+    var packageDirectory = FilePath(#file)
+    packageDirectory.removeLastComponent()
+    packageDirectory.removeLastComponent()
+
+    // Test that an existing SDK can be rebuilt without cleaning up.
+    // Test with no arguments by default:
+    var possibleArguments = [""]
+    do {
+      try await Shell.run("docker ps")
+      possibleArguments.append("--with-docker --linux-distribution-name rhel --linux-distribution-version ubi9")
+    } catch {
+      self.logger.warning("Docker CLI does not seem to be working, skipping tests that involve Docker.")
+    }
+
+    for runArguments in possibleArguments {
+      let testPackageURL = FileManager.default.temporaryDirectory.appendingPathComponent("swift-sdk-generator-test")
+      let testPackageDir = FilePath(testPackageURL.path)
+      try? fm.removeItem(atPath: testPackageDir.string)
+      try fm.createDirectory(atPath: testPackageDir.string, withIntermediateDirectories: true)
+      defer { try? fm.removeItem(atPath: testPackageDir.string) }
+
+      let firstGeneratorOutput = try await Shell.readStdout(
+        "cd \(packageDirectory) && swift run swift-sdk-generator \(runArguments)"
+      )
+      XCTAssert(firstGeneratorOutput.contains("swift experimental-sdk install"))
+
+      let repeatGeneratorOutput = try await Shell.readStdout(
+        "cd \(packageDirectory) && swift run swift-sdk-generator \(runArguments)"
+      )
+      XCTAssert(repeatGeneratorOutput.contains("swift experimental-sdk install"))
+    }
+  }
   #endif
 }
