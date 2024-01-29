@@ -13,7 +13,7 @@
 import GeneratorEngine
 import struct SystemPackage.FilePath
 
-private let unusedDarwinPlatforms = [
+let unusedDarwinPlatforms = [
   "watchsimulator",
   "iphonesimulator",
   "appletvsimulator",
@@ -22,13 +22,18 @@ private let unusedDarwinPlatforms = [
   "appletvos",
 ]
 
-private let unusedHostBinaries = [
+let unusedHostBinaries = [
   "clangd",
   "docc",
   "dsymutil",
   "sourcekit-lsp",
   "swift-package",
   "swift-package-collection",
+]
+
+let unusedHostLibraries = [
+  "sourcekitd.framework",
+  "libsourcekitdInProc.so",
 ]
 
 extension SwiftSDKGenerator {
@@ -38,18 +43,27 @@ extension SwiftSDKGenerator {
 
     try await inTemporaryDirectory { fileSystem, tmpDir in
       try await fileSystem.unpack(file: hostSwiftPackagePath, into: tmpDir)
-      // Remove libraries for platforms we don't intend cross-compiling to
-      for platform in unusedDarwinPlatforms {
-        try await fileSystem.removeRecursively(at: tmpDir.appending("usr/lib/swift/\(platform)"))
-        try await fileSystem.removeRecursively(at: tmpDir.appending("usr/lib/swift_static/\(platform)"))
-      }
-      try await fileSystem.removeRecursively(at: tmpDir.appending("usr/lib/sourcekitd.framework"))
-
-      for binary in unusedHostBinaries {
-        try await fileSystem.removeRecursively(at: tmpDir.appending("usr/bin/\(binary)"))
-      }
-
+      try await self.removeToolchainComponents(tmpDir)
       try await fileSystem.rsync(from: tmpDir.appending("usr"), to: pathsConfiguration.toolchainDirPath)
+    }
+  }
+
+  func removeToolchainComponents(
+    _ packagePath: FilePath,
+    platforms: [String] = unusedDarwinPlatforms,
+    libraries: [String] = unusedHostLibraries,
+    binaries: [String] = unusedHostBinaries
+  ) async throws {
+    // Remove libraries for platforms we don't intend cross-compiling to
+    for platform in platforms {
+      try self.removeRecursively(at: packagePath.appending("usr/lib/swift/\(platform)"))
+      try self.removeRecursively(at: packagePath.appending("usr/lib/swift_static/\(platform)"))
+    }
+    for binary in binaries {
+      try self.removeRecursively(at: packagePath.appending("usr/bin/\(binary)"))
+    }
+    for library in libraries {
+      try self.removeRecursively(at: packagePath.appending("usr/lib/\(library)"))
     }
   }
 

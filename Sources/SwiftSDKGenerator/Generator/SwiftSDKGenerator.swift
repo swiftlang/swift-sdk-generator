@@ -199,6 +199,10 @@ public actor SwiftSDKGenerator {
     return result
   }
 
+  func contentsOfDirectory(at path: FilePath) throws -> [String] {
+    try self.fileManager.contentsOfDirectory(atPath: path.string)
+  }
+
   func copy(from source: FilePath, to destination: FilePath) throws {
     try self.removeRecursively(at: destination)
     try self.fileManager.copyItem(atPath: source.string, toPath: destination.string)
