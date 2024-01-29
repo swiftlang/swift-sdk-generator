@@ -79,13 +79,13 @@ final class EndToEndTests: XCTestCase {
       XCTAssertTrue(installOutput.contains("successfully installed"))
 
       for testcase in testcases {
-        let testPackageURL = FileManager.default.temporaryDirectory.appending(path: "swift-sdk-generator-test")
+        let testPackageURL = FileManager.default.temporaryDirectory.appendingPathComponent("swift-sdk-generator-test")
         let testPackageDir = FilePath(testPackageURL.path)
         try? fm.removeItem(atPath: testPackageDir.string)
         try fm.createDirectory(atPath: testPackageDir.string, withIntermediateDirectories: true)
 
         try await Shell.run("swift package --package-path \(testPackageDir) init --type executable")
-        let main_swift = testPackageURL.appending(path: "Sources/main.swift")
+        let main_swift = testPackageURL.appendingPathComponent("Sources/main.swift")
         try testcase.write(to: main_swift, atomically: true, encoding: .utf8)
 
         var buildOutput = try await Shell.readStdout(
