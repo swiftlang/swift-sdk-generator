@@ -57,8 +57,7 @@ final class EndToEndTests: XCTestCase {
 
     for runArguments in possibleArguments {
       let generatorOutput = try await Shell.readStdout(
-        "swift run swift-sdk-generator \(runArguments)",
-        currentDirectory: packageDirectory
+        "cd \(packageDirectory) && swift run swift-sdk-generator \(runArguments)"
       )
 
       let installCommand = try XCTUnwrap(generatorOutput.split(separator: "\n").first {
@@ -80,26 +79,22 @@ final class EndToEndTests: XCTestCase {
       XCTAssertTrue(installOutput.contains("successfully installed"))
 
       for testcase in testcases {
-        let testPackageURL = FileManager.default.temporaryDirectory.appending(path: "swift-sdk-generator-test")
+        let testPackageURL = FileManager.default.temporaryDirectory.appendingPathComponent("swift-sdk-generator-test")
         let testPackageDir = FilePath(testPackageURL.path)
         try? fm.removeItem(atPath: testPackageDir.string)
         try fm.createDirectory(atPath: testPackageDir.string, withIntermediateDirectories: true)
 
-        try await Shell.run("swift package init --type executable", currentDirectory: testPackageDir)
-        let main_swift = testPackageURL.appending(path: "Sources/main.swift")
+        try await Shell.run("swift package --package-path \(testPackageDir) init --type executable")
+        let main_swift = testPackageURL.appendingPathComponent("Sources/main.swift")
         try testcase.write(to: main_swift, atomically: true, encoding: .utf8)
 
         var buildOutput = try await Shell.readStdout(
-          "swift build --experimental-swift-sdk \(bundleName)",
-          currentDirectory: testPackageDir
+          "swift build --package-path \(testPackageDir) --experimental-swift-sdk \(bundleName)"
         )
         XCTAssertTrue(buildOutput.contains("Build complete!"))
-
-        try await Shell.run("rm -rf .build", currentDirectory: testPackageDir)
-
+        try await Shell.run("rm -rf \(testPackageDir.appending(".build"))")
         buildOutput = try await Shell.readStdout(
-          "swift build --experimental-swift-sdk \(bundleName) --static-swift-stdlib",
-          currentDirectory: testPackageDir
+          "swift build --package-path \(testPackageDir) --experimental-swift-sdk \(bundleName) --static-swift-stdlib"
         )
         XCTAssertTrue(buildOutput.contains("Build complete!"))
       }
