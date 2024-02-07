@@ -43,7 +43,7 @@ extension SwiftSDKGenerator {
     return toolsetJSONPath
   }
 
-  func generateDestinationJSON(toolsetPath: FilePath, sdkDirPath: FilePath) throws {
+  func generateDestinationJSON(toolsetPath: FilePath, sdkDirPath: FilePath, recipe: SwiftSDKRecipe) throws {
     logGenerationStep("Generating destination JSON file...")
 
     let destinationJSONPath = pathsConfiguration.swiftSDKRootPath.appending("swift-sdk.json")
@@ -63,15 +63,22 @@ extension SwiftSDKGenerator {
       """)
     }
 
+    var metadata = SwiftSDKMetadataV4.TripleProperties(
+      sdkRootPath: relativeSDKDir.string,
+      toolsetPaths: [relativeToolsetPath.string]
+    )
+
+    recipe.applyPlatformOptions(
+      metadata: &metadata, paths: pathsConfiguration,
+      targetTriple: self.targetTriple
+    )
+
     try writeFile(
       at: destinationJSONPath,
       encoder.encode(
         SwiftSDKMetadataV4(
           targetTriples: [
-            self.targetTriple.linuxConventionDescription: .init(
-              sdkRootPath: relativeSDKDir.string,
-              toolsetPaths: [relativeToolsetPath.string]
-            ),
+            self.targetTriple.linuxConventionDescription: metadata,
           ]
         )
       )

@@ -41,6 +41,19 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
     toolset.swiftCompiler = Toolset.ToolProperties(extraCLIOptions: ["-static-stdlib"])
   }
 
+  public func applyPlatformOptions(
+    metadata: inout SwiftSDKMetadataV4.TripleProperties,
+    paths: PathsConfiguration,
+    targetTriple: Triple
+  ) {
+    var relativeToolchainDir = paths.toolchainDirPath
+    guard relativeToolchainDir.removePrefix(paths.swiftSDKRootPath) else {
+      fatalError("The toolchain bin directory path must be a subdirectory of the Swift SDK root path.")
+    }
+    metadata.swiftStaticResourcesPath = relativeToolchainDir.appending("usr/lib/swift_static").string
+    metadata.swiftResourcesPath = metadata.swiftStaticResourcesPath
+  }
+
   public func makeSwiftSDK(
     generator: SwiftSDKGenerator,
     engine: Engine,
