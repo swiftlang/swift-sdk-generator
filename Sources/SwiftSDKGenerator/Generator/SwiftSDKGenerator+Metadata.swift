@@ -69,7 +69,8 @@ extension SwiftSDKGenerator {
     )
 
     recipe.applyPlatformOptions(
-      metadata: &metadata, paths: pathsConfiguration,
+      metadata: &metadata,
+      paths: pathsConfiguration,
       targetTriple: self.targetTriple
     )
 
