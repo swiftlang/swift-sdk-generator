@@ -15,13 +15,13 @@ import GeneratorEngine
 import struct SystemPackage.FilePath
 
 public struct WebAssemblyRecipe: SwiftSDKRecipe {
-  let hostSwiftPackagePath: FilePath
+  let hostSwiftPackagePath: FilePath?
   let targetSwiftPackagePath: FilePath
   let wasiSysroot: FilePath
   let swiftVersion: String
 
   public init(
-    hostSwiftPackagePath: FilePath,
+    hostSwiftPackagePath: FilePath?,
     targetSwiftPackagePath: FilePath,
     wasiSysroot: FilePath,
     swiftVersion: String
@@ -48,22 +48,27 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
   ) async throws -> SwiftSDKProduct {
     let pathsConfiguration = generator.pathsConfiguration
     logGenerationStep("Copying Swift binaries for the host triple...")
-    try await generator.rsync(from: self.hostSwiftPackagePath.appending("usr"), to: pathsConfiguration.toolchainDirPath)
+    if let hostSwiftPackagePath {
+      try await generator.rsync(from: hostSwiftPackagePath.appending("usr"), to: pathsConfiguration.toolchainDirPath)
 
-    logGenerationStep("Removing unused toolchain components...")
-    let liblldbNames: [String] = try await {
-      let libDirPath = pathsConfiguration.toolchainDirPath.appending("usr/lib")
-      return try await generator.contentsOfDirectory(at: libDirPath).filter { dirEntry in
-        // liblldb is version suffixed: liblldb.so.17.0.0
-        dirEntry.hasPrefix("liblldb")
-      }
-    }()
-    try await generator.removeToolchainComponents(
-      pathsConfiguration.toolchainDirPath,
-      platforms: unusedDarwinPlatforms + ["embedded"],
-      libraries: unusedHostLibraries + liblldbNames,
-      binaries: unusedHostBinaries + ["lldb", "lldb-argdumper", "lldb-server"]
-    )
+      logGenerationStep("Removing unused toolchain components...")
+      let liblldbNames: [String] = try await {
+        let libDirPath = pathsConfiguration.toolchainDirPath.appending("usr/lib")
+        guard await generator.doesFileExist(at: libDirPath) else {
+          return []
+        }
+        return try await generator.contentsOfDirectory(at: libDirPath).filter { dirEntry in
+          // liblldb is version suffixed: liblldb.so.17.0.0
+          dirEntry.hasPrefix("liblldb")
+        }
+      }()
+      try await generator.removeToolchainComponents(
+        pathsConfiguration.toolchainDirPath,
+        platforms: unusedDarwinPlatforms + ["embedded"],
+        libraries: unusedHostLibraries + liblldbNames,
+        binaries: unusedHostBinaries + ["lldb", "lldb-argdumper", "lldb-server"]
+      )
+    }
 
     try await self.copyTargetSwift(from: self.targetSwiftPackagePath.appending("usr/lib"), generator: generator)
 
