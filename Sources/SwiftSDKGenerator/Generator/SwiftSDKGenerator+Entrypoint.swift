@@ -60,7 +60,7 @@ extension SwiftSDKGenerator {
 
         let toolsetJSONPath = try await generateToolsetJSON(recipe: recipe)
 
-        try await generateDestinationJSON(toolsetPath: toolsetJSONPath, sdkDirPath: swiftSDKProduct.sdkDirPath)
+        try await generateDestinationJSON(toolsetPath: toolsetJSONPath, sdkDirPath: swiftSDKProduct.sdkDirPath, recipe: recipe)
 
         try await generateArtifactBundleManifest()
 

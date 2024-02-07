@@ -22,6 +22,11 @@ public struct SwiftSDKProduct {
 public protocol SwiftSDKRecipe: Sendable {
   /// Update the given toolset with platform specific options
   func applyPlatformOptions(toolset: inout Toolset)
+  func applyPlatformOptions(
+    metadata: inout SwiftSDKMetadataV4.TripleProperties,
+    paths: PathsConfiguration,
+    targetTriple: Triple
+  )
 
   /// The default identifier of the Swift SDK
   var defaultArtifactID: String { get }
@@ -32,4 +37,9 @@ public protocol SwiftSDKRecipe: Sendable {
 
 extension SwiftSDKRecipe {
   public func applyPlatformOptions(toolset: inout Toolset) {}
+  public func applyPlatformOptions(
+    metadata: inout SwiftSDKMetadataV4.TripleProperties,
+    paths: PathsConfiguration,
+    targetTriple: Triple
+  ) {}
 }
