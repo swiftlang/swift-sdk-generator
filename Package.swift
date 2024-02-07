@@ -28,7 +28,10 @@ let package = Package(
     .package(url: "https://github.com/apple/swift-log.git", from: "1.5.3"),
     .package(url: "https://github.com/swift-server/swift-service-lifecycle.git", from: "2.3.0"),
     .package(url: "https://github.com/apple/swift-syntax.git", from: "509.0.2"),
-    .package(url: "https://github.com/apple/swift-foundation.git", revision: "62500a5"),
+    .package(
+        url: "https://github.com/apple/swift-foundation.git",
+        revision: "74fefa176b26a49c9a461dda4bfca9b0a1e7cdcd"
+    ),
   ],
   targets: [
     // Targets are the basic building blocks of a package. A target can define a module or a test suite.
@@ -39,6 +42,7 @@ let package = Package(
         "SwiftSDKGenerator",
         .product(name: "ArgumentParser", package: "swift-argument-parser"),
         .product(name: "ServiceLifecycle", package: "swift-service-lifecycle"),
+        .product(name: "FoundationInternationalization", package: "swift-foundation")
       ],
       swiftSettings: [
         .enableExperimentalFeature("StrictConcurrency=complete"),
