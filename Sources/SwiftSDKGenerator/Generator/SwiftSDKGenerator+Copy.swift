@@ -18,7 +18,6 @@ extension SwiftSDKGenerator {
     try await withDockerContainer(fromImage: baseDockerImage) { containerID in
       try await inTemporaryDirectory { generator, _ in
         let sdkUsrPath = sdkDirPath.appending("usr")
-        let sdkUsrLibPath = sdkUsrPath.appending("lib")
         try await generator.createDirectoryIfNeeded(at: sdkUsrPath)
         try await generator.copyFromDockerContainer(
           id: containerID,
@@ -57,6 +56,7 @@ extension SwiftSDKGenerator {
           try await createSymlink(at: sdkDirPath.appending("lib64"), pointingTo: "./usr/lib64")
         }
 
+        let sdkUsrLibPath = sdkUsrPath.appending("lib")
         try await generator.createDirectoryIfNeeded(at: sdkUsrLibPath)
         var subpaths: [(subpath: String, failIfNotExists: Bool)] = [
           ("clang", true), ("gcc", true), ("swift", true), ("swift_static", true)
