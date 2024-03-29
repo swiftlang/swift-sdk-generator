@@ -15,18 +15,28 @@ import GeneratorEngine
 import struct SystemPackage.FilePath
 
 public struct WebAssemblyRecipe: SwiftSDKRecipe {
-  let hostSwiftPackagePath: FilePath?
+  let hostSwiftPackage: HostToolchainPackage?
   let targetSwiftPackagePath: FilePath
   let wasiSysroot: FilePath
   let swiftVersion: String
 
+  public struct HostToolchainPackage: Sendable {
+    let path: FilePath
+    let triple: Triple
+
+    public init(path: FilePath, triple: Triple) {
+      self.path = path
+      self.triple = triple
+    }
+  }
+
   public init(
-    hostSwiftPackagePath: FilePath?,
+    hostSwiftPackage: HostToolchainPackage?,
     targetSwiftPackagePath: FilePath,
     wasiSysroot: FilePath,
     swiftVersion: String
   ) {
-    self.hostSwiftPackagePath = hostSwiftPackagePath
+    self.hostSwiftPackage = hostSwiftPackage
     self.targetSwiftPackagePath = targetSwiftPackagePath
     self.wasiSysroot = wasiSysroot
     self.swiftVersion = swiftVersion
@@ -61,8 +71,10 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
   ) async throws -> SwiftSDKProduct {
     let pathsConfiguration = generator.pathsConfiguration
     logGenerationStep("Copying Swift binaries for the host triple...")
-    if let hostSwiftPackagePath {
-      try await generator.rsync(from: hostSwiftPackagePath.appending("usr"), to: pathsConfiguration.toolchainDirPath)
+    var hostTriples: [Triple]? = nil
+    if let hostSwiftPackage {
+      hostTriples = [hostSwiftPackage.triple]
+      try await generator.rsync(from: hostSwiftPackage.path.appending("usr"), to: pathsConfiguration.toolchainDirPath)
 
       logGenerationStep("Removing unused toolchain components...")
       let liblldbNames: [String] = try await {
@@ -97,7 +109,7 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
     let sdkDirPath = pathsConfiguration.swiftSDKRootPath.appending("WASI.sdk")
     try await generator.rsyncContents(from: self.wasiSysroot, to: sdkDirPath)
 
-    return SwiftSDKProduct(sdkDirPath: sdkDirPath)
+    return SwiftSDKProduct(sdkDirPath: sdkDirPath, hostTriples: hostTriples)
   }
 
   func copyTargetSwift(from distributionPath: FilePath, generator: SwiftSDKGenerator) async throws {

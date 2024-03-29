@@ -48,7 +48,7 @@ extension SwiftSDKGenerator {
     }
   }
 
-  func fixGlibcModuleMap(at path: FilePath) throws {
+  func fixGlibcModuleMap(at path: FilePath, hostTriple: Triple) throws {
     logGenerationStep("Fixing absolute paths in `glibc.modulemap`...")
 
     guard doesFileExist(at: path) else {

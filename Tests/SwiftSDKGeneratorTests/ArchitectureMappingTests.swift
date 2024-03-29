@@ -46,6 +46,7 @@ final class ArchitectureMappingTests: XCTestCase {
   ) async throws {
     let recipe = try LinuxRecipe(
       targetTriple: targetTriple,
+      hostTriple: hostTriple,
       linuxDistribution: .ubuntu(.jammy),
       swiftVersion: "5.8-RELEASE",
       swiftBranch: nil,
@@ -58,8 +59,6 @@ final class ArchitectureMappingTests: XCTestCase {
     // LocalSwiftSDKGenerator constructs URLs and paths which depend on architectures
     let sdk = try await SwiftSDKGenerator(
       bundleVersion: bundleVersion,
-      // macOS is currently the only supported build environment
-      hostTriple: hostTriple,
 
       // Linux is currently the only supported runtime environment
       targetTriple: targetTriple,
@@ -76,7 +75,7 @@ final class ArchitectureMappingTests: XCTestCase {
 
     // Verify download URLs
     let artifacts = try await DownloadableArtifacts(
-      hostTriple: sdk.hostTriple,
+      hostTriple: hostTriple,
       targetTriple: sdk.targetTriple,
       recipe.versionsConfiguration,
       sdk.pathsConfiguration
