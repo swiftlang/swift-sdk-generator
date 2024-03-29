@@ -100,7 +100,8 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
     let autolinkExtractPath = generator.pathsConfiguration.toolchainBinDirPath.appending("swift-autolink-extract")
 
     // WebAssembly object file requires `swift-autolink-extract`
-    if await !generator.doesFileExist(at: autolinkExtractPath) {
+    if await !generator.doesFileExist(at: autolinkExtractPath),
+       await generator.doesFileExist(at: generator.pathsConfiguration.toolchainBinDirPath.appending("swift")) {
       logGenerationStep("Fixing `swift-autolink-extract` symlink...")
       try await generator.createSymlink(at: autolinkExtractPath, pointingTo: "swift")
     }
