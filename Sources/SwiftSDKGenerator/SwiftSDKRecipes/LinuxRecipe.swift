@@ -28,6 +28,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
   }
 
   let mainTargetTriple: Triple
+  let mainHostTriple: Triple
   let linuxDistribution: LinuxDistribution
   let targetSwiftSource: TargetSwiftSource
   let hostSwiftSource: HostSwiftSource
@@ -42,6 +43,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
 
   public init(
     targetTriple: Triple,
+    hostTriple: Triple,
     linuxDistribution: LinuxDistribution,
     swiftVersion: String,
     swiftBranch: String?,
@@ -79,6 +81,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
 
     self.init(
       mainTargetTriple: targetTriple,
+      mainHostTriple: hostTriple,
       linuxDistribution: linuxDistribution,
       targetSwiftSource: targetSwiftSource,
       hostSwiftSource: hostSwiftSource,
@@ -88,12 +91,14 @@ public struct LinuxRecipe: SwiftSDKRecipe {
 
   public init(
     mainTargetTriple: Triple,
+    mainHostTriple: Triple,
     linuxDistribution: LinuxDistribution,
     targetSwiftSource: TargetSwiftSource,
     hostSwiftSource: HostSwiftSource,
     versionsConfiguration: VersionsConfiguration
   ) {
     self.mainTargetTriple = mainTargetTriple
+    self.mainHostTriple = mainHostTriple
     self.linuxDistribution = linuxDistribution
     self.targetSwiftSource = targetSwiftSource
     self.hostSwiftSource = hostSwiftSource
@@ -132,7 +137,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     try await generator.createDirectoryIfNeeded(at: sdkDirPath)
 
     var downloadableArtifacts = try DownloadableArtifacts(
-      hostTriple: generator.hostTriple,
+      hostTriple: mainHostTriple,
       targetTriple: generator.targetTriple,
       versionsConfiguration,
       generator.pathsConfiguration
@@ -210,7 +215,8 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     let targetCPU = generator.targetTriple.arch!
     try await generator.fixGlibcModuleMap(
       at: generator.pathsConfiguration.toolchainDirPath
-        .appending("/usr/lib/swift/linux/\(targetCPU.linuxConventionName)/glibc.modulemap")
+        .appending("/usr/lib/swift/linux/\(targetCPU.linuxConventionName)/glibc.modulemap"),
+      hostTriple: mainHostTriple
     )
 
     try await generator.symlinkClangHeaders()
@@ -222,6 +228,6 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       try await generator.createSymlink(at: autolinkExtractPath, pointingTo: "swift")
     }
 
-    return SwiftSDKProduct(sdkDirPath: sdkDirPath)
+    return SwiftSDKProduct(sdkDirPath: sdkDirPath, hostTriples: [mainHostTriple])
   }
 }

@@ -86,7 +86,7 @@ extension SwiftSDKGenerator {
     )
   }
 
-  func generateArtifactBundleManifest() throws {
+  func generateArtifactBundleManifest(hostTriples: [Triple]?) throws {
     logGenerationStep("Generating .artifactbundle manifest file...")
 
     let artifactBundleManifestPath = pathsConfiguration.artifactBundlePath.appending("info.json")
@@ -103,7 +103,7 @@ extension SwiftSDKGenerator {
               variants: [
                 .init(
                   path: FilePath(artifactID).appending(self.targetTriple.linuxConventionDescription).string,
-                  supportedTriples: [self.hostTriple.triple]
+                  supportedTriples: hostTriples.map { $0.map(\.triple) }
                 ),
               ]
             ),

@@ -43,9 +43,9 @@ public struct ArtifactsArchiveMetadata: Equatable, Codable {
 
   public struct Variant: Equatable, Codable {
     let path: String
-    let supportedTriples: [String]
+    let supportedTriples: [String]?
 
-    public init(path: String, supportedTriples: [String]) {
+    public init(path: String, supportedTriples: [String]?) {
       self.path = path
       self.supportedTriples = supportedTriples
     }

@@ -62,7 +62,7 @@ extension SwiftSDKGenerator {
 
         try await generateDestinationJSON(toolsetPath: toolsetJSONPath, sdkDirPath: swiftSDKProduct.sdkDirPath, recipe: recipe)
 
-        try await generateArtifactBundleManifest()
+        try await generateArtifactBundleManifest(hostTriples: swiftSDKProduct.hostTriples)
 
         logGenerationStep(
           """

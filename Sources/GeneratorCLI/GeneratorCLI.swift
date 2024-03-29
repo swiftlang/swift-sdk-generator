@@ -24,9 +24,8 @@ struct GeneratorCLI: AsyncParsableCommand {
     defaultSubcommand: MakeLinuxSDK.self
   )
 
-  static func run<Recipe: SwiftSDKRecipe>(
-    recipe: Recipe,
-    hostTriple: Triple,
+  static func run(
+    recipe: some SwiftSDKRecipe,
     targetTriple: Triple,
     options: GeneratorOptions
   ) async throws {
@@ -34,7 +33,6 @@ struct GeneratorCLI: AsyncParsableCommand {
       let logger = Logger(label: "org.swift.swift-sdk-generator")
       let generator = try await SwiftSDKGenerator(
         bundleVersion: options.bundleVersion,
-        hostTriple: hostTriple,
         targetTriple: targetTriple,
         artifactID: options.sdkName ?? recipe.defaultArtifactID,
         isIncremental: options.incremental,
@@ -213,6 +211,7 @@ extension GeneratorCLI {
 
       let recipe = try LinuxRecipe(
         targetTriple: targetTriple,
+        hostTriple: hostTriple,
         linuxDistribution: linuxDistribution,
         swiftVersion: generatorOptions.swiftVersion,
         swiftBranch: generatorOptions.swiftBranch,
@@ -222,7 +221,7 @@ extension GeneratorCLI {
         hostSwiftPackagePath: generatorOptions.hostSwiftPackagePath,
         targetSwiftPackagePath: generatorOptions.targetSwiftPackagePath
       )
-      try await GeneratorCLI.run(recipe: recipe, hostTriple: hostTriple, targetTriple: targetTriple, options: generatorOptions)
+      try await GeneratorCLI.run(recipe: recipe, targetTriple: targetTriple, options: generatorOptions)
     }
 
     func isInvokedAsDefaultSubcommand() -> Bool {
@@ -259,7 +258,7 @@ extension GeneratorCLI {
     )
     var wasiSysroot: String
 
-    func deriveTargetTriple(hostTriple: Triple) -> Triple {
+    func deriveTargetTriple() -> Triple {
       self.generatorOptions.target ?? Triple("wasm32-unknown-wasi")
     }
 
@@ -268,14 +267,16 @@ extension GeneratorCLI {
         throw StringError("Missing expected argument '--target-swift-package-path'")
       }
       let recipe = WebAssemblyRecipe(
-        hostSwiftPackagePath: generatorOptions.hostSwiftPackagePath.map { FilePath($0) },
+        hostSwiftPackage: try generatorOptions.hostSwiftPackagePath.map {
+          let hostTriple = try self.generatorOptions.deriveHostTriple()
+          return WebAssemblyRecipe.HostToolchainPackage(path: FilePath($0), triple: hostTriple)
+        },
         targetSwiftPackagePath: FilePath(targetSwiftPackagePath),
         wasiSysroot: FilePath(wasiSysroot),
         swiftVersion: generatorOptions.swiftVersion
       )
-      let hostTriple = try self.generatorOptions.deriveHostTriple()
-      let targetTriple = self.deriveTargetTriple(hostTriple: hostTriple)
-      try await GeneratorCLI.run(recipe: recipe, hostTriple: hostTriple, targetTriple: targetTriple, options: generatorOptions)
+      let targetTriple = self.deriveTargetTriple()
+      try await GeneratorCLI.run(recipe: recipe, targetTriple: targetTriple, options: generatorOptions)
     }
   }
 }

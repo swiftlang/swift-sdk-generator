@@ -19,7 +19,6 @@ import Helpers
 /// Top-level actor that sequences all of the required SDK generation steps.
 public actor SwiftSDKGenerator {
   let bundleVersion: String
-  let hostTriple: Triple
   let targetTriple: Triple
   let artifactID: String
   let pathsConfiguration: PathsConfiguration
@@ -30,7 +29,6 @@ public actor SwiftSDKGenerator {
 
   public init(
     bundleVersion: String,
-    hostTriple: Triple,
     targetTriple: Triple,
     artifactID: String,
     isIncremental: Bool,
@@ -46,7 +44,6 @@ public actor SwiftSDKGenerator {
       .removingLastComponent()
 
     self.bundleVersion = bundleVersion
-    self.hostTriple = hostTriple
 
     self.targetTriple = targetTriple
     self.artifactID = artifactID
