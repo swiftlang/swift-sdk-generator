@@ -24,8 +24,8 @@ struct GeneratorCLI: AsyncParsableCommand {
     defaultSubcommand: MakeLinuxSDK.self
   )
 
-  static func run<Recipe: SwiftSDKRecipe>(
-    recipe: Recipe,
+  static func run(
+    recipe: some SwiftSDKRecipe,
     targetTriple: Triple,
     options: GeneratorOptions
   ) async throws {
