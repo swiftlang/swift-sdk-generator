@@ -12,7 +12,6 @@
 
 import ArgumentParser
 import Logging
-import ServiceLifecycle
 import SwiftSDKGenerator
 import struct SystemPackage.FilePath
 
@@ -40,18 +39,22 @@ struct GeneratorCLI: AsyncParsableCommand {
         logger: logger
       )
 
-      let serviceGroup = ServiceGroup(
-        configuration: .init(
-          services: [.init(
-            service: SwiftSDKGeneratorService(recipe: recipe, generator: generator),
-            successTerminationBehavior: .gracefullyShutdownGroup
-          )],
-          cancellationSignals: [.sigint],
-          logger: logger
-        )
-      )
+      let generatorTask = Task {
+        try await generator.run(recipe: recipe)
+      }
 
-      try await serviceGroup.run()
+      #if canImport(Darwin)
+      // On Darwin platforms Dispatch's signal source uses kqueue and EVFILT_SIGNAL for
+      // delivering signals. This exists alongside but with lower precedence than signal and
+      // sigaction: ignore signal handling here to kqueue can deliver signals.
+      signal(SIGINT, SIG_IGN)
+      #endif
+      let signalSource = DispatchSource.makeSignalSource(signal: SIGINT)
+      signalSource.setEventHandler {
+        generatorTask.cancel()
+      }
+      signalSource.resume()
+      try await generatorTask.value
     }
 
     print("\nTime taken for this generator run: \(elapsed.intervalString).")
@@ -301,15 +304,6 @@ extension Duration {
       return "\(components.second ?? 0) seconds"
     }
   }
-}
-
-struct SwiftSDKGeneratorService: Service {
-    let recipe: SwiftSDKRecipe
-    let generator: SwiftSDKGenerator
-
-    func run() async throws {
-        try await generator.run(recipe: recipe)
-    }
 }
 
 struct StringError: Error, CustomStringConvertible {
