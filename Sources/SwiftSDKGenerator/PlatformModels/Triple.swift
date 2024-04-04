@@ -35,9 +35,9 @@ extension Triple.Arch {
   /// Returns the value of `cpu` converted to a convention used by Swift on Linux, i.e. `arm64` becomes `aarch64`.
   var linuxConventionName: String {
     switch self {
-    case .aarch64: "aarch64"
-    case .x86_64: "x86_64"
-    case .wasm32: "wasm32"
+    case .aarch64: return "aarch64"
+    case .x86_64: return "x86_64"
+    case .wasm32: return "wasm32"
     default: fatalError("\(self) is not supported yet")
     }
   }
@@ -45,9 +45,9 @@ extension Triple.Arch {
   /// Returns the value of `cpu` converted to a convention used by `LLVM_TARGETS_TO_BUILD` CMake setting.
   var llvmTargetConventionName: String {
     switch self {
-    case .x86_64: "X86"
-    case .aarch64: "AArch64"
-    case .wasm32: "WebAssembly"
+    case .x86_64: return "X86"
+    case .aarch64: return "AArch64"
+    case .wasm32: return "WebAssembly"
     default: fatalError("\(self) is not supported yet")
     }
   }

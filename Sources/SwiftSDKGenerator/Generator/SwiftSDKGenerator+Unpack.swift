@@ -93,21 +93,23 @@ extension SwiftSDKGenerator {
       stripComponents: 1
     )
 
-    let unpackedLLDPath = if llvmArtifact.isPrebuilt {
-      untarDestination.appending("bin/lld")
+    let unpackedLLDPath: FilePath
+    if llvmArtifact.isPrebuilt {
+      unpackedLLDPath = untarDestination.appending("bin/lld")
     } else {
-      try await engine[CMakeBuildQuery(
+      unpackedLLDPath = try await engine[CMakeBuildQuery(
         sourcesDirectory: untarDestination,
         outputBinarySubpath: ["bin", "lld"],
         options: "-DLLVM_ENABLE_PROJECTS=lld -DLLVM_TARGETS_TO_BUILD=''"
       )].path
     }
 
-    let toolchainLLDPath = switch targetOS {
+    let toolchainLLDPath: FilePath
+    switch targetOS {
     case .linux:
-      pathsConfiguration.toolchainBinDirPath.appending("ld.lld")
+      toolchainLLDPath = pathsConfiguration.toolchainBinDirPath.appending("ld.lld")
     case .wasi:
-      pathsConfiguration.toolchainBinDirPath.appending("wasm-ld")
+      toolchainLLDPath = pathsConfiguration.toolchainBinDirPath.appending("wasm-ld")
     default:
       fatalError("Unknown target OS to prepare lld \"\(targetOS?.rawValue ?? "nil")\"")
     }

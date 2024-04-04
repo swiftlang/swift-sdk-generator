@@ -172,10 +172,11 @@ extension HTTPClient {
     targetTriple: Triple,
     isVerbose: Bool
   ) async throws -> [String: URL] {
-    let mirrorURL: String = if targetTriple.arch == .x86_64 {
-      ubuntuAMD64Mirror
+    let mirrorURL: String
+    if targetTriple.arch == .x86_64 {
+      mirrorURL = ubuntuAMD64Mirror
     } else {
-      ubuntuARM64Mirror
+      mirrorURL = ubuntuARM64Mirror
     }
 
     let packagesListURL = """
