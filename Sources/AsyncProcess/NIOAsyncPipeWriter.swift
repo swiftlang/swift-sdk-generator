@@ -12,7 +12,6 @@
 
 import Foundation
 import NIO
-import NIOExtras
 
 struct NIOAsyncPipeWriter<Chunks: AsyncSequence & Sendable> where Chunks.Element == ByteBuffer {
   static func sinkSequenceInto(
