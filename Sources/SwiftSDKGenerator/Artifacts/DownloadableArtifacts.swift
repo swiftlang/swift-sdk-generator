@@ -29,8 +29,7 @@ private extension Triple {
 typealias CPUMapping = [Triple.Arch: String]
 
 struct DownloadableArtifacts: Sendable {
-  @CacheKey
-  struct Item: Sendable {
+  struct Item: Sendable, CacheKey {
     let remoteURL: URL
     var localPath: FilePath
     let isPrebuilt: Bool

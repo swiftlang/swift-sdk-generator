@@ -14,8 +14,7 @@ import struct Foundation.URL
 import GeneratorEngine
 import struct SystemPackage.FilePath
 
-@Query
-struct DownloadFileQuery {
+struct DownloadFileQuery: Query {
   let remoteURL: URL
   let localDirectory: FilePath
 

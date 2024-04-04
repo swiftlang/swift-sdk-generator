@@ -10,88 +10,160 @@
 //
 //===----------------------------------------------------------------------===//
 
-import Macros
-
 @_exported import protocol Crypto.HashFunction
 import struct Foundation.URL
 import struct SystemPackage.FilePath
 
 /// Indicates that values of a conforming type can be hashed with an arbitrary hashing function. Unlike `Hashable`,
 /// this protocol doesn't utilize random seed values and produces consistent hash values across process launches.
-public protocol CacheKeyProtocol {
-  func hash(with hashFunction: inout some HashFunction)
+public protocol CacheKey: Encodable {
 }
 
-extension Bool: CacheKeyProtocol {
-  public func hash(with hashFunction: inout some HashFunction) {
+extension Bool: CacheKey {
+  func hash(with hashFunction: inout some HashFunction) {
     String(reflecting: Self.self).hash(with: &hashFunction)
     hashFunction.update(data: self ? [1] : [0])
   }
 }
 
-extension Int: CacheKeyProtocol {
-  public func hash(with hashFunction: inout some HashFunction) {
+extension Int: CacheKey {
+  func hash(with hashFunction: inout some HashFunction) {
     String(reflecting: Self.self).hash(with: &hashFunction)
     withUnsafeBytes(of: self) {
-      hashFunction.update(bufferPointer: $0)
+      hashFunction.update(data: $0)
     }
   }
 }
 
-extension String: CacheKeyProtocol {
-  public func hash(with hashFunction: inout some HashFunction) {
+extension Int8: CacheKey {
+  func hash(with hashFunction: inout some HashFunction) {
+    String(reflecting: Self.self).hash(with: &hashFunction)
+    withUnsafeBytes(of: self) {
+      hashFunction.update(data: $0)
+    }
+  }
+}
+
+extension Int16: CacheKey {
+  func hash(with hashFunction: inout some HashFunction) {
+    String(reflecting: Self.self).hash(with: &hashFunction)
+    withUnsafeBytes(of: self) {
+      hashFunction.update(data: $0)
+    }
+  }
+}
+
+extension Int32: CacheKey {
+  func hash(with hashFunction: inout some HashFunction) {
+    String(reflecting: Self.self).hash(with: &hashFunction)
+    withUnsafeBytes(of: self) {
+      hashFunction.update(data: $0)
+    }
+  }
+}
+
+extension Int64: CacheKey {
+  func hash(with hashFunction: inout some HashFunction) {
+    String(reflecting: Self.self).hash(with: &hashFunction)
+    withUnsafeBytes(of: self) {
+      hashFunction.update(data: $0)
+    }
+  }
+}
+
+extension UInt: CacheKey {
+  func hash(with hashFunction: inout some HashFunction) {
+    String(reflecting: Self.self).hash(with: &hashFunction)
+    withUnsafeBytes(of: self) {
+      hashFunction.update(data: $0)
+    }
+  }
+}
+
+extension UInt8: CacheKey {
+  func hash(with hashFunction: inout some HashFunction) {
+    String(reflecting: Self.self).hash(with: &hashFunction)
+    withUnsafeBytes(of: self) {
+      hashFunction.update(data: $0)
+    }
+  }
+}
+
+extension UInt16: CacheKey {
+  func hash(with hashFunction: inout some HashFunction) {
+    String(reflecting: Self.self).hash(with: &hashFunction)
+    withUnsafeBytes(of: self) {
+      hashFunction.update(data: $0)
+    }
+  }
+}
+
+extension UInt32: CacheKey {
+  func hash(with hashFunction: inout some HashFunction) {
+    String(reflecting: Self.self).hash(with: &hashFunction)
+    withUnsafeBytes(of: self) {
+      hashFunction.update(data: $0)
+    }
+  }
+}
+
+extension UInt64: CacheKey {
+  func hash(with hashFunction: inout some HashFunction) {
+    String(reflecting: Self.self).hash(with: &hashFunction)
+    withUnsafeBytes(of: self) {
+      hashFunction.update(data: $0)
+    }
+  }
+}
+
+extension Float: CacheKey {
+  func hash(with hashFunction: inout some HashFunction) {
+    String(reflecting: Self.self).hash(with: &hashFunction)
+    withUnsafeBytes(of: self) {
+      hashFunction.update(data: $0)
+    }
+  }
+}
+
+extension Double: CacheKey {
+  func hash(with hashFunction: inout some HashFunction) {
+    String(reflecting: Self.self).hash(with: &hashFunction)
+    withUnsafeBytes(of: self) {
+      hashFunction.update(data: $0)
+    }
+  }
+}
+
+extension String: CacheKey {
+  func hash(with hashFunction: inout some HashFunction) {
     var t = String(reflecting: Self.self)
     t.withUTF8 {
-      hashFunction.update(bufferPointer: .init($0))
+      hashFunction.update(data: $0)
     }
     var x = self
     x.withUTF8 {
-      hashFunction.update(bufferPointer: .init($0))
+      hashFunction.update(data: $0)
     }
   }
 }
 
-extension FilePath: CacheKeyProtocol {
-  public func hash(with hashFunction: inout some HashFunction) {
+extension FilePath: CacheKey {
+  func hash(with hashFunction: inout some HashFunction) {
     String(reflecting: Self.self).hash(with: &hashFunction)
     self.string.hash(with: &hashFunction)
   }
 }
 
-extension FilePath.Component: CacheKeyProtocol {
-  public func hash(with hashFunction: inout some HashFunction) {
+extension FilePath.Component: CacheKey {
+  func hash(with hashFunction: inout some HashFunction) {
     String(reflecting: Self.self).hash(with: &hashFunction)
     self.string.hash(with: &hashFunction)
   }
 }
 
-extension URL: CacheKeyProtocol {
-  public func hash(with hashFunction: inout some HashFunction) {
+extension URL: CacheKey {
+  func hash(with hashFunction: inout some HashFunction) {
     String(reflecting: Self.self).hash(with: &hashFunction)
     self.description.hash(with: &hashFunction)
   }
 }
-
-extension Optional: CacheKeyProtocol where Wrapped: CacheKeyProtocol {
-  public func hash(with hashFunction: inout some HashFunction) {
-    String(reflecting: Self.self).hash(with: &hashFunction)
-    if let self {
-      true.hash(with: &hashFunction)
-      self.hash(with: &hashFunction)
-    } else {
-      false.hash(with: &hashFunction)
-    }
-  }
-}
-
-extension Array: CacheKeyProtocol where Element: CacheKeyProtocol {
-  public func hash(with hashFunction: inout some HashFunction) {
-    String(reflecting: Self.self).hash(with: &hashFunction)
-    for element in self {
-      element.hash(with: &hashFunction)
-    }
-  }
-}
-
-@attached(extension, conformances: CacheKeyProtocol, names: named(hash(with:)))
-public macro CacheKey() = #externalMacro(module: "Macros", type: "CacheKeyMacro")

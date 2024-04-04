@@ -1,7 +1,6 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 5.8
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
-import CompilerPluginSupport
 import PackageDescription
 
 let package = Package(
@@ -27,7 +26,6 @@ let package = Package(
     .package(url: "https://github.com/apple/swift-nio-extras.git", from: "1.20.0"),
     .package(url: "https://github.com/apple/swift-log.git", from: "1.5.3"),
     .package(url: "https://github.com/swift-server/swift-service-lifecycle.git", from: "2.3.0"),
-    .package(url: "https://github.com/apple/swift-syntax.git", from: "509.0.2"),
   ],
   targets: [
     // Targets are the basic building blocks of a package. A target can define a module or a test suite.
@@ -77,7 +75,6 @@ let package = Package(
         .product(name: "Logging", package: "swift-log"),
         .product(name: "SystemPackage", package: "swift-system"),
         "Helpers",
-        "Macros",
         "SystemSQLite",
       ]
     ),
@@ -98,24 +95,6 @@ let package = Package(
       name: "HelpersTests",
       dependencies: [
         "Helpers",
-      ]
-    ),
-    .macro(
-      name: "Macros",
-      dependencies: [
-        .product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
-        .product(name: "SwiftSyntax", package: "swift-syntax"),
-        .product(name: "SwiftSyntaxBuilder", package: "swift-syntax"),
-        .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
-        .product(name: "SwiftDiagnostics", package: "swift-syntax"),
-      ]
-    ),
-    .testTarget(
-      name: "MacrosTests",
-      dependencies: [
-        "Macros",
-        .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
-        .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax"),
       ]
     ),
     .systemLibrary(name: "SystemSQLite", pkgConfig: "sqlite3"),
