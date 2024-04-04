@@ -19,14 +19,19 @@ import struct SystemPackage.FilePath
 public protocol CacheKey: Encodable {
 }
 
-extension Bool: CacheKey {
+/// Types that cannot be decomposed more to be hashed
+protocol LeafCacheKey: CacheKey {
+  func hash(with hashFunction: inout some HashFunction)
+}
+
+extension Bool: LeafCacheKey {
   func hash(with hashFunction: inout some HashFunction) {
     String(reflecting: Self.self).hash(with: &hashFunction)
     hashFunction.update(data: self ? [1] : [0])
   }
 }
 
-extension Int: CacheKey {
+extension Int: LeafCacheKey {
   func hash(with hashFunction: inout some HashFunction) {
     String(reflecting: Self.self).hash(with: &hashFunction)
     withUnsafeBytes(of: self) {
@@ -35,7 +40,7 @@ extension Int: CacheKey {
   }
 }
 
-extension Int8: CacheKey {
+extension Int8: LeafCacheKey {
   func hash(with hashFunction: inout some HashFunction) {
     String(reflecting: Self.self).hash(with: &hashFunction)
     withUnsafeBytes(of: self) {
@@ -44,7 +49,7 @@ extension Int8: CacheKey {
   }
 }
 
-extension Int16: CacheKey {
+extension Int16: LeafCacheKey {
   func hash(with hashFunction: inout some HashFunction) {
     String(reflecting: Self.self).hash(with: &hashFunction)
     withUnsafeBytes(of: self) {
@@ -53,7 +58,7 @@ extension Int16: CacheKey {
   }
 }
 
-extension Int32: CacheKey {
+extension Int32: LeafCacheKey {
   func hash(with hashFunction: inout some HashFunction) {
     String(reflecting: Self.self).hash(with: &hashFunction)
     withUnsafeBytes(of: self) {
@@ -62,7 +67,7 @@ extension Int32: CacheKey {
   }
 }
 
-extension Int64: CacheKey {
+extension Int64: LeafCacheKey {
   func hash(with hashFunction: inout some HashFunction) {
     String(reflecting: Self.self).hash(with: &hashFunction)
     withUnsafeBytes(of: self) {
@@ -71,7 +76,7 @@ extension Int64: CacheKey {
   }
 }
 
-extension UInt: CacheKey {
+extension UInt: LeafCacheKey {
   func hash(with hashFunction: inout some HashFunction) {
     String(reflecting: Self.self).hash(with: &hashFunction)
     withUnsafeBytes(of: self) {
@@ -80,7 +85,7 @@ extension UInt: CacheKey {
   }
 }
 
-extension UInt8: CacheKey {
+extension UInt8: LeafCacheKey {
   func hash(with hashFunction: inout some HashFunction) {
     String(reflecting: Self.self).hash(with: &hashFunction)
     withUnsafeBytes(of: self) {
@@ -89,7 +94,7 @@ extension UInt8: CacheKey {
   }
 }
 
-extension UInt16: CacheKey {
+extension UInt16: LeafCacheKey {
   func hash(with hashFunction: inout some HashFunction) {
     String(reflecting: Self.self).hash(with: &hashFunction)
     withUnsafeBytes(of: self) {
@@ -98,7 +103,7 @@ extension UInt16: CacheKey {
   }
 }
 
-extension UInt32: CacheKey {
+extension UInt32: LeafCacheKey {
   func hash(with hashFunction: inout some HashFunction) {
     String(reflecting: Self.self).hash(with: &hashFunction)
     withUnsafeBytes(of: self) {
@@ -107,7 +112,7 @@ extension UInt32: CacheKey {
   }
 }
 
-extension UInt64: CacheKey {
+extension UInt64: LeafCacheKey {
   func hash(with hashFunction: inout some HashFunction) {
     String(reflecting: Self.self).hash(with: &hashFunction)
     withUnsafeBytes(of: self) {
@@ -116,7 +121,7 @@ extension UInt64: CacheKey {
   }
 }
 
-extension Float: CacheKey {
+extension Float: LeafCacheKey {
   func hash(with hashFunction: inout some HashFunction) {
     String(reflecting: Self.self).hash(with: &hashFunction)
     withUnsafeBytes(of: self) {
@@ -125,7 +130,7 @@ extension Float: CacheKey {
   }
 }
 
-extension Double: CacheKey {
+extension Double: LeafCacheKey {
   func hash(with hashFunction: inout some HashFunction) {
     String(reflecting: Self.self).hash(with: &hashFunction)
     withUnsafeBytes(of: self) {
@@ -134,7 +139,7 @@ extension Double: CacheKey {
   }
 }
 
-extension String: CacheKey {
+extension String: LeafCacheKey {
   func hash(with hashFunction: inout some HashFunction) {
     var t = String(reflecting: Self.self)
     t.withUTF8 {
@@ -147,21 +152,21 @@ extension String: CacheKey {
   }
 }
 
-extension FilePath: CacheKey {
+extension FilePath: LeafCacheKey {
   func hash(with hashFunction: inout some HashFunction) {
     String(reflecting: Self.self).hash(with: &hashFunction)
     self.string.hash(with: &hashFunction)
   }
 }
 
-extension FilePath.Component: CacheKey {
+extension FilePath.Component: LeafCacheKey {
   func hash(with hashFunction: inout some HashFunction) {
     String(reflecting: Self.self).hash(with: &hashFunction)
     self.string.hash(with: &hashFunction)
   }
 }
 
-extension URL: CacheKey {
+extension URL: LeafCacheKey {
   func hash(with hashFunction: inout some HashFunction) {
     String(reflecting: Self.self).hash(with: &hashFunction)
     self.description.hash(with: &hashFunction)

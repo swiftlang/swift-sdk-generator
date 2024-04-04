@@ -229,6 +229,10 @@ extension HashEncoder {
         }
         
         mutating func encode<T>(_ value: T, forKey key: K) throws where T : Encodable {
+            if let leaf = value as? LeafCacheKey {
+                leaf.hash(with: &self.encoder.hashFunction)
+                return
+            }
             guard value is CacheKey else {
                 throw Error.noCacheKeyConformance(T.self)
             }
