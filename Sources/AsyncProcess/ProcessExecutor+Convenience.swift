@@ -37,18 +37,18 @@ public struct OutputLoggingSettings: Sendable {
   func logMessage(line: String) -> Logger.Message {
     switch self.to {
     case .logMessage:
-      "\(line)"
+      return "\(line)"
     case .metadata(logMessage: let message, key: _):
-      message
+      return message
     }
   }
 
   func metadata(stream: ProcessOutputStream, line: String) -> Logger.Metadata {
     switch self.to {
     case .logMessage:
-      ["stream": "\(stream.description)"]
+      return ["stream": "\(stream.description)"]
     case .metadata(logMessage: _, let key):
-      [key: "\(line)"]
+      return [key: "\(line)"]
     }
   }
 }

@@ -49,7 +49,7 @@ public struct ChunkSequence: AsyncSequence & Sendable {
 
     public mutating func next() async throws -> Element? {
       if self.underlyingIterator != nil {
-        try await self.underlyingIterator!.next()
+        return try await self.underlyingIterator!.next()
       } else {
         throw IllegalStreamConsumptionError(
           description: """

@@ -29,11 +29,11 @@ public enum LinuxDistribution: Hashable, Sendable {
     case jammy
 
     init(version: String) throws {
-      self = switch version {
+      switch version {
       case "20.04":
-        .focal
+        self = .focal
       case "22.04":
-        .jammy
+        self = .jammy
       default:
         throw GeneratorError.unknownLinuxDistribution(name: LinuxDistribution.Name.ubuntu.rawValue, version: version)
       }
@@ -41,14 +41,14 @@ public enum LinuxDistribution: Hashable, Sendable {
 
     var version: String {
       switch self {
-      case .focal: "20.04"
-      case .jammy: "22.04"
+      case .focal: return "20.04"
+      case .jammy: return "22.04"
       }
     }
 
     public var requiredPackages: [String] {
       switch self {
-      case .focal: [
+      case .focal: return [
           "libc6",
           "libc6-dev",
           "libgcc-s1",
@@ -62,7 +62,7 @@ public enum LinuxDistribution: Hashable, Sendable {
           "zlib1g-dev",
           "libc6",
         ]
-      case .jammy: [
+      case .jammy: return [
           "libc6",
           "libc6-dev",
           "libgcc-s1",
@@ -97,22 +97,22 @@ public enum LinuxDistribution: Hashable, Sendable {
 
   var name: Name {
     switch self {
-    case .rhel: .rhel
-    case .ubuntu: .ubuntu
+    case .rhel: return .rhel
+    case .ubuntu: return .ubuntu
     }
   }
 
   var release: String {
     switch self {
-    case let .rhel(rhel): rhel.rawValue
-    case let .ubuntu(ubuntu): ubuntu.rawValue
+    case let .rhel(rhel): return rhel.rawValue
+    case let .ubuntu(ubuntu): return ubuntu.rawValue
     }
   }
 
   var swiftDockerImageSuffix: String {
     switch self {
-    case let .rhel(rhel): "rhel-\(rhel.rawValue)"
-    case let .ubuntu(ubuntu): ubuntu.rawValue
+    case let .rhel(rhel): return "rhel-\(rhel.rawValue)"
+    case let .ubuntu(ubuntu): return ubuntu.rawValue
     }
   }
 }
@@ -128,11 +128,12 @@ public extension LinuxDistribution.Name {
 
 extension LinuxDistribution: CustomStringConvertible {
   public var description: String {
-    let versionComponent = switch self {
+    let versionComponent: String
+    switch self {
     case .rhel:
-      self.release.uppercased()
+      versionComponent = self.release.uppercased()
     case .ubuntu:
-      self.release.capitalized
+      versionComponent = self.release.capitalized
     }
 
     return "\(self.name) \(versionComponent)"
@@ -142,8 +143,8 @@ extension LinuxDistribution: CustomStringConvertible {
 extension LinuxDistribution.Name: CustomStringConvertible {
   public var description: String {
     switch self {
-    case .rhel: "RHEL"
-    case .ubuntu: "Ubuntu"
+    case .rhel: return "RHEL"
+    case .ubuntu: return "Ubuntu"
     }
   }
 }
