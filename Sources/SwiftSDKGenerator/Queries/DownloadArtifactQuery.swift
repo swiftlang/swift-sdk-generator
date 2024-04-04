@@ -14,8 +14,7 @@ import class AsyncHTTPClient.FileDownloadDelegate
 import GeneratorEngine
 import struct SystemPackage.FilePath
 
-@Query
-struct DownloadArtifactQuery {
+struct DownloadArtifactQuery: Query {
   let artifact: DownloadableArtifacts.Item
 
   func run(engine: Engine) async throws -> FilePath {
