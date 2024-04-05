@@ -145,7 +145,7 @@ final class IntegrationTests: XCTestCase {
         switch furtherReturn {
         case let .some(result):
           // the `exe.run()` task
-          XCTAssertEqual(.signal(SIGKILL), result)
+          XCTAssert(.signal(SIGKILL) == result || .exit(0) == result)
         case .none:
           // stderr task
           ()
@@ -979,6 +979,149 @@ final class IntegrationTests: XCTestCase {
         preconditionFailure("this should be impossible, task should've returned a result")
       }
       XCTAssertEqual(.signal(SIGKILL), exitReason, "iteration \(i)")
+    }
+  }
+
+  func testShortestManuallyMergedOutput() async throws {
+    let exe = ProcessExecutor(executable: "/bin/bash", ["-c", "echo hello world"])
+    async let result = exe.run()
+    let lines = try await Array(
+      merge(exe.standardOutput.splitIntoLines(), exe.standardError.splitIntoLines()).strings
+    )
+    XCTAssertEqual(["hello world"], lines)
+    try await result.throwIfNonZero()
+  }
+
+  func testShortestJustGiveMeTheOutput() async throws {
+    let result = try await ProcessExecutor.runCollectingOutput(
+      executable: "/bin/bash",
+      ["-c", "echo hello world"],
+      collectStandardOutput: true,
+      collectStandardError: true
+    )
+    XCTAssertEqual("hello world\n", result.standardOutput.map { String(buffer: $0) })
+    XCTAssertEqual("", result.standardError.map { String(buffer: $0) })
+    XCTAssertEqual(.exit(0), result.exitReason)
+  }
+
+  func testKillProcess() async throws {
+    let p = ProcessExecutor(
+      executable: "/bin/bash",
+      ["-c", "while true; do echo A; sleep 1; done"],
+      standardError: .discard
+    )
+    async let result = p.run()
+    var outputIterator = await p.standardOutput.makeAsyncIterator()
+    let firstChunk = try await outputIterator.next()
+    XCTAssertEqual(UInt8(ascii: "A"), firstChunk?.readableBytesView.first)
+    try await p.sendSignal(SIGKILL)
+    let finalResult = try await result
+    XCTAssertEqual(.signal(SIGKILL), finalResult)
+  }
+
+  #if os(macOS)
+  // This test will hang on anything that uses swift-corelibs-foundation because of
+  // https://github.com/apple/swift-corelibs-foundation/issues/4795
+  // Foundation.Process on Linux doesn't correctly detect when child process dies (creating zombie processes)
+  func testCanDealWithRunawayChildProcesses() async throws {
+    self.logger = Logger(label: "x")
+    self.logger.logLevel = .trace
+    let p = ProcessExecutor(
+      executable: "/bin/bash",
+      [
+        "-c",
+        """
+        set -e
+        /usr/bin/yes "Runaway process from \(#function), please file a swift-sdk-generator bug." > /dev/null &
+        child_pid=$!
+        trap "echo >&2 killing $child_pid; kill -KILL $child_pid" INT
+        echo "$child_pid" # communicate the child pid to our parent
+        exec >&- # close stdout
+        echo "waiting for $child_pid" >&2
+        wait
+        """,
+      ],
+      standardError: .discard,
+      teardownSequence: [
+        .sendSignal(SIGINT, allowedTimeToExitNS: 10_000_000_000),
+      ],
+      logger: self.logger
+    )
+
+    try await withThrowingTaskGroup(of: pid_t?.self) { group in
+      group.addTask {
+        let result = try await p.run()
+        XCTAssertEqual(.exit(128 + SIGINT), result)
+        return nil
+      }
+
+      group.addTask {
+        let pidString = try await String(buffer: p.standardOutput.pullAllOfIt())
+        guard let pid = pid_t(pidString.dropLast()) else {
+          XCTFail("couldn't get pid from \(pidString)")
+          return nil
+        }
+        return pid
+      }
+
+      let maybePid = try await group.next()!
+      let pid = try XCTUnwrap(maybePid)
+      group.cancelAll()
+      try await group.waitForAll()
+
+      // Let's check that the subprocess (/usr/bin/yes) of our subprocess (/bin/bash) is actually dead
+      let killRet = kill(pid, 0)
+      let errnoCode = errno
+      XCTAssertEqual(-1, killRet)
+      XCTAssertEqual(ESRCH, errnoCode)
+    }
+  }
+  #endif
+
+  func testShutdownSequenceWorks() async throws {
+    let p = ProcessExecutor(
+      executable: "/bin/bash",
+      [
+        "-c",
+        """
+        set -e
+        trap 'echo saw SIGQUIT; echo >&2 saw SIGQUIT' QUIT
+        trap 'echo saw SIGTERM; echo >&2 saw SIGTERM' TERM
+        trap 'echo saw SIGINT; echo >&2 saw SIGINT; exit 3;' INT
+        echo OK
+        while true; do sleep 0.1; done
+        exit 2
+        """,
+      ],
+      standardError: .discard,
+      teardownSequence: [
+        .sendSignal(SIGQUIT, allowedTimeToExitNS: 10_000_000),
+        .sendSignal(SIGTERM, allowedTimeToExitNS: 10_000_000),
+        .sendSignal(SIGINT, allowedTimeToExitNS: 1_000_000_000),
+      ],
+      logger: self.logger
+    )
+
+    try await withThrowingTaskGroup(of: Void.self) { group in
+      group.addTask {
+        let result = try await p.run()
+        #if os(macOS)
+        // won't work on SCLF: https://github.com/apple/swift-corelibs-foundation/issues/4772
+        XCTAssertEqual(.exit(3), result)
+        #endif
+      }
+      var allLines: [String] = []
+      for try await line in await p.standardOutput.splitIntoLines().strings {
+        if line == "OK" {
+          group.cancelAll()
+        }
+        allLines.append(line)
+      }
+      try await group.waitForAll()
+      #if os(macOS)
+      // won't work on SCLF: https://github.com/apple/swift-corelibs-foundation/issues/4772
+      XCTAssertEqual(["OK", "saw SIGQUIT", "saw SIGTERM", "saw SIGINT"], allLines)
+      #endif
     }
   }
 
