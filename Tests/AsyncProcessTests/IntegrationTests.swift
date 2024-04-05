@@ -145,7 +145,7 @@ final class IntegrationTests: XCTestCase {
         switch furtherReturn {
         case let .some(result):
           // the `exe.run()` task
-          XCTAssertEqual(.signal(SIGKILL), result)
+          XCTAssertEqual(.signal(SIGINT), result)
         case .none:
           // stderr task
           ()
@@ -947,7 +947,7 @@ final class IntegrationTests: XCTestCase {
       }
       preconditionFailure("this should be impossible, task should've returned a result")
     }
-    XCTAssertEqual(.signal(SIGKILL), exitReason)
+    XCTAssertEqual(.signal(SIGINT), exitReason)
   }
 
   func testCancelProcessVeryEarlyOnStressTest() async throws {
@@ -978,7 +978,7 @@ final class IntegrationTests: XCTestCase {
         }
         preconditionFailure("this should be impossible, task should've returned a result")
       }
-      XCTAssertEqual(.signal(SIGKILL), exitReason, "iteration \(i)")
+      XCTAssertEqual(.signal(SIGINT), exitReason, "iteration \(i)")
     }
   }
 

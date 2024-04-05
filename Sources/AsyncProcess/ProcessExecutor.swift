@@ -486,7 +486,7 @@ public final actor ProcessExecutor {
       }
       if p.isRunning {
         self.logger.info("terminating process", metadata: ["pid": "\(childPid)"])
-        kill(childPid, SIGKILL)
+        kill(-childPid, SIGINT)
       } else {
         self.logger.debug("child process already dead", metadata: ["pid-if-available": "\(childPid)"])
       }
