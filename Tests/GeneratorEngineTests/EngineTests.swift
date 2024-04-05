@@ -149,4 +149,28 @@ final class EngineTests: XCTestCase {
 
     try await engine.shutDown()
   }
+
+  struct MyItem: Sendable, CacheKey {
+    let remoteURL: URL
+    var localPath: FilePath
+    let isPrebuilt: Bool
+  }
+
+  func testQueryEncoding() throws {
+    let item = MyItem(
+      remoteURL: URL(string: "https://download.swift.org/swift-5.9.2-release/ubuntu2204-aarch64/swift-5.9.2-RELEASE/swift-5.9.2-RELEASE-ubuntu22.04-aarch64.tar.gz")!,
+      localPath: "/Users/katei/ghq/github.com/apple/swift-sdk-generator/Artifacts/target_swift_5.9.2-RELEASE_aarch64-unknown-linux-gnu.tar.gz",
+      isPrebuilt: true
+    )
+    func hashValue(of key: some CacheKey) throws -> SHA256Digest {
+      let hasher = HashEncoder<SHA256>()
+      try hasher.encode(key)
+      return hasher.finalize()
+    }
+    // Ensure that hash key is stable across runs
+    XCTAssertEqual(
+      try hashValue(of: item).description,
+      "SHA256 digest: 5178ba619e00da962d505954d33d0bceceeff29831bf5ee0c878dd1f2568b118"
+    )
+  }
 }

@@ -85,7 +85,7 @@ public actor Engine {
     public subscript(_ query: some Query) -> FileCacheRecord {
         get async throws {
             let hashEncoder = HashEncoder<SHA512>()
-            try query.encode(to: hashEncoder)
+            try hashEncoder.encode(query)
             let key = hashEncoder.finalize()
 
             if let fileRecord = try resultsCache.get(key, as: FileCacheRecord.self) {

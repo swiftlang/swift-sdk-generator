@@ -26,7 +26,6 @@ final class HashEncoder<Hash: HashFunction>: Encoder {
     var userInfo: [CodingUserInfoKey : Any]
     
     func container<Key>(keyedBy type: Key.Type) -> KeyedEncodingContainer<Key> where Key : CodingKey {
-        String(reflecting: Key.self).hash(with: &self.hashFunction)
         return .init(KeyedContainer(encoder: self))
     }
     
@@ -121,7 +120,7 @@ extension HashEncoder: SingleValueEncodingContainer {
         guard value is CacheKey else {
             throw Error.noCacheKeyConformance(T.self)
         }
-
+        try String(describing: T.self).encode(to: self)
         try value.encode(to: self)
     }
 }
@@ -237,6 +236,7 @@ extension HashEncoder {
                 throw Error.noCacheKeyConformance(T.self)
             }
 
+            try String(reflecting: T.self).encode(to: self.encoder)
             key.stringValue.hash(with: &self.encoder.hashFunction)
             try value.encode(to: self.encoder)
         }
