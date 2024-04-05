@@ -11,7 +11,6 @@
 //===----------------------------------------------------------------------===//
 
 import Atomics
-import Foundation
 import Logging
 import NIO
 
@@ -162,8 +161,47 @@ public final actor ProcessExecutor {
   private let _standardError: ChunkSequence
   private let processIsRunningApproximation = ManagedAtomic(RunningStateApproximation.neverStarted.rawValue)
   private let processOutputConsumptionApproximation = ManagedAtomic(UInt8(0))
+  private let processPid = ManagedAtomic(pid_t(0))
   private let ownsStandardOutputWriteHandle: Bool
   private let ownsStandardErrorWriteHandle: Bool
+  private let teardownSequence: TeardownSequence
+
+  public struct OSError: Error & Sendable & Hashable {
+    public var errnoNumber: CInt
+    public var function: String
+  }
+
+  /// An ordered list of steps in order to tear down a process.
+  ///
+  /// Always ends in sending a `SIGKILL` whether that's specified or not.
+  public struct TeardownSequence: Sendable, ExpressibleByArrayLiteral, CustomStringConvertible {
+    public typealias ArrayLiteralElement = TeardownStep
+
+    public init(arrayLiteral elements: TeardownStep...) {
+      self.steps = (elements.map(\.backing)) + [.kill]
+    }
+
+    public struct TeardownStep: Sendable {
+      var backing: Backing
+
+      enum Backing {
+        case sendSignal(CInt, allowedTimeNS: UInt64)
+        case kill
+      }
+
+      /// Send `signal` to process and give it `allowedTimeToExitNS` nanoseconds to exit before progressing
+      /// to the next teardown step. The final teardown step is always sending a `SIGKILL`.
+      public static func sendSignal(_ signal: CInt, allowedTimeToExitNS: UInt64) -> Self {
+        Self(backing: .sendSignal(signal, allowedTimeNS: allowedTimeToExitNS))
+      }
+    }
+
+    var steps: [TeardownStep.Backing] = [.kill]
+
+    public var description: String {
+      self.steps.map { "\($0)" }.joined(separator: ", ")
+    }
+  }
 
   public var standardOutput: ChunkSequence {
     let afterValue = self.processOutputConsumptionApproximation.bitwiseXorThenLoad(
@@ -215,6 +253,8 @@ public final actor ProcessExecutor {
   ///   - standardError: A description of what to do with the standard output of the child process (defaults to
   /// ``ProcessOutput/stream``
   ///                    which requires to consume it via ``ProcessExecutor/standardError``.
+  ///   - teardownSequence: What to do if ``ProcessExecutor`` needs to tear down the process abruptly
+  ///                       (usually because of Swift Concurrency cancellation)
   ///   - logger: Where to log diagnostic messages to (default to no where)
   public init<StandardInput: AsyncSequence & Sendable>(
     group: EventLoopGroup = ProcessExecutor.defaultEventLoopGroup,
@@ -224,6 +264,7 @@ public final actor ProcessExecutor {
     standardInput: StandardInput,
     standardOutput: ProcessOutput = .stream,
     standardError: ProcessOutput = .stream,
+    teardownSequence: TeardownSequence = TeardownSequence(),
     logger: Logger = ProcessExecutor.disableLogging
   ) where StandardInput.Element == ByteBuffer {
     self.group = group
@@ -232,6 +273,7 @@ public final actor ProcessExecutor {
     self.arguments = arguments
     self.standardInput = AnyAsyncSequence(standardInput)
     self.logger = logger
+    self.teardownSequence = teardownSequence
 
     self.standardInputPipe = StandardInput.self == EOFSequence<ByteBuffer>.self ? nil : Pipe()
 
@@ -327,12 +369,14 @@ public final actor ProcessExecutor {
   }
 
   deinit {
+    let storedPid = self.processPid.load(ordering: .relaxed)
+    assert(storedPid == 0 || storedPid == -1)
     let runningState = self.processIsRunningApproximation.load(ordering: .relaxed)
     assert(
       runningState == RunningStateApproximation.finishedExecuting.rawValue,
       """
       Did you create a ProcessExecutor without run()ning it? \
-      That's currently illegal:
+      That's currently illegal: \
       illegal running state \(runningState) in deinit
       """
     )
@@ -364,6 +408,64 @@ public final actor ProcessExecutor {
       illegal output consumption state \(outputConsumptionState) in deinit
       """
     )
+  }
+
+  private func teardown(process: Process) async {
+    let childPid = self.processPid.load(ordering: .sequentiallyConsistent)
+    guard childPid != 0 else {
+      self.logger.warning(
+        "leaking Process because it hasn't got a process identifier (likely a Foundation.Process bug)",
+        metadata: ["process": "\(process)"]
+      )
+      return
+    }
+
+    var logger = self.logger
+    logger[metadataKey: "pid"] = "\(childPid)"
+
+    loop: for step in self.teardownSequence.steps {
+      if process.isRunning {
+        logger.trace("running teardown sequence", metadata: ["step": "\(step)"])
+        enum TeardownStepCompletion {
+          case processHasExited
+          case processStillAlive
+          case killedTheProcess
+        }
+        let stepCompletion: TeardownStepCompletion
+        switch step {
+        case let .sendSignal(signal, allowedTimeNS):
+          stepCompletion = await withTaskGroup(of: TeardownStepCompletion.self) { group in
+            group.addTask {
+              do {
+                try await Task.sleep(nanoseconds: allowedTimeNS)
+                return .processStillAlive
+              } catch {
+                return .processHasExited
+              }
+            }
+            try? await self.sendSignal(signal)
+            return await group.next()!
+          }
+        case .kill:
+          logger.info("sending SIGKILL to process")
+          kill(childPid, SIGKILL)
+          stepCompletion = .killedTheProcess
+        }
+        logger.debug(
+          "teardown sequence step complete",
+          metadata: ["step": "\(step)", "outcome": "\(stepCompletion)"]
+        )
+        switch stepCompletion {
+        case .processHasExited, .killedTheProcess:
+          break loop
+        case .processStillAlive:
+          () // gotta continue
+        }
+      } else {
+        logger.debug("child process already dead")
+        break
+      }
+    }
   }
 
   /// Run the process.
@@ -407,6 +509,12 @@ public final actor ProcessExecutor {
     )
 
     p.terminationHandler = { p in
+      let pidExchangeWorked = self.processPid.compareExchange(
+        expected: p.processIdentifier,
+        desired: -1,
+        ordering: .sequentiallyConsistent
+      ).exchanged
+      assert(pidExchangeWorked)
       self.logger.debug(
         "finished running command",
         metadata: [
@@ -424,10 +532,12 @@ public final actor ProcessExecutor {
       )
       precondition(worked, "illegal running state \(original)")
 
-      if p.terminationReason == .uncaughtSignal {
-        terminationStreamProducer.yield(.signal(p.terminationStatus))
-      } else {
-        terminationStreamProducer.yield(.exit(p.terminationStatus))
+      for _ in 0..<2 {
+        if p.terminationReason == .uncaughtSignal {
+          terminationStreamProducer.yield(.signal(p.terminationStatus))
+        } else {
+          terminationStreamProducer.yield(.exit(p.terminationStatus))
+        }
       }
       terminationStreamProducer.finish()
     }
@@ -455,8 +565,10 @@ public final actor ProcessExecutor {
       throw error
     }
 
-    // At this point, the process is running, we should therefore have a process ID.
-    assert(p.processIdentifier != 0)
+    // At this point, the process is running, we should therefore have a process ID (unless we're already dead).
+    let childPid = p.processIdentifier
+    _ = self.processPid.compareExchange(expected: 0, desired: childPid, ordering: .sequentiallyConsistent)
+    assert(childPid != 0 || !p.isRunning)
     self.logger.debug(
       "running command",
       metadata: [
@@ -475,26 +587,11 @@ public final actor ProcessExecutor {
     }
 
     @Sendable
-    func cancel() {
-      let childPid = p.processIdentifier
-      guard childPid != 0 else {
-        self.logger.warning(
-          "leaking Process because it hasn't got a process identifier (likely a Foundation.Process bug)",
-          metadata: ["process": "\(p)"]
-        )
-        return
-      }
-      if p.isRunning {
-        self.logger.info("terminating process", metadata: ["pid": "\(childPid)"])
-        kill(childPid, SIGKILL)
-      } else {
-        self.logger.debug("child process already dead", metadata: ["pid-if-available": "\(childPid)"])
-      }
-    }
-
-    @Sendable
     func waitForChildToExit() async -> ProcessExitReason {
-      // We do need for the child to exit (and it will, we SIGKILL'd it)
+      // Please note, we're invoking this function multiple times concurrently, so we're relying on AsyncStream
+      // supporting this.
+
+      // We do need for the child to exit (and it will, we'll eventually SIGKILL it)
       await withUncancelledTask(returning: ProcessExitReason.self) {
         var iterator = terminationStreamConsumer.makeAsyncIterator()
 
@@ -502,20 +599,51 @@ public final actor ProcessExecutor {
         guard let terminationStatus = await iterator.next() else {
           fatalError("terminationStream finished without giving us a result")
         }
-
-        // Just double check that `finish()` has immediately been called too.
-        let thisMustBeNil = await iterator.next()
-        precondition(thisMustBeNil == nil)
         return terminationStatus
       }
     }
 
-    return try await withThrowingTaskGroup(of: ProcessExitReason?.self, returning: ProcessExitReason.self) {
-      group in
-      group.addTask {
-        await withTaskCancellationHandler(operation: waitForChildToExit, onCancel: cancel)
+    return try await withThrowingTaskGroup(
+      of: ProcessExitReason?.self,
+      returning: ProcessExitReason.self
+    ) { runProcessGroup async throws -> ProcessExitReason in
+      runProcessGroup.addTask {
+        await withTaskGroup(of: Void.self) { triggerTeardownGroup in
+          triggerTeardownGroup.addTask {
+            // wait until cancelled
+            do { while true {
+              try await Task.sleep(nanoseconds: 1_000_000_000)
+            } } catch {}
+
+            let isRunning = self.processIsRunningApproximation.load(ordering: .relaxed)
+            guard isRunning != RunningStateApproximation.finishedExecuting.rawValue else {
+              self.logger.trace("skipping teardown, already finished executing")
+              return
+            }
+            let pid = self.processPid.load(ordering: .relaxed)
+            var logger = self.logger
+            logger[metadataKey: "pid"] = "\(pid)"
+            logger.debug("we got cancelled")
+            await withUncancelledTask {
+              await withTaskGroup(of: Void.self) { runTeardownStepsGroup in
+                runTeardownStepsGroup.addTask {
+                  await self.teardown(process: p)
+                }
+                runTeardownStepsGroup.addTask {
+                  _ = await waitForChildToExit()
+                }
+                await runTeardownStepsGroup.next()!
+                runTeardownStepsGroup.cancelAll()
+              }
+            }
+          }
+
+          let result = await waitForChildToExit()
+          triggerTeardownGroup.cancelAll() // This triggers the teardown
+          return result
+        }
       }
-      group.addTask {
+      runProcessGroup.addTask {
         if let stdinPipe = self.standardInputPipe {
           let fdForNIO = dup(stdinPipe.fileHandleForWriting.fileDescriptor)
           try! stdinPipe.fileHandleForWriting.close()
@@ -530,13 +658,23 @@ public final actor ProcessExecutor {
       }
 
       var exitReason: ProcessExitReason? = nil
-      // cannot fix this warning yet (rdar://113844171)
-      while let result = try await group.next() {
+      while let result = try await runProcessGroup.next() {
         if let result {
           exitReason = result
         }
       }
       return exitReason! // must work because the real task will return a reason (or throw)
+    }
+  }
+
+  public func sendSignal(_ signal: CInt) async throws {
+    let pid = self.processPid.load(ordering: .sequentiallyConsistent)
+    if pid == 0 || pid == -1 {
+      throw OSError(errnoNumber: ESRCH, function: "sendSignal")
+    }
+    let ret = kill(pid, signal)
+    if ret == -1 {
+      throw OSError(errnoNumber: errno, function: "kill")
     }
   }
 }
@@ -581,6 +719,7 @@ public extension ProcessExecutor {
     environment: [String: String] = [:],
     standardOutput: ProcessOutput = .stream,
     standardError: ProcessOutput = .stream,
+    teardownSequence: TeardownSequence = TeardownSequence(),
     logger: Logger = ProcessExecutor.disableLogging
   ) {
     self.init(
@@ -591,6 +730,7 @@ public extension ProcessExecutor {
       standardInput: EOFSequence(),
       standardOutput: standardOutput,
       standardError: standardError,
+      teardownSequence: teardownSequence,
       logger: logger
     )
   }
