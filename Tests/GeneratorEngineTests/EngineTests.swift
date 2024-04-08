@@ -10,7 +10,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-import class AsyncHTTPClient.HTTPClient
 import struct Foundation.Data
 @testable import GeneratorEngine
 import struct Logging.Logger
@@ -45,7 +44,7 @@ private extension FileSystem {
   }
 }
 
-struct Const: Query {
+struct Const: CachingQuery {
   let x: Int
 
   func run(engine: Engine) async throws -> FilePath {
@@ -55,7 +54,7 @@ struct Const: Query {
   }
 }
 
-struct MultiplyByTwo: Query {
+struct MultiplyByTwo: CachingQuery {
   let x: Int
 
   func run(engine: Engine) async throws -> FilePath {
@@ -68,7 +67,7 @@ struct MultiplyByTwo: Query {
   }
 }
 
-struct AddThirty: Query {
+struct AddThirty: CachingQuery {
   let x: Int
 
   func run(engine: Engine) async throws -> FilePath {
@@ -81,7 +80,7 @@ struct AddThirty: Query {
   }
 }
 
-struct Expression: Query {
+struct Expression: CachingQuery {
   let x: Int
   let y: Int
 

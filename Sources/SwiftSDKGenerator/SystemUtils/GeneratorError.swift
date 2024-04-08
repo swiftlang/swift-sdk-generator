@@ -11,7 +11,6 @@
 //===----------------------------------------------------------------------===//
 
 import struct Foundation.URL
-import enum NIOHTTP1.HTTPResponseStatus
 import struct SystemPackage.FilePath
 
 enum GeneratorError: Error {
@@ -24,7 +23,7 @@ enum GeneratorError: Error {
   case unknownLLDVersion(String)
   case distributionSupportsOnlyDockerGenerator(LinuxDistribution)
   case fileDoesNotExist(FilePath)
-  case fileDownloadFailed(URL, HTTPResponseStatus)
+  case fileDownloadFailed(URL, String)
   case ubuntuPackagesDecompressionFailure
   case ubuntuPackagesParsingFailure(expectedPackages: Int, actual: Int)
 }

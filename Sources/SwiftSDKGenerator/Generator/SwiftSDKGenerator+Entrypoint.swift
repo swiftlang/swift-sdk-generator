@@ -11,7 +11,9 @@
 //===----------------------------------------------------------------------===//
 
 import AsyncAlgorithms
+#if canImport(AsyncHTTPClient)
 import AsyncHTTPClient
+#endif
 import Foundation
 import GeneratorEngine
 import RegexBuilder
@@ -30,25 +32,16 @@ public extension Triple.Arch {
   }
 }
 
-private func withHTTPClient(
-  _ configuration: HTTPClient.Configuration,
-  _ body: @Sendable (HTTPClient) async throws -> ()
-) async throws {
-  let client = HTTPClient(eventLoopGroupProvider: .singleton, configuration: configuration)
-  try await withAsyncThrowing {
-    try await body(client)
-  } defer: {
-    try await client.shutdown()
-  }
-}
-
 extension SwiftSDKGenerator {
   public func run(recipe: SwiftSDKRecipe) async throws {
     try await withEngine(LocalFileSystem(), self.logger, cacheLocation: self.engineCachePath) { engine in
-      var configuration = HTTPClient.Configuration(redirectConfiguration: .follow(max: 5, allowCycles: false))
-      // Workaround an issue with github.com returning 400 instead of 404 status to HEAD requests from AHC.
-      configuration.httpVersion = .http1Only
-      try await withHTTPClient(configuration) { client in
+      let httpClientType: HTTPClientProtocol.Type
+      #if canImport(AsyncHTTPClient)
+      httpClientType = HTTPClient.self
+      #else
+      httpClientType = OfflineHTTPClient.self
+      #endif
+      try await httpClientType.with { client in
         if !self.isIncremental {
           try await self.removeRecursively(at: pathsConfiguration.toolchainDirPath)
         }

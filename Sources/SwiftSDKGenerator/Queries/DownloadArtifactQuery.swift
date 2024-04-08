@@ -10,21 +10,24 @@
 //
 //===----------------------------------------------------------------------===//
 
-import class AsyncHTTPClient.FileDownloadDelegate
 import GeneratorEngine
 import struct SystemPackage.FilePath
 
 struct DownloadArtifactQuery: Query {
+  var cacheKey: some CacheKey { artifact }
   let artifact: DownloadableArtifacts.Item
+  let httpClient: any HTTPClientProtocol
 
   func run(engine: Engine) async throws -> FilePath {
     print("Downloading remote artifact not available in local cache: \(self.artifact.remoteURL)")
-    let stream = await engine.httpClient.streamDownloadProgress(for: self.artifact)
+    let stream = httpClient.streamDownloadProgress(
+      from: self.artifact.remoteURL, to: self.artifact.localPath
+    )
       .removeDuplicates(by: didProgressChangeSignificantly)
       ._throttle(for: .seconds(1))
 
-    for try await item in stream {
-      report(progress: item.progress, for: item.artifact)
+    for try await progress in stream {
+      report(progress: progress, for: artifact)
     }
     return self.artifact.localPath
   }
@@ -39,17 +42,17 @@ struct DownloadArtifactQuery: Query {
 /// larger than 1MiB. Returns `false` otherwise.
 @Sendable
 private func didProgressChangeSignificantly(
-  previous: ArtifactDownloadProgress,
-  current: ArtifactDownloadProgress
+  previous: DownloadProgress,
+  current: DownloadProgress
 ) -> Bool {
-  guard previous.progress.totalBytes == current.progress.totalBytes else {
+  guard previous.totalBytes == current.totalBytes else {
     return true
   }
 
-  return current.progress.receivedBytes - previous.progress.receivedBytes > 1024 * 1024 * 1024
+  return current.receivedBytes - previous.receivedBytes > 1024 * 1024 * 1024
 }
 
-private func report(progress: FileDownloadDelegate.Progress, for artifact: DownloadableArtifacts.Item) {
+private func report(progress: DownloadProgress, for artifact: DownloadableArtifacts.Item) {
   if let total = progress.totalBytes {
     print("""
     \(artifact.remoteURL.lastPathComponent) \(

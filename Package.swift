@@ -15,7 +15,6 @@ let package = Package(
   ],
   dependencies: [
     // Dependencies declare other packages that this package depends on.
-    .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.19.0"),
     .package(url: "https://github.com/apple/swift-system", from: "1.2.1"),
     .package(url: "https://github.com/apple/swift-argument-parser", from: "1.2.2"),
     .package(url: "https://github.com/apple/swift-async-algorithms.git", exact: "1.0.0-beta.1"),
@@ -43,7 +42,7 @@ let package = Package(
       dependencies: [
         .target(name: "AsyncProcess"),
         .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
-        .product(name: "AsyncHTTPClient", package: "async-http-client"),
+        .product(name: "NIOHTTP1", package: "swift-nio"),
         .product(name: "Logging", package: "swift-log"),
         .product(name: "SystemPackage", package: "swift-system"),
         "GeneratorEngine",
@@ -66,7 +65,6 @@ let package = Package(
     .target(
       name: "GeneratorEngine",
       dependencies: [
-        .product(name: "AsyncHTTPClient", package: "async-http-client"),
         .product(name: "Crypto", package: "swift-crypto"),
         .product(name: "Logging", package: "swift-log"),
         .product(name: "SystemPackage", package: "swift-system"),
@@ -118,3 +116,26 @@ let package = Package(
     ),
   ]
 )
+
+struct Configuration {
+  let useAsyncHttpClient: Bool
+  init(SWIFT_SDK_GENERATOR_DISABLE_AHC: Bool) {
+    self.useAsyncHttpClient = !SWIFT_SDK_GENERATOR_DISABLE_AHC
+  }
+}
+
+let configuration = Configuration(
+  SWIFT_SDK_GENERATOR_DISABLE_AHC: Context.environment["SWIFT_SDK_GENERATOR_DISABLE_AHC"] != nil
+)
+
+if configuration.useAsyncHttpClient {
+  package.dependencies.append(
+    .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.19.0")
+  )
+  let targetsToAppend: Set<String> = ["SwiftSDKGenerator"]
+  for target in package.targets.filter({ targetsToAppend.contains($0.name) }) {
+    target.dependencies.append(
+      .product(name: "AsyncHTTPClient", package: "async-http-client")
+    )
+  }
+}
