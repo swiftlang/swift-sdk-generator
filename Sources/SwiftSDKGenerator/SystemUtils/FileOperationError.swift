@@ -11,11 +11,10 @@
 //===----------------------------------------------------------------------===//
 
 import struct Foundation.URL
-import enum NIOHTTP1.HTTPResponseStatus
 import struct SystemPackage.FilePath
 
 public enum FileOperationError: Error {
-  case downloadFailed(URL, HTTPResponseStatus)
+  case downloadFailed(URL, String)
   case directoryCreationFailed(FilePath)
   case downloadFailed(String)
   case unknownArchiveFormat(String?)

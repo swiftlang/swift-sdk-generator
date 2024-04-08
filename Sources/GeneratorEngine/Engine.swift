@@ -10,7 +10,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-import class AsyncHTTPClient.HTTPClient
 @_exported import Crypto
 import struct Logging.Logger
 @_exported import struct SystemPackage.FilePath
@@ -42,7 +41,6 @@ public actor Engine {
     private(set) var cacheMisses = 0
 
     public let fileSystem: any FileSystem
-    public let httpClient = HTTPClient()
     public let logger: Logger
     private let resultsCache: SQLiteBackedCache
     private var isShutDown = false
@@ -66,7 +64,6 @@ public actor Engine {
     public func shutDown() async throws {
         precondition(!self.isShutDown, "`QueryEngine/shutDown` should be called only once")
         try self.resultsCache.close()
-        try await self.httpClient.shutdown()
 
         self.isShutDown = true
     }
@@ -85,7 +82,7 @@ public actor Engine {
     public subscript(_ query: some Query) -> FileCacheRecord {
         get async throws {
             let hashEncoder = HashEncoder<SHA512>()
-            try hashEncoder.encode(query)
+            try hashEncoder.encode(query.cacheKey)
             let key = hashEncoder.finalize()
 
             if let fileRecord = try resultsCache.get(key, as: FileCacheRecord.self) {

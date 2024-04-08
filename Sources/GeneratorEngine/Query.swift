@@ -12,8 +12,15 @@
 
 import struct SystemPackage.FilePath
 
-public protocol Query: CacheKey, Sendable {
+public protocol Query: Sendable {
+  associatedtype Key: CacheKey
+  var cacheKey: Key { get }
   func run(engine: Engine) async throws -> FilePath
+}
+
+public protocol CachingQuery: Query, CacheKey where Self.Key == Self {}
+extension CachingQuery {
+  public var cacheKey: Key { self }
 }
 
 final class HashEncoder<Hash: HashFunction>: Encoder {

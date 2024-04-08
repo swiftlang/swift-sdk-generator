@@ -13,7 +13,6 @@
 import AsyncProcess
 import Foundation
 import NIOCore
-import NIOFoundationCompat
 
 public extension ByteBuffer {
   func unzip(isVerbose: Bool) async throws -> ByteBuffer? {
