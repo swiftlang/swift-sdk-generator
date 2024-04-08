@@ -10,7 +10,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-import AsyncHTTPClient
 import GeneratorEngine
 import struct SystemPackage.FilePath
 
@@ -67,7 +66,7 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
   public func makeSwiftSDK(
     generator: SwiftSDKGenerator,
     engine: Engine,
-    httpClient: HTTPClient
+    httpClient: some HTTPClientProtocol
   ) async throws -> SwiftSDKProduct {
     let pathsConfiguration = generator.pathsConfiguration
     logGenerationStep("Copying Swift binaries for the host triple...")

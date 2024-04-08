@@ -13,7 +13,7 @@
 import GeneratorEngine
 import struct SystemPackage.FilePath
 
-struct CMakeBuildQuery: Query {
+struct CMakeBuildQuery: CachingQuery {
   let sourcesDirectory: FilePath
   /// Path to the output binary relative to the CMake build directory.
   let outputBinarySubpath: [FilePath.Component]

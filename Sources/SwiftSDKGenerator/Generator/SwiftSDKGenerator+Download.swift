@@ -11,7 +11,6 @@
 //===----------------------------------------------------------------------===//
 
 import AsyncAlgorithms
-import AsyncHTTPClient
 import GeneratorEngine
 import RegexBuilder
 
@@ -28,16 +27,19 @@ let byteCountFormatter = ByteCountFormatter()
 
 extension SwiftSDKGenerator {
   func downloadArtifacts(
-    _ client: HTTPClient, _ engine: Engine,
+    _ client: some HTTPClientProtocol, _ engine: Engine,
     downloadableArtifacts: inout DownloadableArtifacts,
     itemsToDownload: @Sendable (DownloadableArtifacts) -> [DownloadableArtifacts.Item]
   ) async throws {
     logGenerationStep("Downloading required toolchain packages...")
-    var headRequest = HTTPClientRequest(url: downloadableArtifacts.hostLLVM.remoteURL.absoluteString)
-    headRequest.method = .HEAD
-    headRequest.headers = ["Accept": "*/*", "User-Agent": "Swift SDK Generator"]
-    let isLLVMBinaryArtifactAvailable = try await client.execute(headRequest, deadline: .distantFuture)
-      .status == .ok
+    let hostLLVMURL = downloadableArtifacts.hostLLVM.remoteURL
+    // Workaround an issue with github.com returning 400 instead of 404 status to HEAD requests from AHC.
+    let isLLVMBinaryArtifactAvailable = try await type(of: client).with(http1Only: true) {
+      try await $0.head(
+        url: hostLLVMURL.absoluteString,
+        headers: ["Accept": "*/*", "User-Agent": "Swift SDK Generator"]
+      )
+    }
 
     if !isLLVMBinaryArtifactAvailable {
       downloadableArtifacts.useLLVMSources()
@@ -46,7 +48,7 @@ extension SwiftSDKGenerator {
     let results = try await withThrowingTaskGroup(of: FileCacheRecord.self) { group in
       for item in itemsToDownload(downloadableArtifacts) {
         group.addTask {
-          try await engine[DownloadArtifactQuery(artifact: item)]
+          try await engine[DownloadArtifactQuery(artifact: item, httpClient: client)]
         }
       }
 
@@ -64,7 +66,7 @@ extension SwiftSDKGenerator {
   }
 
   func downloadUbuntuPackages(
-    _ client: HTTPClient,
+    _ client: some HTTPClientProtocol,
     _ engine: Engine,
     requiredPackages: [String],
     versionsConfiguration: VersionsConfiguration,
@@ -112,7 +114,7 @@ extension SwiftSDKGenerator {
     let pathsConfiguration = self.pathsConfiguration
 
     try await inTemporaryDirectory { fs, tmpDir in
-      let downloadedFiles = try await self.downloadFiles(from: urls, to: tmpDir, engine)
+      let downloadedFiles = try await self.downloadFiles(from: urls, to: tmpDir, client, engine)
       report(downloadedFiles: downloadedFiles)
 
       for fileName in urls.map(\.lastPathComponent) {
@@ -123,11 +125,13 @@ extension SwiftSDKGenerator {
     try createDirectoryIfNeeded(at: pathsConfiguration.toolchainBinDirPath)
   }
 
-  func downloadFiles(from urls: [URL], to directory: FilePath, _ engine: Engine) async throws -> [(URL, UInt64)] {
+  func downloadFiles(from urls: [URL], to directory: FilePath, _ client: some HTTPClientProtocol, _ engine: Engine) async throws -> [(URL, UInt64)] {
     try await withThrowingTaskGroup(of: (URL, UInt64).self) {
       for url in urls {
         $0.addTask {
-          let downloadedFilePath = try await engine[DownloadFileQuery(remoteURL: url, localDirectory: directory)]
+          let downloadedFilePath = try await engine[DownloadFileQuery(
+            remoteURL: url, localDirectory: directory, httpClient: client
+          )]
           let filePath = downloadedFilePath.path
           guard let fileSize = try FileManager.default.attributesOfItem(
             atPath: filePath.string
@@ -153,12 +157,12 @@ private func report(downloadedFiles: [(URL, UInt64)]) {
   }
 }
 
-extension HTTPClient {
+extension HTTPClientProtocol {
   private func downloadUbuntuPackagesList(
     from url: String,
     isVerbose: Bool
   ) async throws -> String? {
-    guard let packages = try await get(url: url).get().body?.unzip(isVerbose: isVerbose) else {
+    guard let packages = try await get(url: url).body?.unzip(isVerbose: isVerbose) else {
       throw FileOperationError.downloadFailed(url)
     }
 

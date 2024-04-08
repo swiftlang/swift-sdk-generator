@@ -10,7 +10,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-import AsyncHTTPClient
 import Foundation
 import GeneratorEngine
 import struct SystemPackage.FilePath
@@ -128,7 +127,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
   public func makeSwiftSDK(
     generator: SwiftSDKGenerator,
     engine: Engine,
-    httpClient client: HTTPClient
+    httpClient client: some HTTPClientProtocol
   ) async throws -> SwiftSDKProduct {
     let sdkDirPath = self.sdkDirPath(paths: generator.pathsConfiguration)
     if !generator.isIncremental {

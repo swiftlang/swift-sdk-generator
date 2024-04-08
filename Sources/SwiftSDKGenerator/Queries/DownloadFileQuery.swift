@@ -15,12 +15,20 @@ import GeneratorEngine
 import struct SystemPackage.FilePath
 
 struct DownloadFileQuery: Query {
+  struct Key: CacheKey {
+    let remoteURL: URL
+    let localDirectory: FilePath
+  }
+  var cacheKey: Key {
+    Key(remoteURL: remoteURL, localDirectory: localDirectory)
+  }
   let remoteURL: URL
   let localDirectory: FilePath
+  let httpClient: any HTTPClientProtocol
 
   func run(engine: Engine) async throws -> FilePath {
     let downloadedFilePath = self.localDirectory.appending(self.remoteURL.lastPathComponent)
-    _ = try await engine.httpClient.downloadFile(from: self.remoteURL, to: downloadedFilePath)
+    _ = try await httpClient.downloadFile(from: self.remoteURL, to: downloadedFilePath)
     return downloadedFilePath
   }
 }
