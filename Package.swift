@@ -13,17 +13,6 @@ let package = Package(
       targets: ["GeneratorCLI"]
     ),
   ],
-  dependencies: [
-    // Dependencies declare other packages that this package depends on.
-    .package(url: "https://github.com/apple/swift-system", from: "1.2.1"),
-    .package(url: "https://github.com/apple/swift-argument-parser", from: "1.2.2"),
-    .package(url: "https://github.com/apple/swift-async-algorithms.git", exact: "1.0.0-beta.1"),
-    .package(url: "https://github.com/apple/swift-atomics.git", from: "1.1.0"),
-    .package(url: "https://github.com/apple/swift-collections.git", from: "1.0.5"),
-    .package(url: "https://github.com/apple/swift-crypto.git", from: "3.1.0"),
-    .package(url: "https://github.com/apple/swift-nio.git", from: "2.63.0"),
-    .package(url: "https://github.com/apple/swift-log.git", from: "1.5.3"),
-  ],
   targets: [
     // Targets are the basic building blocks of a package. A target can define a module or a test suite.
     // Targets can depend on other targets in this package, and on products in packages this package depends on.
@@ -119,13 +108,16 @@ let package = Package(
 
 struct Configuration {
   let useAsyncHttpClient: Bool
-  init(SWIFT_SDK_GENERATOR_DISABLE_AHC: Bool) {
-    self.useAsyncHttpClient = !SWIFT_SDK_GENERATOR_DISABLE_AHC
+  let useLocalDependencies: Bool
+  init(SWIFT_SDK_GENERATOR_DISABLE_AHC: Bool, SWIFTCI_USE_LOCAL_DEPS: Bool) {
+    self.useAsyncHttpClient = !SWIFT_SDK_GENERATOR_DISABLE_AHC && !SWIFTCI_USE_LOCAL_DEPS
+    self.useLocalDependencies = SWIFTCI_USE_LOCAL_DEPS
   }
 }
 
 let configuration = Configuration(
-  SWIFT_SDK_GENERATOR_DISABLE_AHC: Context.environment["SWIFT_SDK_GENERATOR_DISABLE_AHC"] != nil
+  SWIFT_SDK_GENERATOR_DISABLE_AHC: Context.environment["SWIFT_SDK_GENERATOR_DISABLE_AHC"] != nil,
+  SWIFTCI_USE_LOCAL_DEPS: Context.environment["SWIFTCI_USE_LOCAL_DEPS"] != nil
 )
 
 if configuration.useAsyncHttpClient {
@@ -138,4 +130,28 @@ if configuration.useAsyncHttpClient {
       .product(name: "AsyncHTTPClient", package: "async-http-client")
     )
   }
+}
+
+if configuration.useLocalDependencies {
+  package.dependencies += [
+    .package(path: "../swift-system"),
+    .package(path: "../swift-argument-parser"),
+    .package(path: "../swift-async-algorithms"),
+    .package(path: "../swift-atomics"),
+    .package(path: "../swift-collections"),
+    .package(path: "../swift-crypto"),
+    .package(path: "../swift-nio"),
+    .package(path: "../swift-log"),
+  ]
+} else {
+  package.dependencies += [
+    .package(url: "https://github.com/apple/swift-system", from: "1.2.1"),
+    .package(url: "https://github.com/apple/swift-argument-parser", from: "1.2.2"),
+    .package(url: "https://github.com/apple/swift-async-algorithms.git", exact: "1.0.0-beta.1"),
+    .package(url: "https://github.com/apple/swift-atomics.git", from: "1.1.0"),
+    .package(url: "https://github.com/apple/swift-collections.git", from: "1.0.5"),
+    .package(url: "https://github.com/apple/swift-crypto.git", from: "3.1.0"),
+    .package(url: "https://github.com/apple/swift-nio.git", from: "2.63.0"),
+    .package(url: "https://github.com/apple/swift-log.git", from: "1.5.3"),
+  ]
 }
