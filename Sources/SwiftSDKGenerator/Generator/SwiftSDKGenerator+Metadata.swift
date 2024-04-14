@@ -79,7 +79,7 @@ extension SwiftSDKGenerator {
       encoder.encode(
         SwiftSDKMetadataV4(
           targetTriples: [
-            self.targetTriple.linuxConventionDescription: metadata,
+            self.targetTriple.triple: metadata,
           ]
         )
       )
@@ -102,7 +102,7 @@ extension SwiftSDKGenerator {
               version: self.bundleVersion,
               variants: [
                 .init(
-                  path: FilePath(artifactID).appending(self.targetTriple.linuxConventionDescription).string,
+                  path: FilePath(artifactID).appending(self.targetTriple.triple).string,
                   supportedTriples: hostTriples.map { $0.map(\.triple) }
                 ),
               ]

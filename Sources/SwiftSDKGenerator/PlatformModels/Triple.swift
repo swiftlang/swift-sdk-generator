@@ -18,10 +18,6 @@ extension Triple: @unchecked Sendable {}
 
 extension Triple {
 
-  public var linuxConventionDescription: String {
-    "\(self.arch!.linuxConventionName)-\(self.vendor?.rawValue ?? "unknown")-\(self.os!)\(self.environment != nil ? "-\(self.environment!)" : "")"
-  }
-
   public init(arch: Arch, vendor: Vendor?, os: OS, environment: Environment) {
     self.init("\(arch)-\(vendor?.rawValue ?? "unknown")-\(os)-\(environment)", normalizing: true)
   }

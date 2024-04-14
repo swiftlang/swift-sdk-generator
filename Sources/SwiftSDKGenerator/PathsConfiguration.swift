@@ -21,7 +21,7 @@ public struct PathsConfiguration: Sendable {
     self.artifactsCachePath = sourceRoot.appending("Artifacts")
     self.swiftSDKRootPath = self.artifactBundlePath
       .appending(artifactID)
-      .appending(targetTriple.linuxConventionDescription)
+      .appending(targetTriple.triple)
     self.toolchainDirPath = self.swiftSDKRootPath.appending("swift.xctoolchain")
     self.toolchainBinDirPath = self.toolchainDirPath.appending("usr/bin")
   }
