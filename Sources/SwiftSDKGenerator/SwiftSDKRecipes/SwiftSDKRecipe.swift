@@ -22,7 +22,9 @@ public struct SwiftSDKProduct {
 /// A protocol describing a set of platform specific instructions to make a Swift SDK
 public protocol SwiftSDKRecipe: Sendable {
   /// Update the given toolset with platform specific options
-  func applyPlatformOptions(toolset: inout Toolset)
+  func applyPlatformOptions(
+    toolset: inout Toolset, targetTriple: Triple
+  )
   func applyPlatformOptions(
     metadata: inout SwiftSDKMetadataV4.TripleProperties,
     paths: PathsConfiguration,
@@ -37,7 +39,7 @@ public protocol SwiftSDKRecipe: Sendable {
 }
 
 extension SwiftSDKRecipe {
-  public func applyPlatformOptions(toolset: inout Toolset) {}
+  public func applyPlatformOptions(toolset: inout Toolset, targetTriple: Triple) {}
   public func applyPlatformOptions(
     metadata: inout SwiftSDKMetadataV4.TripleProperties,
     paths: PathsConfiguration,

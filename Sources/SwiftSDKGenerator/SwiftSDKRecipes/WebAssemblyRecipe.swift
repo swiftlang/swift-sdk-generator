@@ -45,9 +45,34 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
     "\(self.swiftVersion)_wasm"
   }
 
-  public func applyPlatformOptions(toolset: inout Toolset) {
+  public func applyPlatformOptions(toolset: inout Toolset, targetTriple: Triple) {
     // We only support static linking for WebAssembly for now, so make it the default.
     toolset.swiftCompiler = Toolset.ToolProperties(extraCLIOptions: ["-static-stdlib"])
+    if targetTriple.environmentName == "threads" {
+      // Enable features required for threading support
+      let ccOptions = [
+        "-matomics", "-mbulk-memory", "-mthread-model", "posix",
+        "-pthread", "-ftls-model=local-exec"
+      ]
+      // Tell LLVM codegen in swiftc to enable those features via clang options
+      toolset.swiftCompiler?.extraCLIOptions?.append(contentsOf: ccOptions.flatMap {
+        ["-Xcc", $0]
+      })
+      // Tell the C and C++ compilers to enable those features
+      toolset.cCompiler = Toolset.ToolProperties(extraCLIOptions: ccOptions)
+      toolset.cxxCompiler = Toolset.ToolProperties(extraCLIOptions: ccOptions)
+
+      let linkerOptions = [
+        // Shared memory is required for WASI threads ABI
+        // See https://github.com/WebAssembly/wasi-threads for more information.
+        "--import-memory", "--export-memory", "--shared-memory",
+        // Set the maximum memory size to 1GB because shared memory must specify
+        // a maximum size. 1GB is chosen as a conservative default, but it can be
+        // overridden by the user-provided --max-memory linker option.
+        "--max-memory=1073741824",
+      ]
+      toolset.linker = Toolset.ToolProperties(extraCLIOptions: linkerOptions)
+    }
   }
 
   public func applyPlatformOptions(
