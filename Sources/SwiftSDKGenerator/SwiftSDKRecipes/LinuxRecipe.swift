@@ -104,7 +104,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     self.versionsConfiguration = versionsConfiguration
   }
 
-  public func applyPlatformOptions(toolset: inout Toolset) {
+  public func applyPlatformOptions(toolset: inout Toolset, targetTriple: Triple) {
     toolset.swiftCompiler = Toolset.ToolProperties(extraCLIOptions: ["-use-ld=lld", "-Xlinker", "-R/usr/lib/swift/linux/"])
     toolset.cxxCompiler = Toolset.ToolProperties(extraCLIOptions: ["-lstdc++"])
     toolset.linker = Toolset.ToolProperties(path: "ld.lld")

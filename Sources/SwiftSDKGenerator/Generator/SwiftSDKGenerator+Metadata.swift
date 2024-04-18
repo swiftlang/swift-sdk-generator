@@ -37,7 +37,7 @@ extension SwiftSDKGenerator {
     }
 
     var toolset = Toolset(rootPath: relativeToolchainBinDir.string)
-    recipe.applyPlatformOptions(toolset: &toolset)
+    recipe.applyPlatformOptions(toolset: &toolset, targetTriple: self.targetTriple)
     try writeFile(at: toolsetJSONPath, encoder.encode(toolset))
 
     return toolsetJSONPath
