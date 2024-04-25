@@ -140,15 +140,20 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
   func copyTargetSwift(from distributionPath: FilePath, generator: SwiftSDKGenerator) async throws {
     let pathsConfiguration = generator.pathsConfiguration
     logGenerationStep("Copying Swift core libraries for the target triple into Swift SDK bundle...")
-    for (pathWithinPackage, pathWithinSwiftSDK) in [
-      ("clang", pathsConfiguration.toolchainDirPath.appending("usr/lib")),
-      ("swift/clang", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift")),
-      ("swift/wasi", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift")),
-      ("swift_static/clang", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static")),
-      ("swift_static/wasi", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static")),
-      ("swift_static/shims", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static")),
-      ("swift_static/CoreFoundation", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static")),
+    for (pathWithinPackage, pathWithinSwiftSDK, isOptional) in [
+      ("clang", pathsConfiguration.toolchainDirPath.appending("usr/lib"), false),
+      ("swift/clang", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift"), false),
+      ("swift/wasi", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift"), false),
+      ("swift_static/clang", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static"), false),
+      ("swift_static/wasi", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static"), false),
+      ("swift_static/shims", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static"), false),
+      // Mark CoreFoundation as optional until we set up build system to build it for WebAssembly
+      ("swift_static/CoreFoundation", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static"), true),
     ] {
+      if isOptional, !(await generator.doesFileExist(at: distributionPath.appending(pathWithinPackage))) {
+        logGenerationStep("Skipping optional path \(pathWithinPackage)")
+        continue
+      }
       try await generator.rsync(from: distributionPath.appending(pathWithinPackage), to: pathWithinSwiftSDK)
     }
   }
