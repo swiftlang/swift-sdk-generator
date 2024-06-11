@@ -172,3 +172,17 @@ extension URL: LeafCacheKey {
     self.description.hash(with: &hashFunction)
   }
 }
+
+extension Array: CacheKey where Element == FilePath.Component {
+    func hash(with hashFunction: inout some HashFunction) {
+        String(reflecting: Self.self).hash(with: &hashFunction)
+        map(\.string).joined(separator: "\n").hash(with: &hashFunction)
+    }
+}
+
+extension Range: CacheKey where Bound == Int {
+    func hash(with hashFunction: inout some HashFunction) {
+        String(reflecting: Self.self).hash(with: &hashFunction)
+        description.hash(with: &hashFunction)
+    }
+}
