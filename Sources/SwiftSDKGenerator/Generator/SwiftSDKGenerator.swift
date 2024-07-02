@@ -243,7 +243,7 @@ public actor SwiftSDKGenerator {
       stripComponentsOption = ""
     }
     try await Shell.run(
-      #"tar -C "\#(directoryPath)" \#(stripComponentsOption) -xzf \#(file)"#,
+      #"tar -C "\#(directoryPath)" \#(stripComponentsOption) -xf \#(file)"#,
       shouldLogCommands: self.isVerbose
     )
   }
