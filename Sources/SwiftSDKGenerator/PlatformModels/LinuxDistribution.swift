@@ -41,14 +41,14 @@ public enum LinuxDistribution: Hashable, Sendable {
 
     var version: String {
       switch self {
-      case .focal: return "20.04"
-      case .jammy: return "22.04"
+      case .focal: "20.04"
+      case .jammy: "22.04"
       }
     }
 
     public var requiredPackages: [String] {
       switch self {
-      case .focal: return [
+      case .focal: [
           "libc6",
           "libc6-dev",
           "libgcc-s1",
@@ -62,7 +62,7 @@ public enum LinuxDistribution: Hashable, Sendable {
           "zlib1g-dev",
           "libc6",
         ]
-      case .jammy: return [
+      case .jammy: [
           "libc6",
           "libc6-dev",
           "libgcc-s1",
@@ -97,22 +97,22 @@ public enum LinuxDistribution: Hashable, Sendable {
 
   var name: Name {
     switch self {
-    case .rhel: return .rhel
-    case .ubuntu: return .ubuntu
+    case .rhel: .rhel
+    case .ubuntu: .ubuntu
     }
   }
 
   var release: String {
     switch self {
-    case let .rhel(rhel): return rhel.rawValue
-    case let .ubuntu(ubuntu): return ubuntu.rawValue
+    case let .rhel(rhel): rhel.rawValue
+    case let .ubuntu(ubuntu): ubuntu.rawValue
     }
   }
 
   var swiftDockerImageSuffix: String {
     switch self {
-    case let .rhel(rhel): return "rhel-\(rhel.rawValue)"
-    case let .ubuntu(ubuntu): return ubuntu.rawValue
+    case let .rhel(rhel): "rhel-\(rhel.rawValue)"
+    case let .ubuntu(ubuntu): ubuntu.rawValue
     }
   }
 }
@@ -128,12 +128,11 @@ public extension LinuxDistribution.Name {
 
 extension LinuxDistribution: CustomStringConvertible {
   public var description: String {
-    let versionComponent: String
-    switch self {
+    let versionComponent: String = switch self {
     case .rhel:
-      versionComponent = self.release.uppercased()
+      self.release.uppercased()
     case .ubuntu:
-      versionComponent = self.release.capitalized
+      self.release.capitalized
     }
 
     return "\(self.name) \(versionComponent)"
@@ -143,8 +142,8 @@ extension LinuxDistribution: CustomStringConvertible {
 extension LinuxDistribution.Name: CustomStringConvertible {
   public var description: String {
     switch self {
-    case .rhel: return "RHEL"
-    case .ubuntu: return "Ubuntu"
+    case .rhel: "RHEL"
+    case .ubuntu: "Ubuntu"
     }
   }
 }

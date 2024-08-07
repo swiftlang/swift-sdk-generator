@@ -29,7 +29,7 @@ final class ThrowingDeferTests: XCTestCase {
     }
 
     func run() throws {
-      didRun = true
+      self.didRun = true
       if let error {
         throw error
       }
@@ -37,6 +37,7 @@ final class ThrowingDeferTests: XCTestCase {
   }
 
   // MARK: - Non-Async
+
   func testThrowingDeferWithoutThrowing() throws {
     var didRunWork = false
     var didRunCleanup = false
@@ -99,6 +100,7 @@ final class ThrowingDeferTests: XCTestCase {
   }
 
   // MARK: - Async
+
   func testAsyncThrowingDeferWithoutThrowing() async throws {
     let work = Worker()
     let cleanup = Worker()

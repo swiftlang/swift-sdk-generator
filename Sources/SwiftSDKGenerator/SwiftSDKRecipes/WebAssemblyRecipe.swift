@@ -52,7 +52,7 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
       // Enable features required for threading support
       let ccOptions = [
         "-matomics", "-mbulk-memory", "-mthread-model", "posix",
-        "-pthread", "-ftls-model=local-exec"
+        "-pthread", "-ftls-model=local-exec",
       ]
       // Tell LLVM codegen in swiftc to enable those features via clang options
       toolset.swiftCompiler?.extraCLIOptions?.append(contentsOf: ccOptions.flatMap {
@@ -125,7 +125,8 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
 
     // WebAssembly object file requires `swift-autolink-extract`
     if await !generator.doesFileExist(at: autolinkExtractPath),
-       await generator.doesFileExist(at: generator.pathsConfiguration.toolchainBinDirPath.appending("swift")) {
+       await generator.doesFileExist(at: generator.pathsConfiguration.toolchainBinDirPath.appending("swift"))
+    {
       logGenerationStep("Fixing `swift-autolink-extract` symlink...")
       try await generator.createSymlink(at: autolinkExtractPath, pointingTo: "swift")
     }
@@ -150,7 +151,7 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
       // Mark CoreFoundation as optional until we set up build system to build it for WebAssembly
       ("swift_static/CoreFoundation", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static"), true),
     ] {
-      if isOptional, !(await generator.doesFileExist(at: distributionPath.appending(pathWithinPackage))) {
+      if isOptional, await !(generator.doesFileExist(at: distributionPath.appending(pathWithinPackage))) {
         logGenerationStep("Skipping optional path \(pathWithinPackage)")
         continue
       }

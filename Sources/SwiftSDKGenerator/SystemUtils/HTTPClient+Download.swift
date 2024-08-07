@@ -11,14 +11,14 @@
 //===----------------------------------------------------------------------===//
 
 import Foundation
-import SystemPackage
-import NIOHTTP1
-import NIOCore
 import Helpers
+import NIOCore
+import NIOHTTP1
+import SystemPackage
 
 public struct DownloadProgress: Sendable {
-    public var totalBytes: Int?
-    public var receivedBytes: Int
+  public var totalBytes: Int?
+  public var receivedBytes: Int
 }
 
 public protocol HTTPClientProtocol: Sendable {
@@ -41,7 +41,7 @@ public protocol HTTPClientProtocol: Sendable {
     from url: URL,
     to path: FilePath
   ) -> AsyncThrowingStream<DownloadProgress, any Error>
-  
+
   /// Perform GET request to the given URL.
   func get(url: String) async throws -> (
     status: NIOHTTP1.HTTPResponseStatus,
@@ -53,8 +53,10 @@ public protocol HTTPClientProtocol: Sendable {
 }
 
 extension HTTPClientProtocol {
-  static func with<Result: Sendable>(_ body: @Sendable (any HTTPClientProtocol) async throws -> Result) async throws -> Result {
-    try await with(http1Only: false, body)
+  static func with<Result: Sendable>(_ body: @Sendable (any HTTPClientProtocol) async throws -> Result) async throws
+    -> Result
+  {
+    try await self.with(http1Only: false, body)
   }
 }
 
@@ -62,6 +64,7 @@ extension FilePath: @unchecked Sendable {}
 
 #if canImport(AsyncHTTPClient)
 import AsyncHTTPClient
+
 extension FileDownloadDelegate.Progress: @unchecked Sendable {}
 
 extension HTTPClient: HTTPClientProtocol {
@@ -96,7 +99,7 @@ extension HTTPClient: HTTPClientProtocol {
     from url: URL,
     to path: FilePath
   ) async throws {
-    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<(), Error>) in
       do {
         let delegate = try FileDownloadDelegate(
           path: path.string,
@@ -170,6 +173,7 @@ struct OfflineHTTPClient: HTTPClientProtocol {
     let client = OfflineHTTPClient()
     return try await body(client)
   }
+
   public func downloadFile(from url: URL, to path: SystemPackage.FilePath) async throws {
     throw FileOperationError.downloadFailed(url, "Cannot fetch file with offline client")
   }

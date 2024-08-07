@@ -35,12 +35,13 @@ public protocol SwiftSDKRecipe: Sendable {
   var defaultArtifactID: String { get }
 
   /// The main entrypoint of the recipe to make a Swift SDK
-  func makeSwiftSDK(generator: SwiftSDKGenerator, engine: Engine, httpClient: some HTTPClientProtocol) async throws -> SwiftSDKProduct
+  func makeSwiftSDK(generator: SwiftSDKGenerator, engine: Engine, httpClient: some HTTPClientProtocol) async throws
+    -> SwiftSDKProduct
 }
 
-extension SwiftSDKRecipe {
-  public func applyPlatformOptions(toolset: inout Toolset, targetTriple: Triple) {}
-  public func applyPlatformOptions(
+public extension SwiftSDKRecipe {
+  func applyPlatformOptions(toolset: inout Toolset, targetTriple: Triple) {}
+  func applyPlatformOptions(
     metadata: inout SwiftSDKMetadataV4.TripleProperties,
     paths: PathsConfiguration,
     targetTriple: Triple

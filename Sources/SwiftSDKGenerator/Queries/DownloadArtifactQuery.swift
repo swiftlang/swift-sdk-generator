@@ -14,20 +14,20 @@ import GeneratorEngine
 import struct SystemPackage.FilePath
 
 struct DownloadArtifactQuery: Query {
-  var cacheKey: some CacheKey { artifact }
+  var cacheKey: some CacheKey { self.artifact }
   let artifact: DownloadableArtifacts.Item
   let httpClient: any HTTPClientProtocol
 
   func run(engine: Engine) async throws -> FilePath {
     print("Downloading remote artifact not available in local cache: \(self.artifact.remoteURL)")
-    let stream = httpClient.streamDownloadProgress(
+    let stream = self.httpClient.streamDownloadProgress(
       from: self.artifact.remoteURL, to: self.artifact.localPath
     )
-      .removeDuplicates(by: didProgressChangeSignificantly)
-      ._throttle(for: .seconds(1))
+    .removeDuplicates(by: didProgressChangeSignificantly)
+    ._throttle(for: .seconds(1))
 
     for try await progress in stream {
-      report(progress: progress, for: artifact)
+      report(progress: progress, for: self.artifact)
     }
     return self.artifact.localPath
   }

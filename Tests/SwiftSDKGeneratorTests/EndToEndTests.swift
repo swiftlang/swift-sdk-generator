@@ -32,7 +32,7 @@ final class EndToEndTests: XCTestCase {
       }
 
       atexit(fin)
-    """#
+    """#,
   ]
 
   private let logger = Logger(label: "swift-sdk-generator")
@@ -78,7 +78,7 @@ final class EndToEndTests: XCTestCase {
       let installOutput = try await Shell.readStdout(String(installCommand))
       XCTAssertTrue(installOutput.contains("successfully installed"))
 
-      for testcase in testcases {
+      for testcase in self.testcases {
         let testPackageURL = FileManager.default.temporaryDirectory.appendingPathComponent("swift-sdk-generator-test")
         let testPackageDir = FilePath(testPackageURL.path)
         try? fm.removeItem(atPath: testPackageDir.string)

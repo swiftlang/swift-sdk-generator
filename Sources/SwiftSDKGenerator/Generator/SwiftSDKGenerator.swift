@@ -12,9 +12,9 @@
 
 import Foundation
 import GeneratorEngine
+import Helpers
 import Logging
 import SystemPackage
-import Helpers
 
 /// Top-level actor that sequences all of the required SDK generation steps.
 public actor SwiftSDKGenerator {
@@ -115,7 +115,7 @@ public actor SwiftSDKGenerator {
     failIfNotExists: Bool = true
   ) async throws {
     if !failIfNotExists {
-      guard try await doesPathExist(containerPath, inContainer: id)
+      guard try await self.doesPathExist(containerPath, inContainer: id)
       else { return }
     }
     try await Shell.run(
@@ -133,13 +133,15 @@ public actor SwiftSDKGenerator {
     )
   }
 
-  func withDockerContainer(fromImage imageName: String,
-                           _ body: @Sendable (String) async throws -> ()) async throws {
+  func withDockerContainer(
+    fromImage imageName: String,
+    _ body: @Sendable (String) async throws -> ()
+  ) async throws {
     let containerID = try await launchDockerContainer(imageName: imageName)
     try await withAsyncThrowing {
       try await body(containerID)
     } defer: {
-      try await stopDockerContainer(id: containerID)
+      try await self.stopDockerContainer(id: containerID)
     }
   }
 
@@ -236,11 +238,10 @@ public actor SwiftSDKGenerator {
     into directoryPath: FilePath,
     stripComponents: Int? = nil
   ) async throws {
-    let stripComponentsOption: String
-    if let stripComponents {
-      stripComponentsOption = "--strip-components=\(stripComponents)"
+    let stripComponentsOption = if let stripComponents {
+      "--strip-components=\(stripComponents)"
     } else {
-      stripComponentsOption = ""
+      ""
     }
     try await Shell.run(
       #"tar -C "\#(directoryPath)" \#(stripComponentsOption) -xf \#(file)"#,

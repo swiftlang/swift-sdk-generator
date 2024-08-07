@@ -25,9 +25,9 @@ public struct OpenReadableFile {
   func read() async throws -> ReadableFileStream {
     switch self.fileHandle {
     case let .local(fileDescriptor):
-      return ReadableFileStream.local(.init(fileDescriptor: fileDescriptor, readChunkSize: self.readChunkSize))
+      ReadableFileStream.local(.init(fileDescriptor: fileDescriptor, readChunkSize: self.readChunkSize))
     case let .virtual(array):
-      return ReadableFileStream.virtual(.init(bytes: array))
+      ReadableFileStream.virtual(.init(bytes: array))
     }
   }
 

@@ -32,32 +32,32 @@ extension GeneratorError: CustomStringConvertible {
   var description: String {
     switch self {
     case let .noProcessOutput(process):
-      return "Failed to read standard output of a launched process: \(process)"
+      "Failed to read standard output of a launched process: \(process)"
     case let .unhandledChildProcessSignal(signal, commandInfo):
-      return "Process launched with \(commandInfo) finished due to signal \(signal)"
+      "Process launched with \(commandInfo) finished due to signal \(signal)"
     case let .nonZeroExitCode(exitCode, commandInfo):
-      return "Process launched with \(commandInfo) failed with exit code \(exitCode)"
+      "Process launched with \(commandInfo) failed with exit code \(exitCode)"
     case let .unknownLinuxDistribution(name, version):
-      return "Linux distribution `\(name)`\(version.map { " with version \($0)" } ?? "")` is not supported by this generator."
+      "Linux distribution `\(name)`\(version.map { " with version \($0)" } ?? "")` is not supported by this generator."
     case let .unknownMacOSVersion(version):
-      return "macOS version `\(version)` is not supported by this generator."
+      "macOS version `\(version)` is not supported by this generator."
     case let .unknownCPUArchitecture(cpu):
-      return "CPU architecture `\(cpu)` is not supported by this generator."
+      "CPU architecture `\(cpu)` is not supported by this generator."
     case let .unknownLLDVersion(version):
-      return "LLD version `\(version)` is not supported by this generator."
+      "LLD version `\(version)` is not supported by this generator."
     case let .distributionSupportsOnlyDockerGenerator(linuxDistribution):
-      return """
+      """
       Target Linux distribution \(linuxDistribution) supports Swift SDK generation only when `--with-docker` flag is \
       passed.
       """
     case let .fileDoesNotExist(filePath):
-      return "Expected to find a file at path `\(filePath)`."
+      "Expected to find a file at path `\(filePath)`."
     case let .fileDownloadFailed(url, status):
-      return "File could not be downloaded from a URL `\(url)`, the server returned status `\(status)`."
+      "File could not be downloaded from a URL `\(url)`, the server returned status `\(status)`."
     case .ubuntuPackagesDecompressionFailure:
-      return "Failed to decompress the list of Ubuntu packages"
+      "Failed to decompress the list of Ubuntu packages"
     case let .ubuntuPackagesParsingFailure(expected, actual):
-      return "Failed to parse Ubuntu packages manifest, expected \(expected), found \(actual) packages."
+      "Failed to parse Ubuntu packages manifest, expected \(expected), found \(actual) packages."
     }
   }
 }

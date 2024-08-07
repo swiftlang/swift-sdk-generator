@@ -33,9 +33,9 @@ public struct ProcessOutputStream: Sendable & Hashable & CustomStringConvertible
   public var description: String {
     switch self.backing {
     case .standardOutput:
-      return "stdout"
+      "stdout"
     case .standardError:
-      return "stderr"
+      "stderr"
     }
   }
 }
