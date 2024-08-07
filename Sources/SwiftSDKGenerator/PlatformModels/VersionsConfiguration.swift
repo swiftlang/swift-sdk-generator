@@ -36,9 +36,9 @@ public struct VersionsConfiguration: Sendable {
   var swiftPlatform: String {
     switch self.linuxDistribution {
     case let .ubuntu(ubuntu):
-      return "ubuntu\(ubuntu.version)\(self.linuxArchSuffix)"
+      "ubuntu\(ubuntu.version)\(self.linuxArchSuffix)"
     case let .rhel(rhel):
-      return "\(rhel.rawValue)\(self.linuxArchSuffix)"
+      "\(rhel.rawValue)\(self.linuxArchSuffix)"
     }
   }
 
@@ -51,12 +51,11 @@ public struct VersionsConfiguration: Sendable {
     platform: String? = nil,
     fileExtension: String = "tar.gz"
   ) -> URL {
-    let computedSubdirectory: String
-    switch self.linuxDistribution {
+    let computedSubdirectory: String = switch self.linuxDistribution {
     case let .ubuntu(ubuntu):
-      computedSubdirectory = "ubuntu\(ubuntu.version.replacingOccurrences(of: ".", with: ""))\(self.linuxArchSuffix)"
+      "ubuntu\(ubuntu.version.replacingOccurrences(of: ".", with: ""))\(self.linuxArchSuffix)"
     case let .rhel(rhel):
-      computedSubdirectory = rhel.rawValue
+      rhel.rawValue
     }
 
     return URL(
@@ -77,7 +76,7 @@ public struct VersionsConfiguration: Sendable {
   /// Name of a Docker image containing the Swift toolchain and SDK for this Linux distribution.
   var swiftBaseDockerImage: String {
     if self.swiftVersion.hasSuffix("-RELEASE") {
-      return "swift:\(self.swiftBareSemVer)-\(self.linuxDistribution.swiftDockerImageSuffix)"
+      "swift:\(self.swiftBareSemVer)-\(self.linuxDistribution.swiftDockerImageSuffix)"
     } else {
       fatalError()
     }

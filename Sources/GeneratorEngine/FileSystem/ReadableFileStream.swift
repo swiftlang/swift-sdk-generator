@@ -25,9 +25,9 @@ public enum ReadableFileStream: AsyncSequence {
     public func next() async throws -> [UInt8]? {
       switch self {
       case let .local(local):
-        return try await local.next()
+        try await local.next()
       case let .virtual(virtual):
-        return try await virtual.next()
+        try await virtual.next()
       }
     }
   }
@@ -35,9 +35,9 @@ public enum ReadableFileStream: AsyncSequence {
   public func makeAsyncIterator() -> Iterator {
     switch self {
     case let .local(local):
-      return .local(local.makeAsyncIterator())
+      .local(local.makeAsyncIterator())
     case let .virtual(virtual):
-      return .virtual(virtual.makeAsyncIterator())
+      .virtual(virtual.makeAsyncIterator())
     }
   }
 }

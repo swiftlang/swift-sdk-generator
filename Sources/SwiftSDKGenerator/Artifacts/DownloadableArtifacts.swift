@@ -17,10 +17,10 @@ import struct SystemPackage.FilePath
 private extension Triple {
   var llvmBinaryURLSuffix: String {
     switch (self.os, self.arch) {
-    case (.linux, .aarch64): return "aarch64-linux-gnu"
-    case (.linux, .x86_64): return "x86_64-linux-gnu-ubuntu-22.04"
-    case (.macosx, .aarch64): return "arm64-apple-darwin22.0"
-    case (.macosx, .x86_64): return "x86_64-apple-darwin22.0"
+    case (.linux, .aarch64): "aarch64-linux-gnu"
+    case (.linux, .x86_64): "x86_64-linux-gnu-ubuntu-22.04"
+    case (.macosx, .aarch64): "arm64-apple-darwin22.0"
+    case (.macosx, .x86_64): "x86_64-apple-darwin22.0"
     default: fatalError("\(self) is not supported as LLVM host platform yet")
     }
   }

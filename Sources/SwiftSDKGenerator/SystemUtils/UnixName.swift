@@ -12,7 +12,7 @@ struct UnixName {
   init(info: utsname) {
     var info = info
 
-    func cloneCString<CString>(_ value: inout CString) -> String {
+    func cloneCString(_ value: inout some Any) -> String {
       withUnsafePointer(to: &value) {
         String(cString: UnsafeRawPointer($0).assumingMemoryBound(to: CChar.self))
       }

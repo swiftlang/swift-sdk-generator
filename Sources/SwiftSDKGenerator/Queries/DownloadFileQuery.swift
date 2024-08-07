@@ -19,16 +19,18 @@ struct DownloadFileQuery: Query {
     let remoteURL: URL
     let localDirectory: FilePath
   }
+
   var cacheKey: Key {
-    Key(remoteURL: remoteURL, localDirectory: localDirectory)
+    Key(remoteURL: self.remoteURL, localDirectory: self.localDirectory)
   }
+
   let remoteURL: URL
   let localDirectory: FilePath
   let httpClient: any HTTPClientProtocol
 
   func run(engine: Engine) async throws -> FilePath {
     let downloadedFilePath = self.localDirectory.appending(self.remoteURL.lastPathComponent)
-    _ = try await httpClient.downloadFile(from: self.remoteURL, to: downloadedFilePath)
+    _ = try await self.httpClient.downloadFile(from: self.remoteURL, to: downloadedFilePath)
     return downloadedFilePath
   }
 }

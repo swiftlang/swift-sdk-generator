@@ -183,11 +183,11 @@ private final class ReadIntoAsyncChannelHandler: ChannelDuplexHandler {
   private var shouldRead: Bool {
     switch self.state {
     case .idle:
-      return true
+      true
     case .error:
-      return false
+      false
     case .sending:
-      return false
+      false
     }
   }
 

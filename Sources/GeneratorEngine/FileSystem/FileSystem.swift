@@ -28,9 +28,9 @@ enum FileSystemError: Error {
 extension Error {
   func attach(path: FilePath) -> any Error {
     if let error = self as? Errno {
-      return FileSystemError.systemError(path, error)
+      FileSystemError.systemError(path, error)
     } else {
-      return self
+      self
     }
   }
 }
