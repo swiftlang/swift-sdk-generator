@@ -13,7 +13,11 @@
 import SystemPackage
 
 extension SwiftSDKGenerator {
-  func copyTargetSwiftFromDocker(targetDistribution: LinuxDistribution, baseDockerImage: String, sdkDirPath: FilePath) async throws {
+  func copyTargetSwiftFromDocker(
+    targetDistribution: LinuxDistribution,
+    baseDockerImage: String,
+    sdkDirPath: FilePath
+  ) async throws {
     logGenerationStep("Launching a Docker container to copy Swift SDK for the target triple from it...")
     try await withDockerContainer(fromImage: baseDockerImage) { containerID in
       try await inTemporaryDirectory { generator, _ in
@@ -45,7 +49,8 @@ extension SwiftSDKGenerator {
         }
 
         if case let containerLib64 = FilePath("/usr/lib64"),
-           try await generator.doesPathExist(containerLib64, inContainer: containerID) {
+           try await generator.doesPathExist(containerLib64, inContainer: containerID)
+        {
           let sdkUsrLib64Path = sdkUsrPath.appending("lib64")
           // we already checked that the path exists above, so we don't pass `failIfNotExists: false` here.
           try await generator.copyFromDockerContainer(
@@ -59,7 +64,7 @@ extension SwiftSDKGenerator {
         let sdkUsrLibPath = sdkUsrPath.appending("lib")
         try await generator.createDirectoryIfNeeded(at: sdkUsrLibPath)
         var subpaths: [(subpath: String, failIfNotExists: Bool)] = [
-          ("clang", true), ("gcc", true), ("swift", true), ("swift_static", true)
+          ("clang", true), ("gcc", true), ("swift", true), ("swift_static", true),
         ]
 
         // Ubuntu's multiarch directory scheme puts some libraries in

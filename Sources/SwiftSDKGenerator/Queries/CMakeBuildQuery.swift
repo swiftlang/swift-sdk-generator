@@ -31,8 +31,11 @@ struct CMakeBuildQuery: CachingQuery {
     )
 
     let buildDirectory = self.sourcesDirectory.appending("build")
-    try await Shell.run(#"ninja -C "\#(buildDirectory)" "\#(FilePath(".").appending(outputBinarySubpath))""#, logStdout: true)
+    try await Shell.run(
+      #"ninja -C "\#(buildDirectory)" "\#(FilePath(".").appending(self.outputBinarySubpath))""#,
+      logStdout: true
+    )
 
-    return buildDirectory.appending(outputBinarySubpath)
+    return buildDirectory.appending(self.outputBinarySubpath)
   }
 }

@@ -125,7 +125,12 @@ extension SwiftSDKGenerator {
     try createDirectoryIfNeeded(at: pathsConfiguration.toolchainBinDirPath)
   }
 
-  func downloadFiles(from urls: [URL], to directory: FilePath, _ client: some HTTPClientProtocol, _ engine: Engine) async throws -> [(URL, UInt64)] {
+  func downloadFiles(
+    from urls: [URL],
+    to directory: FilePath,
+    _ client: some HTTPClientProtocol,
+    _ engine: Engine
+  ) async throws -> [(URL, UInt64)] {
     try await withThrowingTaskGroup(of: (URL, UInt64).self) {
       for url in urls {
         $0.addTask {

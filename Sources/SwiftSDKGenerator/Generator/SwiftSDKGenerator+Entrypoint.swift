@@ -16,9 +16,9 @@ import AsyncHTTPClient
 #endif
 import Foundation
 import GeneratorEngine
+import Helpers
 import RegexBuilder
 import SystemPackage
-import Helpers
 
 public extension Triple.Arch {
   /// Returns the value of `cpu` converted to a convention used in Debian package names
@@ -32,8 +32,8 @@ public extension Triple.Arch {
   }
 }
 
-extension SwiftSDKGenerator {
-  public func run(recipe: SwiftSDKRecipe) async throws {
+public extension SwiftSDKGenerator {
+  func run(recipe: SwiftSDKRecipe) async throws {
     try await withEngine(LocalFileSystem(), self.logger, cacheLocation: self.engineCachePath) { engine in
       let httpClientType: HTTPClientProtocol.Type
       #if canImport(AsyncHTTPClient)
@@ -53,7 +53,11 @@ extension SwiftSDKGenerator {
 
         let toolsetJSONPath = try await generateToolsetJSON(recipe: recipe)
 
-        try await generateDestinationJSON(toolsetPath: toolsetJSONPath, sdkDirPath: swiftSDKProduct.sdkDirPath, recipe: recipe)
+        try await generateDestinationJSON(
+          toolsetPath: toolsetJSONPath,
+          sdkDirPath: swiftSDKProduct.sdkDirPath,
+          recipe: recipe
+        )
 
         try await generateArtifactBundleManifest(hostTriples: swiftSDKProduct.hostTriples)
 

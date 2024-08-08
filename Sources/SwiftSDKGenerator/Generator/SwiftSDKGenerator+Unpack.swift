@@ -67,7 +67,11 @@ extension SwiftSDKGenerator {
     }
   }
 
-  func unpackTargetSwiftPackage(targetSwiftPackagePath: FilePath, relativePathToRoot: [FilePath.Component], sdkDirPath: FilePath) async throws {
+  func unpackTargetSwiftPackage(
+    targetSwiftPackagePath: FilePath,
+    relativePathToRoot: [FilePath.Component],
+    sdkDirPath: FilePath
+  ) async throws {
     logGenerationStep("Unpacking Swift distribution for the target triple...")
 
     try await inTemporaryDirectory { fs, tmpDir in
