@@ -16,12 +16,13 @@ public typealias Triple = Helpers.Triple
 
 extension Triple: @unchecked Sendable {}
 
-public extension Triple {
-  init(arch: Arch, vendor: Vendor?, os: OS, environment: Environment) {
+extension Triple {
+
+  public init(arch: Arch, vendor: Vendor?, os: OS, environment: Environment) {
     self.init("\(arch)-\(vendor?.rawValue ?? "unknown")-\(os)-\(environment)", normalizing: true)
   }
 
-  init(arch: Arch, vendor: Vendor?, os: OS) {
+  public init(arch: Arch, vendor: Vendor?, os: OS) {
     self.init("\(arch)-\(vendor?.rawValue ?? "unknown")-\(os)", normalizing: true)
   }
 }
@@ -30,9 +31,9 @@ extension Triple.Arch {
   /// Returns the value of `cpu` converted to a convention used by Swift on Linux, i.e. `arm64` becomes `aarch64`.
   var linuxConventionName: String {
     switch self {
-    case .aarch64: "aarch64"
-    case .x86_64: "x86_64"
-    case .wasm32: "wasm32"
+    case .aarch64: return "aarch64"
+    case .x86_64: return "x86_64"
+    case .wasm32: return "wasm32"
     default: fatalError("\(self) is not supported yet")
     }
   }
@@ -40,9 +41,9 @@ extension Triple.Arch {
   /// Returns the value of `cpu` converted to a convention used by `LLVM_TARGETS_TO_BUILD` CMake setting.
   var llvmTargetConventionName: String {
     switch self {
-    case .x86_64: "X86"
-    case .aarch64: "AArch64"
-    case .wasm32: "WebAssembly"
+    case .x86_64: return "X86"
+    case .aarch64: return "AArch64"
+    case .wasm32: return "WebAssembly"
     default: fatalError("\(self) is not supported yet")
     }
   }

@@ -157,9 +157,7 @@ final class EngineTests: XCTestCase {
 
   func testQueryEncoding() throws {
     let item = MyItem(
-      remoteURL: URL(
-        string: "https://download.swift.org/swift-5.9.2-release/ubuntu2204-aarch64/swift-5.9.2-RELEASE/swift-5.9.2-RELEASE-ubuntu22.04-aarch64.tar.gz"
-      )!,
+      remoteURL: URL(string: "https://download.swift.org/swift-5.9.2-release/ubuntu2204-aarch64/swift-5.9.2-RELEASE/swift-5.9.2-RELEASE-ubuntu22.04-aarch64.tar.gz")!,
       localPath: "/Users/katei/ghq/github.com/apple/swift-sdk-generator/Artifacts/target_swift_5.9.2-RELEASE_aarch64-unknown-linux-gnu.tar.gz",
       isPrebuilt: true
     )

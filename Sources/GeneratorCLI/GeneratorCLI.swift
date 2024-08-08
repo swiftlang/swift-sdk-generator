@@ -138,7 +138,7 @@ extension GeneratorCLI {
       if let host {
         return host
       }
-      let current = try SwiftSDKGenerator.getCurrentTriple(isVerbose: self.verbose)
+      let current = try SwiftSDKGenerator.getCurrentTriple(isVerbose: verbose)
       if let arch = hostArch {
         let target = Triple(arch: arch, vendor: current.vendor!, os: current.os!)
         print("deprecated: Please use `--host \(target.triple)` instead of `--host-arch \(arch)`")
@@ -198,16 +198,15 @@ extension GeneratorCLI {
     }
 
     func run() async throws {
-      if self.isInvokedAsDefaultSubcommand() {
-        print(
-          "deprecated: Please explicity specify the subcommand to run. For example: $ swift-sdk-generator make-linux-sdk"
-        )
+      if isInvokedAsDefaultSubcommand() {
+        print("deprecated: Please explicity specify the subcommand to run. For example: $ swift-sdk-generator make-linux-sdk")
       }
-      let linuxDistributionDefaultVersion = switch self.linuxDistributionName {
+      let linuxDistributionDefaultVersion: String
+      switch self.linuxDistributionName {
       case .rhel:
-        "ubi9"
+        linuxDistributionDefaultVersion = "ubi9"
       case .ubuntu:
-        "22.04"
+        linuxDistributionDefaultVersion = "22.04"
       }
       let linuxDistributionVersion = self.linuxDistributionVersion ?? linuxDistributionDefaultVersion
       let linuxDistribution = try LinuxDistribution(name: linuxDistributionName, version: linuxDistributionVersion)
@@ -219,14 +218,14 @@ extension GeneratorCLI {
         hostTriple: hostTriple,
         linuxDistribution: linuxDistribution,
         swiftVersion: generatorOptions.swiftVersion,
-        swiftBranch: self.generatorOptions.swiftBranch,
-        lldVersion: self.lldVersion,
-        withDocker: self.withDocker,
-        fromContainerImage: self.fromContainerImage,
-        hostSwiftPackagePath: self.generatorOptions.hostSwiftPackagePath,
-        targetSwiftPackagePath: self.generatorOptions.targetSwiftPackagePath
+        swiftBranch: generatorOptions.swiftBranch,
+        lldVersion: lldVersion,
+        withDocker: withDocker,
+        fromContainerImage: fromContainerImage,
+        hostSwiftPackagePath: generatorOptions.hostSwiftPackagePath,
+        targetSwiftPackagePath: generatorOptions.targetSwiftPackagePath
       )
-      try await GeneratorCLI.run(recipe: recipe, targetTriple: targetTriple, options: self.generatorOptions)
+      try await GeneratorCLI.run(recipe: recipe, targetTriple: targetTriple, options: generatorOptions)
     }
 
     func isInvokedAsDefaultSubcommand() -> Bool {
@@ -271,17 +270,17 @@ extension GeneratorCLI {
       guard let targetSwiftPackagePath = generatorOptions.targetSwiftPackagePath else {
         throw StringError("Missing expected argument '--target-swift-package-path'")
       }
-      let recipe = try WebAssemblyRecipe(
-        hostSwiftPackage: generatorOptions.hostSwiftPackagePath.map {
+      let recipe = WebAssemblyRecipe(
+        hostSwiftPackage: try generatorOptions.hostSwiftPackagePath.map {
           let hostTriple = try self.generatorOptions.deriveHostTriple()
           return WebAssemblyRecipe.HostToolchainPackage(path: FilePath($0), triple: hostTriple)
         },
         targetSwiftPackagePath: FilePath(targetSwiftPackagePath),
-        wasiSysroot: FilePath(self.wasiSysroot),
-        swiftVersion: self.generatorOptions.swiftVersion
+        wasiSysroot: FilePath(wasiSysroot),
+        swiftVersion: generatorOptions.swiftVersion
       )
       let targetTriple = self.deriveTargetTriple()
-      try await GeneratorCLI.run(recipe: recipe, targetTriple: targetTriple, options: self.generatorOptions)
+      try await GeneratorCLI.run(recipe: recipe, targetTriple: targetTriple, options: generatorOptions)
     }
   }
 }

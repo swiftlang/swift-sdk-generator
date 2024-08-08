@@ -35,7 +35,7 @@
 public struct Triple {
   /// `Triple` proxies predicates from `Triple.OS`, returning `false` for an unknown OS.
   public subscript(dynamicMember predicate: KeyPath<OS, Bool>) -> Bool {
-    self.os?[keyPath: predicate] ?? false
+    os?[keyPath: predicate] ?? false
   }
 
   /// The original triple string.
@@ -67,8 +67,8 @@ public struct Triple {
     public var minor: Int
     public var micro: Int
 
-    public init(parse string: some StringProtocol) {
-      let components = string.split(separator: ".", maxSplits: 3).map { Int($0) ?? 0 }
+    public init<S: StringProtocol>(parse string: S) {
+      let components = string.split(separator: ".", maxSplits: 3).map{ Int($0) ?? 0 }
       self.major = components.count > 0 ? components[0] : 0
       self.minor = components.count > 1 ? components[1] : 0
       self.micro = components.count > 2 ? components[2] : 0
@@ -80,12 +80,12 @@ public struct Triple {
       self.micro = micro
     }
 
-    public static func < (lhs: Version, rhs: Version) -> Bool {
-      (lhs.major, lhs.minor, lhs.micro) < (rhs.major, rhs.minor, rhs.micro)
+    public static func <(lhs: Version, rhs: Version) -> Bool {
+      return (lhs.major, lhs.minor, lhs.micro) < (rhs.major, rhs.minor, rhs.micro)
     }
 
     public var description: String {
-      "\(self.major).\(self.minor).\(self.micro)"
+      return "\(major).\(minor).\(micro)"
     }
   }
 
@@ -109,10 +109,9 @@ public struct Triple {
       let isMinGW32 = parser.componentsIndicateMinGW32
 
       if
-        let parsedEnv,
-        parsedEnv.value.environment == .android,
-        parsedEnv.substring.hasPrefix("androideabi")
-      {
+      let parsedEnv = parsedEnv,
+      parsedEnv.value.environment == .android,
+      parsedEnv.substring.hasPrefix("androideabi") {
         let androidVersion = parsedEnv.substring.dropFirst("androideabi".count)
 
         parser.components[3] = "android\(androidVersion)"
@@ -152,9 +151,10 @@ public struct Triple {
 
       // Now that we've parsed everything, we construct a normalized form of the
       // triple string.
-      self.triple = parser.components.map { $0.isEmpty ? "unknown" : $0 }.joined(separator: "-")
-    } else {
-      self.triple = string
+      triple = parser.components.map({ $0.isEmpty ? "unknown" : $0 }).joined(separator: "-")
+    }
+    else {
+      triple = string
     }
 
     // Unpack the parsed data into the fields. If no environment info was found,
@@ -164,37 +164,34 @@ public struct Triple {
     self.vendor = parsedVendor?.value
     self.os = parsedOS?.value
 
-    if let parsedEnv {
+    if let parsedEnv = parsedEnv {
       self.environment = parsedEnv.value.environment
       self.objectFormat = parsedEnv.value.objectFormat
-        ?? ObjectFormat.infer(
-          arch: parsedArch?.value.arch,
-          os: parsedOS?.value
-        )
-    } else {
+        ?? ObjectFormat.infer(arch: parsedArch?.value.arch,
+                              os: parsedOS?.value)
+    }
+    else {
       self.environment = Environment.infer(archName: parsedArch?.substring)
-      self.objectFormat = ObjectFormat.infer(
-        arch: parsedArch?.value.arch,
-        os: parsedOS?.value
-      )
+      self.objectFormat = ObjectFormat.infer(arch: parsedArch?.value.arch,
+                                             os: parsedOS?.value)
     }
   }
 }
 
 extension Triple: Codable {
   public init(from decoder: Decoder) throws {
-    try self.init(decoder.singleValueContainer().decode(String.self))
+    self.init(try decoder.singleValueContainer().decode(String.self))
   }
 
   public func encode(to encoder: Encoder) throws {
     var container = encoder.singleValueContainer()
-    try container.encode(self.triple)
+    try container.encode(triple)
   }
 }
 
 // MARK: - Triple component parsing
 
-private protocol TripleComponent {
+fileprivate protocol TripleComponent {
   static func parse(_ component: Substring) -> Self?
 
   static func valueIsValid(_ value: Substring) -> Bool
@@ -206,7 +203,7 @@ extension TripleComponent {
   }
 }
 
-private struct ParsedComponent<Value: TripleComponent> {
+fileprivate struct ParsedComponent<Value: TripleComponent> {
   let value: Value
   let substring: Substring
 
@@ -237,20 +234,20 @@ private struct ParsedComponent<Value: TripleComponent> {
 ///    correct location. (`TripleParser.rematch(_:at:)`.)
 ///
 /// In non-normalizing mode, we simply skip the second step.
-private struct TripleParser {
+fileprivate struct TripleParser {
   var components: [Substring]
   var isMatched: Set<Int> = []
 
   var componentsIndicateCygwin: Bool {
-    self.components.count > 2 ? self.components[2].hasPrefix("cygwin") : false
+    components.count > 2 ? components[2].hasPrefix("cygwin") : false
   }
 
   var componentsIndicateMinGW32: Bool {
-    self.components.count > 2 ? self.components[2].hasPrefix("mingw") : false
+    components.count > 2 ? components[2].hasPrefix("mingw") : false
   }
 
   init(_ string: String, allowMore: Bool) {
-    self.components = string.split(
+    components = string.split(
       separator: "-", maxSplits: allowMore ? Int.max : 3,
       omittingEmptySubsequences: false
     )
@@ -262,14 +259,14 @@ private struct TripleParser {
     -> ParsedComponent<Value>?
   {
     guard
-      i < self.components.endIndex,
+      i < components.endIndex,
       let parsed = ParsedComponent(components[i], as: Value.self)
     else {
       return nil
     }
 
-    precondition(!self.isMatched.contains(i))
-    self.isMatched.insert(i)
+    precondition(!isMatched.contains(i))
+    isMatched.insert(i)
 
     return parsed
   }
@@ -281,19 +278,17 @@ private struct TripleParser {
   ) {
     guard value == nil else { return }
 
-    precondition(
-      !self.isMatched.contains(correctIndex),
-      "Lost the parsed component somehow?"
-    )
+    precondition(!isMatched.contains(correctIndex),
+                 "Lost the parsed component somehow?")
 
-    for i in self.unmatchedIndices {
-      guard Value.valueIsValid(self.components[i]) else {
+    for i in unmatchedIndices {
+      guard Value.valueIsValid(components[i]) else {
         continue
       }
 
-      value = ParsedComponent(self.components[i], as: Value.self)
-      self.shiftComponent(at: i, to: correctIndex)
-      self.isMatched.insert(correctIndex)
+      value = ParsedComponent(components[i], as: Value.self)
+      shiftComponent(at: i, to: correctIndex)
+      isMatched.insert(correctIndex)
 
       return
     }
@@ -301,7 +296,7 @@ private struct TripleParser {
 
   /// Returns `component.indices` with matched elements lazily filtered out.
   private var unmatchedIndices: LazyFilterSequence<Range<Int>> {
-    self.components.indices.lazy.filter { [isMatched] in
+    components.indices.lazy.filter { [isMatched] in
       !isMatched.contains($0)
     }
   }
@@ -330,14 +325,10 @@ private struct TripleParser {
     to correctIndex: Int
   ) {
     // Don't mark actualIndex as matched until after you've called this method.
-    precondition(
-      !self.isMatched.contains(actualIndex),
-      "actualIndex was already matched to something else?"
-    )
-    precondition(
-      !self.isMatched.contains(correctIndex),
-      "correctIndex already had something match it?"
-    )
+    precondition(!isMatched.contains(actualIndex),
+                 "actualIndex was already matched to something else?")
+    precondition(!isMatched.contains(correctIndex),
+                 "correctIndex already had something match it?")
 
     if correctIndex < actualIndex {
       // Repeatedly swap `actualIndex` with its leftward neighbor, skipping
@@ -347,15 +338,15 @@ private struct TripleParser {
       // have matched, and then build a reversed list of adjacent pairs. (That
       // is, if the filter returns `[1,2,4]`, the resulting list will be
       // `[(4,2),(2,1)]`.)
-      let swaps = self.unmatchedIndices[correctIndex...actualIndex]
-        .zippedPairs().reversed()
+      let swaps = unmatchedIndices[correctIndex...actualIndex]
+          .zippedPairs().reversed()
 
       // Swap each pair. This has the effect of moving `actualIndex` to
       // `correctIndex` and shifting each unmatched element between them to
       // take up the space. Swapping instead of assigning ought to avoid retain
       // count traffic.
       for (earlier, later) in swaps {
-        self.components.swapAt(earlier, later)
+        components.swapAt(earlier, later)
       }
     }
 
@@ -376,8 +367,8 @@ private struct TripleParser {
     // This loop has the effect of inserting the empty component and
     // shifting other unmatched components rightward until we either remove
     // an empty unmatched component, or remove the last element of the list.
-    for i in self.unmatchedIndices[actualIndex...] {
-      swap(&removed, &self.components[i])
+    for i in unmatchedIndices[actualIndex...] {
+      swap(&removed, &components[i])
 
       // If the element we removed is empty, consume it rather than reinserting
       // it later in the list.
@@ -386,21 +377,21 @@ private struct TripleParser {
 
     // If we shifted a non-empty component off the end, add it back in.
     if !removed.isEmpty {
-      self.components.append(removed)
+      components.append(removed)
     }
 
     // Find the next unmatched index after `actualIndex`; that's where we moved
     // the element at `actualIndex` to.
-    let nextIndex = self.unmatchedIndices[(actualIndex + 1)..<correctIndex].first ??
-      correctIndex
+    let nextIndex = unmatchedIndices[(actualIndex + 1)..<correctIndex].first ??
+        correctIndex
 
     // Recurse to move or create another empty component if necessary.
-    self.shiftComponent(at: nextIndex, to: correctIndex)
+    shiftComponent(at: nextIndex, to: correctIndex)
   }
 }
 
-private extension Collection {
-  func zippedPairs() -> Zip2Sequence<SubSequence, SubSequence> {
+extension Collection {
+  fileprivate func zippedPairs() -> Zip2Sequence<SubSequence, SubSequence> {
     zip(dropLast(), dropFirst())
   }
 }
@@ -533,121 +524,124 @@ extension Triple {
     static func parse(_ archName: Substring) -> Triple.Arch? {
       switch archName {
       case "i386", "i486", "i586", "i686":
-        .x86
+        return .x86
       case "i786", "i886", "i986":
-        .x86
+        return .x86
       case "amd64", "x86_64", "x86_64h":
-        .x86_64
+        return .x86_64
       case "powerpc", "ppc", "ppc32":
-        .ppc
+        return .ppc
       case "powerpc64", "ppu", "ppc64":
-        .ppc64
+        return .ppc64
       case "powerpc64le", "ppc64le":
-        .ppc64le
+        return .ppc64le
       case "xscale":
-        .arm
+        return .arm
       case "xscaleeb":
-        .armeb
+        return .armeb
       case "aarch64":
-        .aarch64
+        return .aarch64
       case "aarch64_be":
-        .aarch64_be
+        return .aarch64_be
       case "aarch64_32":
-        .aarch64_32
+        return .aarch64_32
       case "arc":
-        .arc
+        return .arc
       case "arm64":
-        .aarch64
+        return .aarch64
       case "arm64e":
-        .aarch64e
+        return .aarch64e
       case "arm64_32":
-        .aarch64_32
+        return .aarch64_32
       case "arm":
-        .arm
+        return .arm
       case "armeb":
-        .armeb
+        return .armeb
       case "thumb":
-        .thumb
+        return .thumb
       case "thumbeb":
-        .thumbeb
+        return .thumbeb
       case "avr":
-        .avr
+        return .avr
       case "m68k":
-        .m68k
+        return .m68k
       case "msp430":
-        .msp430
+        return .msp430
       case "mips", "mipseb", "mipsallegrex", "mipsisa32r6", "mipsr6":
-        .mips
+        return .mips
       case "mipsel", "mipsallegrexel", "mipsisa32r6el", "mipsr6el":
-        .mipsel
+        return .mipsel
       case "mips64", "mips64eb", "mipsn32", "mipsisa64r6", "mips64r6", "mipsn32r6":
-        .mips64
+        return .mips64
       case "mips64el", "mipsn32el", "mipsisa64r6el", "mips64r6el", "mipsn32r6el":
-        .mips64el
+        return .mips64el
       case "r600":
-        .r600
+        return .r600
       case "amdgcn":
-        .amdgcn
+        return .amdgcn
       case "riscv32":
-        .riscv32
+        return .riscv32
       case "riscv64":
-        .riscv64
+        return .riscv64
       case "hexagon":
-        .hexagon
+        return .hexagon
       case "s390x", "systemz":
-        .systemz
+        return .systemz
       case "sparc":
-        .sparc
+        return .sparc
       case "sparcel":
-        .sparcel
+        return .sparcel
       case "sparcv9", "sparc64":
-        .sparcv9
+        return .sparcv9
       case "tce":
-        .tce
+        return .tce
       case "tcele":
-        .tcele
+        return .tcele
       case "xcore":
-        .xcore
+        return .xcore
       case "nvptx":
-        .nvptx
+        return .nvptx
       case "nvptx64":
-        .nvptx64
+        return .nvptx64
       case "le32":
-        .le32
+        return .le32
       case "le64":
-        .le64
+        return .le64
       case "amdil":
-        .amdil
+        return .amdil
       case "amdil64":
-        .amdil64
+        return .amdil64
       case "hsail":
-        .hsail
+        return .hsail
       case "hsail64":
-        .hsail64
+        return .hsail64
       case "spir":
-        .spir
+        return .spir
       case "spir64":
-        .spir64
+        return .spir64
       case _ where archName.hasPrefix("kalimba"):
-        .kalimba
+        return .kalimba
       case "lanai":
-        .lanai
+        return .lanai
       case "shave":
-        .shave
+        return .shave
       case "wasm32":
-        .wasm32
+        return .wasm32
       case "wasm64":
-        .wasm64
+        return .wasm64
       case "renderscript32":
-        .renderscript32
+        return .renderscript32
       case "renderscript64":
-        .renderscript64
+        return .renderscript64
+
       case _ where archName.hasPrefix("arm") || archName.hasPrefix("thumb") || archName.hasPrefix("aarch64"):
-        self.parseARMArch(archName)
+        return parseARMArch(archName)
+
       case _ where archName.hasPrefix("bpf"):
-        self.parseBPFArch(archName)
+        return parseBPFArch(archName)
+
       default:
-        nil
+        return nil
       }
     }
 
@@ -655,7 +649,7 @@ extension Triple {
       case big, little
 
       // Based on LLVM's ARM::parseArchEndian
-      init?(armArchName archName: some StringProtocol) {
+      init?<S: StringProtocol>(armArchName archName: S) {
         if archName.starts(with: "armeb") || archName.starts(with: "thumbeb") || archName.starts(with: "aarch64_be") {
           self = .big
         } else if archName.starts(with: "arm") || archName.starts(with: "thumb") {
@@ -672,7 +666,7 @@ extension Triple {
       case aarch64, thumb, arm
 
       // Based on LLVM's ARM::parseArchISA
-      init?(archName: some StringProtocol) {
+      init?<S: StringProtocol>(archName: S) {
         if archName.starts(with: "aarch64") || archName.starts(with: "arm64") {
           self = .aarch64
         } else if archName.starts(with: "thumb") {
@@ -687,28 +681,30 @@ extension Triple {
 
     // Parse ARM architectures not handled by `parse`. On its own, this is not
     // enough to correctly parse an ARM architecture.
-    private static func parseARMArch(_ archName: some StringProtocol) -> Triple.Arch? {
+    private static func parseARMArch<S: StringProtocol>(_ archName: S) -> Triple.Arch? {
+
       let ISA = ARMISA(archName: archName)
       let endianness = Endianness(armArchName: archName)
 
-      let arch: Triple.Arch? = switch (endianness, ISA) {
+      let arch: Triple.Arch?
+      switch (endianness, ISA) {
       case (.little, .arm):
-        .arm
+        arch = .arm
       case (.little, .thumb):
-        .thumb
+        arch = .thumb
       case (.little, .aarch64):
-        .aarch64
+        arch = .aarch64
       case (.big, .arm):
-        .armeb
+        arch = .armeb
       case (.big, .thumb):
-        .thumbeb
+        arch = .thumbeb
       case (.big, .aarch64):
-        .aarch64_be
+        arch = .aarch64_be
       case (nil, _), (_, nil):
-        nil
+        arch = nil
       }
 
-      let canonicalArchName = self.canonicalARMArchName(from: archName)
+      let canonicalArchName = canonicalARMArchName(from: archName)
 
       if canonicalArchName.isEmpty {
         return nil
@@ -716,11 +712,11 @@ extension Triple {
 
       // Thumb only exists in v4+
       if ISA == .thumb && (canonicalArchName.hasPrefix("v2") || canonicalArchName.hasPrefix("v3")) {
-        return nil
+          return nil
       }
 
       // Thumb only for v6m
-      if case let .arm(subArch) = Triple.SubArch.parse(archName), subArch.profile == .m && subArch.version == 6 {
+      if case .arm(let subArch) = Triple.SubArch.parse(archName), subArch.profile == .m && subArch.version == 6 {
         if endianness == .big {
           return .thumbeb
         } else {
@@ -737,7 +733,7 @@ extension Triple {
     // (iwmmxt|xscale)(eb)? is also permitted. If the former, return
     // "v.+", if the latter, return unmodified string, minus 'eb'.
     // If invalid, return empty string.
-    fileprivate static func canonicalARMArchName(from arch: some StringProtocol) -> String {
+    fileprivate static func canonicalARMArchName<S: StringProtocol>(from arch: S) -> String {
       var name = Substring(arch)
 
       func dropPrefix(_ prefix: String) {
@@ -792,7 +788,8 @@ extension Triple {
       return String(name)
     }
 
-    private static func parseBPFArch(_ archName: some StringProtocol) -> Triple.Arch? {
+    private static func parseBPFArch<S: StringProtocol>(_ archName: S) -> Triple.Arch? {
+
       let isLittleEndianHost = 1.littleEndian == 1
 
       switch archName {
@@ -808,30 +805,30 @@ extension Triple {
     }
 
     /// Whether or not this architecture has 64-bit pointers
-    public var is64Bit: Bool { self.pointerBitWidth == 64 }
+    public var is64Bit: Bool { pointerBitWidth == 64 }
 
     /// Whether or not this architecture has 32-bit pointers
-    public var is32Bit: Bool { self.pointerBitWidth == 32 }
+    public var is32Bit: Bool { pointerBitWidth == 32 }
 
     /// Whether or not this architecture has 16-bit pointers
-    public var is16Bit: Bool { self.pointerBitWidth == 16 }
+    public var is16Bit: Bool { pointerBitWidth == 16 }
 
     /// The width in bits of pointers on this architecture.
     var pointerBitWidth: Int {
       switch self {
       case .avr, .msp430:
-        16
+        return 16
 
       case .arc, .arm, .armeb, .hexagon, .le32, .mips, .mipsel, .nvptx,
            .ppc, .r600, .riscv32, .sparc, .sparcel, .tce, .tcele, .thumb,
-           .thumbeb, .x86, .xcore, .amdil, .hsail, .spir, .kalimba, .lanai,
+           .thumbeb, .x86, .xcore, .amdil, .hsail, .spir, .kalimba,.lanai,
            .shave, .wasm32, .renderscript32, .aarch64_32, .m68k:
-        32
+        return 32
 
       case .aarch64, .aarch64e, .aarch64_be, .amdgcn, .bpfel, .bpfeb, .le64, .mips64,
            .mips64el, .nvptx64, .ppc64, .ppc64le, .riscv64, .sparcv9, .systemz,
-           .x86_64, .amdil64, .hsail64, .spir64, .wasm64, .renderscript64:
-        64
+           .x86_64, .amdil64, .hsail64, .spir64,  .wasm64, .renderscript64:
+        return 64
       }
     }
   }
@@ -839,9 +836,11 @@ extension Triple {
 
 // MARK: - Parse SubArch
 
-public extension Triple {
-  enum SubArch: Hashable {
+extension Triple {
+  public enum SubArch: Hashable {
+
     public enum ARM {
+
       public enum Profile {
         case a, r, m
       }
@@ -880,32 +879,32 @@ public extension Triple {
       var profile: Triple.SubArch.ARM.Profile? {
         switch self {
         case .v6m, .v7m, .v7em, .v8m_mainline, .v8m_baseline, .v8_1m_mainline:
-          .m
+          return .m
         case .v7r, .v8r:
-          .r
+          return .r
         case .v7, .v7ve, .v7k, .v8, .v8_1a, .v8_2a, .v8_3a, .v8_4a, .v8_5a:
-          .a
+          return .a
         case .v2, .v2a, .v3, .v3m, .v4, .v4t, .v5, .v5e, .v6, .v6k, .v6kz, .v6t2, .v7s:
-          nil
+          return nil
         }
       }
 
       var version: Int {
         switch self {
         case .v2, .v2a:
-          2
+          return 2
         case .v3, .v3m:
-          3
+          return 3
         case .v4, .v4t:
-          4
+          return 4
         case .v5, .v5e:
-          5
+          return 5
         case .v6, .v6k, .v6kz, .v6m, .v6t2:
-          6
+          return 6
         case .v7, .v7em, .v7k, .v7m, .v7r, .v7s, .v7ve:
-          7
+          return 7
         case .v8, .v8_1a, .v8_1m_mainline, .v8_2a, .v8_3a, .v8_4a, .v8_5a, .v8m_baseline, .v8m_mainline, .v8r:
-          8
+          return 8
         }
       }
     }
@@ -924,7 +923,8 @@ public extension Triple {
     case kalimba(Kalimba)
     case mips(MIPS)
 
-    fileprivate static func parse(_ component: some StringProtocol) -> Triple.SubArch? {
+    fileprivate static func parse<S: StringProtocol>(_ component: S) -> Triple.SubArch? {
+
       if component.hasPrefix("mips") && (component.hasSuffix("r6el") || component.hasSuffix("r6")) {
         return .mips(.r6)
       }
@@ -1014,8 +1014,8 @@ public extension Triple {
 
 // MARK: - Parse Vendor
 
-public extension Triple {
-  enum Vendor: String, CaseIterable, TripleComponent {
+extension Triple {
+  public enum Vendor: String, CaseIterable, TripleComponent {
     case apple
     case pc
     case scei
@@ -1036,39 +1036,39 @@ public extension Triple {
     fileprivate static func parse(_ component: Substring) -> Triple.Vendor? {
       switch component {
       case "apple":
-        .apple
+        return .apple
       case "pc":
-        .pc
+        return .pc
       case "scei":
-        .scei
+        return .scei
       case "bgp":
-        .bgp
+        return .bgp
       case "bgq":
-        .bgq
+        return .bgq
       case "fsl":
-        .freescale
+        return .freescale
       case "ibm":
-        .ibm
+        return .ibm
       case "img":
-        .imaginationTechnologies
+        return .imaginationTechnologies
       case "mti":
-        .mipsTechnologies
+        return .mipsTechnologies
       case "nvidia":
-        .nvidia
+        return .nvidia
       case "csr":
-        .csr
+        return .csr
       case "myriad":
-        .myriad
+        return .myriad
       case "amd":
-        .amd
+        return .amd
       case "mesa":
-        .mesa
+        return .mesa
       case "suse":
-        .suse
+        return .suse
       case "oe":
-        .openEmbedded
+        return .openEmbedded
       default:
-        nil
+        return nil
       }
     }
   }
@@ -1076,8 +1076,8 @@ public extension Triple {
 
 // MARK: - Parse OS
 
-public extension Triple {
-  enum OS: String, CaseIterable, TripleComponent {
+extension Triple {
+  public enum OS: String, CaseIterable, TripleComponent {
     case ananas
     case cloudABI = "cloudabi"
     case darwin
@@ -1116,92 +1116,92 @@ public extension Triple {
     case noneOS // 'OS' suffix purely to avoid name clash with Optional.none
 
     var name: String {
-      rawValue
+      return rawValue
     }
 
     fileprivate static func parse(_ os: Substring) -> Triple.OS? {
       switch os {
       case _ where os.hasPrefix("ananas"):
-        .ananas
+        return .ananas
       case _ where os.hasPrefix("cloudabi"):
-        .cloudABI
+        return .cloudABI
       case _ where os.hasPrefix("darwin"):
-        .darwin
+        return .darwin
       case _ where os.hasPrefix("dragonfly"):
-        .dragonFly
+        return .dragonFly
       case _ where os.hasPrefix("freebsd"):
-        .freeBSD
+        return .freeBSD
       case _ where os.hasPrefix("fuchsia"):
-        .fuchsia
+        return .fuchsia
       case _ where os.hasPrefix("ios"):
-        .ios
+        return .ios
       case _ where os.hasPrefix("kfreebsd"):
-        .kfreebsd
+        return .kfreebsd
       case _ where os.hasPrefix("linux"):
-        .linux
+        return .linux
       case _ where os.hasPrefix("lv2"):
-        .lv2
+        return .lv2
       case _ where os.hasPrefix("macos"):
-        .macosx
+        return .macosx
       case _ where os.hasPrefix("netbsd"):
-        .netbsd
+        return .netbsd
       case _ where os.hasPrefix("openbsd"):
-        .openbsd
+        return .openbsd
       case _ where os.hasPrefix("solaris"):
-        .solaris
+        return .solaris
       case _ where os.hasPrefix("win32"):
-        .win32
+        return .win32
       case _ where os.hasPrefix("windows"):
-        .win32
+        return .win32
       case _ where os.hasPrefix("haiku"):
-        .haiku
+        return .haiku
       case _ where os.hasPrefix("minix"):
-        .minix
+        return .minix
       case _ where os.hasPrefix("rtems"):
-        .rtems
+        return .rtems
       case _ where os.hasPrefix("nacl"):
-        .nacl
+        return .nacl
       case _ where os.hasPrefix("cnk"):
-        .cnk
+        return .cnk
       case _ where os.hasPrefix("aix"):
-        .aix
+        return .aix
       case _ where os.hasPrefix("cuda"):
-        .cuda
+        return .cuda
       case _ where os.hasPrefix("nvcl"):
-        .nvcl
+        return .nvcl
       case _ where os.hasPrefix("amdhsa"):
-        .amdhsa
+        return .amdhsa
       case _ where os.hasPrefix("ps4"):
-        .ps4
+        return .ps4
       case _ where os.hasPrefix("elfiamcu"):
-        .elfiamcu
+        return .elfiamcu
       case _ where os.hasPrefix("tvos"):
-        .tvos
+        return .tvos
       case _ where os.hasPrefix("watchos"):
-        .watchos
+        return .watchos
       case _ where os.hasPrefix("mesa3d"):
-        .mesa3d
+        return .mesa3d
       case _ where os.hasPrefix("contiki"):
-        .contiki
+        return .contiki
       case _ where os.hasPrefix("amdpal"):
-        .amdpal
+        return .amdpal
       case _ where os.hasPrefix("hermit"):
-        .hermitcore
+        return .hermitcore
       case _ where os.hasPrefix("hurd"):
-        .hurd
+        return .hurd
       case _ where os.hasPrefix("wasi"):
-        .wasi
+        return .wasi
       case _ where os.hasPrefix("emscripten"):
-        .emscripten
+        return .emscripten
       case _ where os.hasPrefix("none"):
-        .noneOS
+        return .noneOS
       default:
-        nil
+        return nil
       }
     }
 
     fileprivate static func valueIsValid(_ value: Substring) -> Bool {
-      self.parse(value) != nil || value.hasPrefix("cygwin") || value.hasPrefix("mingw")
+      parse(value) != nil || value.hasPrefix("cygwin") || value.hasPrefix("mingw")
     }
   }
 }
@@ -1219,19 +1219,18 @@ extension Triple {
 
     var environment: Triple.Environment? {
       switch self {
-      case let .environmentOnly(env), let .both(env, _):
-        env
+      case .environmentOnly(let env), .both(let env, _):
+        return env
       case .objectFormatOnly:
-        nil
+        return nil
       }
     }
-
     var objectFormat: Triple.ObjectFormat? {
       switch self {
-      case let .objectFormatOnly(obj), let .both(_, obj):
-        obj
+      case .objectFormatOnly(let obj), .both(_, let obj):
+        return obj
       case .environmentOnly:
-        nil
+        return nil
       }
     }
 
@@ -1241,13 +1240,13 @@ extension Triple {
         Triple.ObjectFormat.parse(component)
       ) {
       case (nil, nil):
-        nil
+        return nil
       case (nil, let obj?):
-        .objectFormatOnly(obj)
+        return .objectFormatOnly(obj)
       case (let env?, nil):
-        .environmentOnly(env)
-      case let (env?, obj?):
-        .both(environment: env, objectFormat: obj)
+        return .environmentOnly(env)
+      case (let env?, let obj?):
+        return .both(environment: env, objectFormat: obj)
       }
     }
   }
@@ -1278,49 +1277,49 @@ extension Triple {
     fileprivate static func parse(_ env: Substring) -> Triple.Environment? {
       switch env {
       case _ where env.hasPrefix("eabihf"):
-        .eabihf
+        return .eabihf
       case _ where env.hasPrefix("eabi"):
-        .eabi
+        return .eabi
       case _ where env.hasPrefix("elfv1"):
-        .elfv1
+        return .elfv1
       case _ where env.hasPrefix("elfv2"):
-        .elfv2
+        return .elfv2
       case _ where env.hasPrefix("gnuabin32"):
-        .gnuabin32
+        return .gnuabin32
       case _ where env.hasPrefix("gnuabi64"):
-        .gnuabi64
+        return .gnuabi64
       case _ where env.hasPrefix("gnueabihf"):
-        .gnueabihf
+        return .gnueabihf
       case _ where env.hasPrefix("gnueabi"):
-        .gnueabi
+        return .gnueabi
       case _ where env.hasPrefix("gnux32"):
-        .gnux32
+        return .gnux32
       case _ where env.hasPrefix("code16"):
-        .code16
+        return .code16
       case _ where env.hasPrefix("gnu"):
-        .gnu
+        return .gnu
       case _ where env.hasPrefix("android"):
-        .android
+        return .android
       case _ where env.hasPrefix("musleabihf"):
-        .musleabihf
+        return .musleabihf
       case _ where env.hasPrefix("musleabi"):
-        .musleabi
+        return .musleabi
       case _ where env.hasPrefix("musl"):
-        .musl
+        return .musl
       case _ where env.hasPrefix("msvc"):
-        .msvc
+        return .msvc
       case _ where env.hasPrefix("itanium"):
-        .itanium
+        return .itanium
       case _ where env.hasPrefix("cygnus"):
-        .cygnus
+        return .cygnus
       case _ where env.hasPrefix("coreclr"):
-        .coreclr
+        return .coreclr
       case _ where env.hasPrefix("simulator"):
-        .simulator
+        return .simulator
       case _ where env.hasPrefix("macabi"):
-        .macabi
+        return .macabi
       default:
-        nil
+        return nil
       }
     }
 
@@ -1347,8 +1346,8 @@ extension Triple {
 
 // MARK: - Parse Object Format
 
-public extension Triple {
-  enum ObjectFormat {
+extension Triple {
+  public enum ObjectFormat {
     case coff
     case elf
     case macho
@@ -1359,90 +1358,93 @@ public extension Triple {
       switch env {
       // "xcoff" must come before "coff" because of the order-dependendent pattern matching.
       case _ where env.hasSuffix("xcoff"):
-        .xcoff
+        return .xcoff
       case _ where env.hasSuffix("coff"):
-        .coff
+        return .coff
       case _ where env.hasSuffix("elf"):
-        .elf
+        return .elf
       case _ where env.hasSuffix("macho"):
-        .macho
+        return .macho
       case _ where env.hasSuffix("wasm"):
-        .wasm
+        return .wasm
       default:
-        nil
+        return nil
       }
     }
 
     fileprivate static func infer(arch: Triple.Arch?, os: Triple.OS?) -> Triple.ObjectFormat {
       switch arch {
-      case nil, .aarch64, .aarch64e, .aarch64_32, .arm, .thumb, .x86, .x86_64:
-        if os?.isDarwin ?? false {
-          return .macho
-        } else if os?.isWindows ?? false {
-          return .coff
-        }
-        return .elf
-      case .aarch64_be: fallthrough
-      case .arc: fallthrough
-      case .amdgcn: fallthrough
-      case .amdil: fallthrough
-      case .amdil64: fallthrough
-      case .armeb: fallthrough
-      case .avr: fallthrough
-      case .bpfeb: fallthrough
-      case .bpfel: fallthrough
-      case .hexagon: fallthrough
-      case .lanai: fallthrough
-      case .hsail: fallthrough
-      case .hsail64: fallthrough
-      case .kalimba: fallthrough
-      case .le32: fallthrough
-      case .le64: fallthrough
-      case .m68k: fallthrough
-      case .mips: fallthrough
-      case .mips64: fallthrough
-      case .mips64el: fallthrough
-      case .mipsel: fallthrough
-      case .msp430: fallthrough
-      case .nvptx: fallthrough
-      case .nvptx64: fallthrough
-      case .ppc64le: fallthrough
-      case .r600: fallthrough
-      case .renderscript32: fallthrough
-      case .renderscript64: fallthrough
-      case .riscv32: fallthrough
-      case .riscv64: fallthrough
-      case .shave: fallthrough
-      case .sparc: fallthrough
-      case .sparcel: fallthrough
-      case .sparcv9: fallthrough
-      case .spir: fallthrough
-      case .spir64: fallthrough
-      case .systemz: fallthrough
-      case .tce: fallthrough
-      case .tcele: fallthrough
-      case .thumbeb: fallthrough
-      case .xcore:
-        return .elf
-      case .ppc, .ppc64:
-        if os?.isDarwin ?? false {
-          return .macho
-        } else if os == .aix {
-          return .xcoff
-        }
-        return .elf
-      case .wasm32, .wasm64:
-        return .wasm
+        case nil, .aarch64, .aarch64e, .aarch64_32, .arm, .thumb, .x86, .x86_64:
+          if os?.isDarwin ?? false {
+            return .macho
+          } else if os?.isWindows ?? false {
+            return .coff
+          }
+          return .elf
+
+        case .aarch64_be: fallthrough
+        case .arc: fallthrough
+        case .amdgcn: fallthrough
+        case .amdil: fallthrough
+        case .amdil64: fallthrough
+        case .armeb: fallthrough
+        case .avr: fallthrough
+        case .bpfeb: fallthrough
+        case .bpfel: fallthrough
+        case .hexagon: fallthrough
+        case .lanai: fallthrough
+        case .hsail: fallthrough
+        case .hsail64: fallthrough
+        case .kalimba: fallthrough
+        case .le32: fallthrough
+        case .le64: fallthrough
+        case .m68k: fallthrough
+        case .mips: fallthrough
+        case .mips64: fallthrough
+        case .mips64el: fallthrough
+        case .mipsel: fallthrough
+        case .msp430: fallthrough
+        case .nvptx: fallthrough
+        case .nvptx64: fallthrough
+        case .ppc64le: fallthrough
+        case .r600: fallthrough
+        case .renderscript32: fallthrough
+        case .renderscript64: fallthrough
+        case .riscv32: fallthrough
+        case .riscv64: fallthrough
+        case .shave: fallthrough
+        case .sparc: fallthrough
+        case .sparcel: fallthrough
+        case .sparcv9: fallthrough
+        case .spir: fallthrough
+        case .spir64: fallthrough
+        case .systemz: fallthrough
+        case .tce: fallthrough
+        case .tcele: fallthrough
+        case .thumbeb: fallthrough
+        case .xcore:
+          return .elf
+
+        case .ppc, .ppc64:
+          if os?.isDarwin ?? false {
+            return .macho
+          } else if os == .aix {
+            return .xcoff
+          }
+          return .elf
+
+        case .wasm32, .wasm64:
+          return .wasm
       }
     }
 
     var name: String {
       switch self {
-      case .coff: "coff"
-      case .elf: "elf"
-      case .macho: "macho"
-      case .wasm: "wasm"
-      case .xcoff: "xcoff"
+        case .coff:   return "coff"
+        case .elf:    return "elf"
+        case .macho:  return "macho"
+        case .wasm:   return "wasm"
+        case .xcoff:  return "xcoff"
       }
     }
   }
@@ -1450,18 +1452,19 @@ public extension Triple {
 
 // MARK: - OS tests
 
-public extension Triple.OS {
-  var isWindows: Bool {
+extension Triple.OS {
+
+  public var isWindows: Bool {
     self == .win32
   }
 
-  var isAIX: Bool {
+  public var isAIX: Bool {
     self == .aix
   }
 
   /// isMacOSX - Is this a Mac OS X triple. For legacy reasons, we support both
   /// "darwin" and "osx" as OS X triples.
-  var isMacOSX: Bool {
+  public var isMacOSX: Bool {
     self == .darwin || self == .macosx
   }
 
@@ -1470,46 +1473,43 @@ public extension Triple.OS {
   /// changes, i.e., if the two operating systems diverge or their version
   /// numbers get out of sync, that will need to be changed.
   /// watchOS has completely different version numbers so it is not included.
-  var isiOS: Bool {
-    self == .ios || self.isTvOS
+  public var isiOS: Bool {
+    self == .ios || isTvOS
   }
 
   /// Is this an Apple tvOS triple.
-  var isTvOS: Bool {
+  public var isTvOS: Bool {
     self == .tvos
   }
 
   /// Is this an Apple watchOS triple.
-  var isWatchOS: Bool {
+  public var isWatchOS: Bool {
     self == .watchos
   }
 
   /// isOSDarwin - Is this a "Darwin" OS (OS X, iOS, or watchOS).
-  var isDarwin: Bool {
-    self.isMacOSX || self.isiOS || self.isWatchOS
+  public var isDarwin: Bool {
+    isMacOSX || isiOS || isWatchOS
   }
 }
 
 // MARK: - Versions
 
-public extension Triple {
+extension Triple {
   fileprivate func component(at i: Int) -> String {
-    let components = self.triple.split(
-      separator: "-",
-      maxSplits: 3,
-      omittingEmptySubsequences: false
-    )
+    let components = triple.split(separator: "-", maxSplits: 3,
+                                  omittingEmptySubsequences: false)
     guard i < components.endIndex else { return "" }
     return String(components[i])
   }
 
-  var archName: String { self.component(at: 0) }
-  var vendorName: String { self.component(at: 1) }
+  public var archName: String { component(at: 0) }
+  public var vendorName: String { component(at: 1) }
 
   /// Returns the name of the OS from the triple string.
-  var osName: String { self.component(at: 2) }
+  public var osName: String { component(at: 2) }
 
-  var environmentName: String { self.component(at: 3) }
+  public var environmentName: String { component(at: 3) }
 
   /// Parse the version number from the OS name component of the triple, if present.
   ///
@@ -1520,11 +1520,11 @@ public extension Triple {
   /// `darwin` OS version number is not adjusted to match the equivalent
   /// `macosx` version number. It's usually better to use `version(for:)`
   /// to get Darwin versions.
-  var osVersion: Version {
+  public var osVersion: Version {
     var osName = self.osName[...]
 
     // Assume that the OS portion of the triple starts with the canonical name.
-    if let os {
+    if let os = os {
       if osName.hasPrefix(os.name) {
         osName = osName.dropFirst(os.name.count)
       } else if os == .macosx, osName.hasPrefix("macos") {
@@ -1535,15 +1535,15 @@ public extension Triple {
     return Version(parse: osName)
   }
 
-  var osNameUnversioned: String {
+  public var osNameUnversioned: String {
     var canonicalOsName = self.osName[...]
 
     // Assume that the OS portion of the triple starts with the canonical name.
-    if let os {
+    if let os = os {
       if canonicalOsName.hasPrefix(os.name) {
-        canonicalOsName = self.osName.prefix(os.name.count)
-      } else if os == .macosx, self.osName.hasPrefix("macos") {
-        canonicalOsName = self.osName.prefix(5)
+        canonicalOsName = osName.prefix(os.name.count)
+      } else if os == .macosx, osName.hasPrefix("macos") {
+        canonicalOsName = osName.prefix(5)
       }
     }
     return String(canonicalOsName)
@@ -1552,7 +1552,7 @@ public extension Triple {
 
 // MARK: - Darwin Versions
 
-public extension Triple {
+extension Triple {
   /// Parse the version number as with getOSVersion and then
   /// translate generic "darwin" versions to the corresponding OS X versions.
   /// This may also be called with IOS triples but the OS X version number is
@@ -1562,10 +1562,10 @@ public extension Triple {
   ///
   /// This accessor is semi-private; it's typically better to use `version(for:)` or
   /// `Triple.FeatureAvailability`.
-  var _macOSVersion: Version? {
-    var version = self.osVersion
+  public var _macOSVersion: Version? {
+    var version = osVersion
 
-    switch self.os {
+    switch os {
     case .darwin:
       // Default to darwin8, i.e., MacOSX 10.4.
       if version.major == 0 {
@@ -1600,10 +1600,10 @@ public extension Triple {
       }
 
     case .ios, .tvos, .watchos:
-      // Ignore the version from the triple.  This is only handled because the
-      // the clang driver combines OS X and IOS support into a common Darwin
-      // toolchain that wants to know the OS X version number even when targeting
-      // IOS.
+       // Ignore the version from the triple.  This is only handled because the
+       // the clang driver combines OS X and IOS support into a common Darwin
+       // toolchain that wants to know the OS X version number even when targeting
+       // IOS.
       version = Version(10, 4, 0)
 
     default:
@@ -1617,8 +1617,8 @@ public extension Triple {
   ///
   /// This accessor is semi-private; it's typically better to use `version(for:)` or
   /// `Triple.FeatureAvailability`.
-  var _iOSVersion: Version {
-    switch self.os {
+  public var _iOSVersion: Version {
+    switch os {
     case .darwin, .macosx:
       // Ignore the version from the triple.  This is only handled because the
       // the clang driver combines OS X and iOS support into a common Darwin
@@ -1629,7 +1629,7 @@ public extension Triple {
       var version = self.osVersion
       // Default to 5.0 (or 7.0 for arm64).
       if version.major == 0 {
-        version.major = self.arch == .aarch64 ? 7 : 5
+        version.major = arch == .aarch64 ? 7 : 5
       }
       return version
     case .watchos:
@@ -1644,8 +1644,8 @@ public extension Triple {
   ///
   /// This accessor is semi-private; it's typically better to use `version(for:)` or
   /// `Triple.FeatureAvailability`.
-  var _watchOSVersion: Version {
-    switch self.os {
+  public var _watchOSVersion: Version {
+    switch os {
     case .darwin, .macosx:
       // Ignore the version from the triple.  This is only handled because the
       // the clang driver combines OS X and iOS support into a common Darwin
@@ -1669,18 +1669,16 @@ public extension Triple {
 // MARK: - Catalyst
 
 extension Triple {
-  @_spi(Testing)
-  public var isMacCatalyst: Bool {
-    self.isiOS && !self.isTvOS && self.environment == .macabi
+  @_spi(Testing) public var isMacCatalyst: Bool {
+    return self.isiOS && !self.isTvOS && environment == .macabi
   }
 
   func isValidForZipperingWithTriple(_ variant: Triple) -> Bool {
-    guard self.archName == variant.archName,
-          self.arch == variant.arch,
-          self.subArch == variant.subArch,
-          self.vendor == variant.vendor
-    else {
-      return false
+    guard archName == variant.archName,
+      arch == variant.arch,
+      subArch == variant.subArch,
+      vendor == variant.vendor else {
+        return false
     }
 
     // Allow a macOS target and an iOS-macabi target variant
@@ -1693,7 +1691,7 @@ extension Triple {
     // Allow an iOS-macabi target and a macOS target variant. This would
     // be the case when zippering a library originally developed for
     // iOS.
-    if variant.isMacOSX && self.isMacCatalyst {
+    if variant.isMacOSX && isMacCatalyst {
       return true
     }
 
@@ -1701,8 +1699,10 @@ extension Triple {
   }
 }
 
-private extension Array {
+fileprivate extension Array {
+
   mutating func resize(toCount desiredCount: Int, paddingWith element: Element) {
+
     if desiredCount > count {
       append(contentsOf: repeatElement(element, count: desiredCount - count))
     } else if desiredCount < count {
@@ -1714,10 +1714,10 @@ private extension Array {
 // MARK: - Linker support
 
 extension Triple {
-  /// Returns `true` if a given triple supports producing fully statically linked executables by providing `-static`
-  /// flag to the linker. This implies statically linking platform's libc, and of those that Swift supports currently
-  /// only Musl allows that reliably.
-  var supportsStaticExecutables: Bool {
-    self.environment == .musl
-  }
+    /// Returns `true` if a given triple supports producing fully statically linked executables by providing `-static`
+    /// flag to the linker. This implies statically linking platform's libc, and of those that Swift supports currently
+    /// only Musl allows that reliably.
+    var supportsStaticExecutables: Bool {
+        self.environment == .musl
+    }
 }

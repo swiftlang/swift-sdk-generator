@@ -71,10 +71,11 @@ public struct LinuxRecipe: SwiftSDKRecipe {
         targetSwiftSource = .remoteTarball
       }
     }
-    let hostSwiftSource: HostSwiftSource = if let hostSwiftPackagePath {
-      .localPackage(FilePath(hostSwiftPackagePath))
+    let hostSwiftSource: HostSwiftSource
+    if let hostSwiftPackagePath {
+      hostSwiftSource = .localPackage(FilePath(hostSwiftPackagePath))
     } else {
-      .remoteTarball
+      hostSwiftSource = .remoteTarball
     }
 
     self.init(
@@ -104,11 +105,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
   }
 
   public func applyPlatformOptions(toolset: inout Toolset, targetTriple: Triple) {
-    toolset.swiftCompiler = Toolset.ToolProperties(extraCLIOptions: [
-      "-use-ld=lld",
-      "-Xlinker",
-      "-R/usr/lib/swift/linux/",
-    ])
+    toolset.swiftCompiler = Toolset.ToolProperties(extraCLIOptions: ["-use-ld=lld", "-Xlinker", "-R/usr/lib/swift/linux/"])
     toolset.cxxCompiler = Toolset.ToolProperties(extraCLIOptions: ["-lstdc++"])
     toolset.linker = Toolset.ToolProperties(path: "ld.lld")
     toolset.librarian = Toolset.ToolProperties(path: "llvm-ar")
@@ -116,18 +113,15 @@ public struct LinuxRecipe: SwiftSDKRecipe {
 
   public var defaultArtifactID: String {
     """
-    \(self.versionsConfiguration.swiftVersion)_\(self.linuxDistribution.name.rawValue)_\(
-      self.linuxDistribution
-        .release
-    )_\(
-      self.mainTargetTriple.arch!.linuxConventionName
+    \(versionsConfiguration.swiftVersion)_\(linuxDistribution.name.rawValue)_\(linuxDistribution.release)_\(
+    mainTargetTriple.arch!.linuxConventionName
     )
     """
   }
 
   func sdkDirPath(paths: PathsConfiguration) -> FilePath {
     paths.swiftSDKRootPath
-      .appending("\(self.linuxDistribution.name.rawValue)-\(self.linuxDistribution.release).sdk")
+      .appending("\(linuxDistribution.name.rawValue)-\(linuxDistribution.release).sdk")
   }
 
   public func makeSwiftSDK(
@@ -144,7 +138,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     var downloadableArtifacts = try DownloadableArtifacts(
       hostTriple: mainHostTriple,
       targetTriple: generator.targetTriple,
-      self.versionsConfiguration,
+      versionsConfiguration,
       generator.pathsConfiguration
     )
 
@@ -154,12 +148,12 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       downloadableArtifacts: &downloadableArtifacts,
       itemsToDownload: { artifacts in
         var items = [artifacts.hostLLVM]
-        switch self.targetSwiftSource {
+        switch targetSwiftSource {
         case .remoteTarball:
           items.append(artifacts.targetSwift)
         case .docker, .localPackage: break
         }
-        switch self.hostSwiftSource {
+        switch hostSwiftSource {
         case .remoteTarball:
           items.append(artifacts.hostSwift)
         case .localPackage: break
@@ -178,13 +172,13 @@ public struct LinuxRecipe: SwiftSDKRecipe {
         client,
         engine,
         requiredPackages: version.requiredPackages,
-        versionsConfiguration: self.versionsConfiguration,
+        versionsConfiguration: versionsConfiguration,
         sdkDirPath: sdkDirPath
       )
     }
 
     switch self.hostSwiftSource {
-    case let .localPackage(filePath):
+    case .localPackage(let filePath):
       try await generator.rsync(
         from: filePath.appending("usr"), to: generator.pathsConfiguration.toolchainDirPath
       )
@@ -201,14 +195,14 @@ public struct LinuxRecipe: SwiftSDKRecipe {
         baseDockerImage: baseSwiftDockerImage,
         sdkDirPath: sdkDirPath
       )
-    case let .localPackage(filePath):
+    case .localPackage(let filePath):
       try await generator.copyTargetSwift(
         from: filePath.appending("usr/lib"), sdkDirPath: sdkDirPath
       )
     case .remoteTarball:
       try await generator.unpackTargetSwiftPackage(
         targetSwiftPackagePath: downloadableArtifacts.targetSwift.localPath,
-        relativePathToRoot: [FilePath.Component(self.versionsConfiguration.swiftDistributionName())!],
+        relativePathToRoot: [FilePath.Component(versionsConfiguration.swiftDistributionName())!],
         sdkDirPath: sdkDirPath
       )
     }
@@ -221,7 +215,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     try await generator.fixGlibcModuleMap(
       at: generator.pathsConfiguration.toolchainDirPath
         .appending("/usr/lib/swift/linux/\(targetCPU.linuxConventionName)/glibc.modulemap"),
-      hostTriple: self.mainHostTriple
+      hostTriple: mainHostTriple
     )
 
     try await generator.symlinkClangHeaders()
@@ -233,6 +227,6 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       try await generator.createSymlink(at: autolinkExtractPath, pointingTo: "swift")
     }
 
-    return SwiftSDKProduct(sdkDirPath: sdkDirPath, hostTriples: [self.mainHostTriple])
+    return SwiftSDKProduct(sdkDirPath: sdkDirPath, hostTriples: [mainHostTriple])
   }
 }

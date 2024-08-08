@@ -16,7 +16,8 @@ import struct SystemPackage.FilePath
 
 /// Indicates that values of a conforming type can be hashed with an arbitrary hashing function. Unlike `Hashable`,
 /// this protocol doesn't utilize random seed values and produces consistent hash values across process launches.
-public protocol CacheKey: Encodable {}
+public protocol CacheKey: Encodable {
+}
 
 /// Types that cannot be decomposed more to be hashed
 protocol LeafCacheKey: CacheKey {

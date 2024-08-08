@@ -67,11 +67,7 @@ extension SwiftSDKGenerator {
     }
   }
 
-  func unpackTargetSwiftPackage(
-    targetSwiftPackagePath: FilePath,
-    relativePathToRoot: [FilePath.Component],
-    sdkDirPath: FilePath
-  ) async throws {
+  func unpackTargetSwiftPackage(targetSwiftPackagePath: FilePath, relativePathToRoot: [FilePath.Component], sdkDirPath: FilePath) async throws {
     logGenerationStep("Unpacking Swift distribution for the target triple...")
 
     try await inTemporaryDirectory { fs, tmpDir in
@@ -97,10 +93,11 @@ extension SwiftSDKGenerator {
       stripComponents: 1
     )
 
-    let unpackedLLDPath: FilePath = if llvmArtifact.isPrebuilt {
-      untarDestination.appending("bin/lld")
+    let unpackedLLDPath: FilePath
+    if llvmArtifact.isPrebuilt {
+      unpackedLLDPath = untarDestination.appending("bin/lld")
     } else {
-      try await engine[CMakeBuildQuery(
+      unpackedLLDPath = try await engine[CMakeBuildQuery(
         sourcesDirectory: untarDestination,
         outputBinarySubpath: ["bin", "lld"],
         options: "-DLLVM_ENABLE_PROJECTS=lld -DLLVM_TARGETS_TO_BUILD=''"

@@ -16,7 +16,7 @@ import XCTest
 
 final class WebAssemblyRecipeTests: XCTestCase {
   func createRecipe() -> WebAssemblyRecipe {
-    WebAssemblyRecipe(
+    return WebAssemblyRecipe(
       hostSwiftPackage: nil,
       targetSwiftPackagePath: "./target-toolchain",
       wasiSysroot: "./wasi-sysroot",
@@ -25,7 +25,7 @@ final class WebAssemblyRecipeTests: XCTestCase {
   }
 
   func testToolOptions() {
-    let recipe = self.createRecipe()
+    let recipe = createRecipe()
     var toolset = Toolset(rootPath: nil)
     recipe.applyPlatformOptions(
       toolset: &toolset, targetTriple: Triple("wasm32-unknown-wasi")
@@ -37,7 +37,7 @@ final class WebAssemblyRecipeTests: XCTestCase {
   }
 
   func testToolOptionsWithThreads() {
-    let recipe = self.createRecipe()
+    let recipe = createRecipe()
     var toolset = Toolset(rootPath: nil)
     recipe.applyPlatformOptions(
       toolset: &toolset, targetTriple: Triple("wasm32-unknown-wasip1-threads")
@@ -51,18 +51,18 @@ final class WebAssemblyRecipeTests: XCTestCase {
         "-Xcc", "-mthread-model",
         "-Xcc", "posix",
         "-Xcc", "-pthread",
-        "-Xcc", "-ftls-model=local-exec",
+        "-Xcc", "-ftls-model=local-exec"
       ]
     )
 
     let ccOptions = [
       "-matomics", "-mbulk-memory", "-mthread-model", "posix",
-      "-pthread", "-ftls-model=local-exec",
+      "-pthread", "-ftls-model=local-exec"
     ]
     XCTAssertEqual(toolset.cCompiler?.extraCLIOptions, ccOptions)
     XCTAssertEqual(toolset.cxxCompiler?.extraCLIOptions, ccOptions)
     XCTAssertEqual(toolset.linker?.extraCLIOptions, [
-      "--import-memory", "--export-memory", "--shared-memory", "--max-memory=1073741824",
+      "--import-memory", "--export-memory", "--shared-memory", "--max-memory=1073741824"
     ])
   }
 }
