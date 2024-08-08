@@ -238,10 +238,11 @@ public actor SwiftSDKGenerator {
     into directoryPath: FilePath,
     stripComponents: Int? = nil
   ) async throws {
-    let stripComponentsOption = if let stripComponents {
-      "--strip-components=\(stripComponents)"
+    let stripComponentsOption: String
+    if let stripComponents {
+      stripComponentsOption = "--strip-components=\(stripComponents)"
     } else {
-      ""
+      stripComponentsOption = ""
     }
     try await Shell.run(
       #"tar -C "\#(directoryPath)" \#(stripComponentsOption) -xf \#(file)"#,

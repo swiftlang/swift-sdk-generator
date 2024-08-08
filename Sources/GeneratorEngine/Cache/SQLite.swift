@@ -135,11 +135,11 @@ public final class SQLite {
     var pathString: String {
       switch self {
       case let .path(path):
-        path.string
+        return path.string
       case .memory:
-        ":memory:"
+        return ":memory:"
       case .temporary:
-        ""
+        return ""
       }
     }
   }

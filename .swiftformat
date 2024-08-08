@@ -14,4 +14,6 @@
 # Insert explicit `self` where applicable.
 --self insert
 
---swiftversion 5.9
+--exclude Sources/Helpers/Vendor
+
+--swiftversion 5.8

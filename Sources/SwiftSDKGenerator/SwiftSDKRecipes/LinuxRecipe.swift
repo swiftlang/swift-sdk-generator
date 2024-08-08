@@ -71,10 +71,11 @@ public struct LinuxRecipe: SwiftSDKRecipe {
         targetSwiftSource = .remoteTarball
       }
     }
-    let hostSwiftSource: HostSwiftSource = if let hostSwiftPackagePath {
-      .localPackage(FilePath(hostSwiftPackagePath))
+    let hostSwiftSource: HostSwiftSource
+    if let hostSwiftPackagePath {
+      hostSwiftSource = .localPackage(FilePath(hostSwiftPackagePath))
     } else {
-      .remoteTarball
+      hostSwiftSource = .remoteTarball
     }
 
     self.init(
