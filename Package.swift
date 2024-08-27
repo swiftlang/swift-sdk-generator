@@ -58,7 +58,7 @@ let package = Package(
         .product(name: "Logging", package: "swift-log"),
         .product(name: "SystemPackage", package: "swift-system"),
         "Helpers",
-        "SystemSQLite",
+        .product(name: "SwiftToolchainCSQLite", package: "swift-toolchain-sqlite"),
       ]
     ),
     .testTarget(
@@ -80,7 +80,6 @@ let package = Package(
         "Helpers",
       ]
     ),
-    .systemLibrary(name: "SystemSQLite", pkgConfig: "sqlite3"),
     .target(
       name: "AsyncProcess",
       dependencies: [
@@ -142,6 +141,7 @@ if configuration.useLocalDependencies {
     .package(path: "../swift-crypto"),
     .package(path: "../swift-nio"),
     .package(path: "../swift-log"),
+    .package(path: "../swift-toolchain-sqlite"),
   ]
 } else {
   package.dependencies += [
@@ -153,5 +153,6 @@ if configuration.useLocalDependencies {
     .package(url: "https://github.com/apple/swift-crypto.git", from: "3.1.0"),
     .package(url: "https://github.com/apple/swift-nio.git", from: "2.65.0"),
     .package(url: "https://github.com/apple/swift-log.git", from: "1.5.4"),
+    .package(url: "https://github.com/swiftlang/swift-toolchain-sqlite.git", from: "1.0.0"),
   ]
 }
