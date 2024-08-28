@@ -1025,7 +1025,7 @@ final class IntegrationTests: XCTestCase {
   // Foundation.Process on Linux doesn't correctly detect when child process dies (creating zombie processes)
   func testCanDealWithRunawayChildProcesses() async throws {
     self.logger = Logger(label: "x")
-    self.logger.logLevel = .trace
+    self.logger.logLevel = .info
     let p = ProcessExecutor(
       executable: "/bin/bash",
       [
@@ -1070,10 +1070,19 @@ final class IntegrationTests: XCTestCase {
       try await group.waitForAll()
 
       // Let's check that the subprocess (/usr/bin/yes) of our subprocess (/bin/bash) is actually dead
-      let killRet = kill(pid, 0)
-      let errnoCode = errno
-      XCTAssertEqual(-1, killRet)
-      XCTAssertEqual(ESRCH, errnoCode)
+      // This is a tiny bit racy because the pid isn't immediately invalidated, so let's allow a few failures
+      for attempt in 0 ..< .max {
+        let killRet = kill(pid, 0)
+        let errnoCode = errno
+        guard killRet == -1 || attempt > 5 else {
+          logger.error("kill didn't fail on attempt \(attempt), trying again...")
+          usleep(100_000)
+          continue
+        }
+        XCTAssertEqual(-1, killRet)
+        XCTAssertEqual(ESRCH, errnoCode)
+        break
+      }    
     }
   }
   #endif
