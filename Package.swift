@@ -120,7 +120,7 @@ if configuration.useAsyncHttpClient {
   package.dependencies.append(
     .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.19.0")
   )
-  let targetsToAppend: Set<String> = ["SwiftSDKGenerator"]
+  let targetsToAppend: Set<String> = ["SwiftSDKGenerator", "Helpers"]
   for target in package.targets.filter({ targetsToAppend.contains($0.name) }) {
     target.dependencies.append(
       .product(name: "AsyncHTTPClient", package: "async-http-client")
