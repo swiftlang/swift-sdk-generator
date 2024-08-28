@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift open source project
 //
-// Copyright (c) 2023 Apple Inc. and the Swift project authors
+// Copyright (c) 2023-2024 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See https://swift.org/LICENSE.txt for license information
@@ -124,9 +124,15 @@ extension HashEncoder: SingleValueEncodingContainer {
   }
 
   func encode<T>(_ value: T) throws where T: Encodable {
+    if let leaf = value as? LeafCacheKey {
+      leaf.hash(with: &self.hashFunction)
+      return
+    }
+
     guard value is CacheKey else {
       throw Error.noCacheKeyConformance(T.self)
     }
+
     try String(describing: T.self).encode(to: self)
     try value.encode(to: self)
   }
