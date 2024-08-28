@@ -11,7 +11,6 @@
 //===----------------------------------------------------------------------===//
 
 import Foundation
-import GeneratorEngine
 import Helpers
 import Logging
 import SystemPackage
@@ -37,7 +36,7 @@ public actor SwiftSDKGenerator {
   ) async throws {
     logGenerationStep("Looking up configuration values...")
 
-    let sourceRoot = FilePath(#file)
+    let sourceRoot = FilePath(#filePath)
       .removingLastComponent()
       .removingLastComponent()
       .removingLastComponent()

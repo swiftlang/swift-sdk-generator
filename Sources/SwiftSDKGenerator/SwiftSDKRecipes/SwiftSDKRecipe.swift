@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-import GeneratorEngine
+import Helpers
 import struct SystemPackage.FilePath
 
 public struct SwiftSDKProduct {
@@ -35,7 +35,7 @@ public protocol SwiftSDKRecipe: Sendable {
   var defaultArtifactID: String { get }
 
   /// The main entrypoint of the recipe to make a Swift SDK
-  func makeSwiftSDK(generator: SwiftSDKGenerator, engine: Engine, httpClient: some HTTPClientProtocol) async throws
+  func makeSwiftSDK(generator: SwiftSDKGenerator, engine: QueryEngine, httpClient: some HTTPClientProtocol) async throws
     -> SwiftSDKProduct
 }
 

@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 import AsyncAlgorithms
-import GeneratorEngine
+import Helpers
 import RegexBuilder
 
 import class Foundation.ByteCountFormatter
@@ -23,11 +23,9 @@ import struct SystemPackage.FilePath
 private let ubuntuAMD64Mirror = "http://gb.archive.ubuntu.com/ubuntu"
 private let ubuntuARM64Mirror = "http://ports.ubuntu.com/ubuntu-ports"
 
-let byteCountFormatter = ByteCountFormatter()
-
 extension SwiftSDKGenerator {
   func downloadArtifacts(
-    _ client: some HTTPClientProtocol, _ engine: Engine,
+    _ client: some HTTPClientProtocol, _ engine: QueryEngine,
     downloadableArtifacts: inout DownloadableArtifacts,
     itemsToDownload: @Sendable (DownloadableArtifacts) -> [DownloadableArtifacts.Item]
   ) async throws {
@@ -67,7 +65,7 @@ extension SwiftSDKGenerator {
 
   func downloadUbuntuPackages(
     _ client: some HTTPClientProtocol,
-    _ engine: Engine,
+    _ engine: QueryEngine,
     requiredPackages: [String],
     versionsConfiguration: VersionsConfiguration,
     sdkDirPath: FilePath
@@ -129,7 +127,7 @@ extension SwiftSDKGenerator {
     from urls: [URL],
     to directory: FilePath,
     _ client: some HTTPClientProtocol,
-    _ engine: Engine
+    _ engine: QueryEngine
   ) async throws -> [(URL, UInt64)] {
     try await withThrowingTaskGroup(of: (URL, UInt64).self) {
       for url in urls {
@@ -157,6 +155,8 @@ extension SwiftSDKGenerator {
 }
 
 private func report(downloadedFiles: [(URL, UInt64)]) {
+  let byteCountFormatter = ByteCountFormatter()
+  
   for (url, bytes) in downloadedFiles {
     print("\(url) – \(byteCountFormatter.string(fromByteCount: Int64(bytes)))")
   }

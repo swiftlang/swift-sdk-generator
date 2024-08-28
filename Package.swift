@@ -34,7 +34,6 @@ let package = Package(
         .product(name: "NIOHTTP1", package: "swift-nio"),
         .product(name: "Logging", package: "swift-log"),
         .product(name: "SystemPackage", package: "swift-system"),
-        "GeneratorEngine",
         "Helpers",
       ],
       exclude: ["Dockerfiles"],
@@ -51,24 +50,20 @@ let package = Package(
         .enableExperimentalFeature("StrictConcurrency=complete"),
       ]
     ),
-    .target(
-      name: "GeneratorEngine",
-      dependencies: [
-        .product(name: "Crypto", package: "swift-crypto"),
-        .product(name: "Logging", package: "swift-log"),
-        .product(name: "SystemPackage", package: "swift-system"),
-        "Helpers",
-        "SystemSQLite",
-      ]
-    ),
     .testTarget(
       name: "GeneratorEngineTests",
       dependencies: [
-        "GeneratorEngine",
+        "Helpers",
       ]
     ),
     .target(
       name: "Helpers",
+      dependencies: [
+        "SystemSQLite",
+        .product(name: "Crypto", package: "swift-crypto"),
+        .product(name: "Logging", package: "swift-log"),
+        .product(name: "SystemPackage", package: "swift-system"),
+      ],
       exclude: ["Vendor/README.md"],
       swiftSettings: [
         .enableExperimentalFeature("StrictConcurrency=complete"),
@@ -103,7 +98,8 @@ let package = Package(
         .product(name: "Logging", package: "swift-log"),
       ]
     ),
-  ]
+  ],
+  swiftLanguageVersions: [.v5, .version("6")]
 )
 
 struct Configuration {

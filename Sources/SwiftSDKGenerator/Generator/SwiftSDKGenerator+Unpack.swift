@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-import GeneratorEngine
+import Helpers
 import struct SystemPackage.FilePath
 
 let unusedDarwinPlatforms = [
@@ -82,7 +82,7 @@ extension SwiftSDKGenerator {
     }
   }
 
-  func prepareLLDLinker(_ engine: Engine, llvmArtifact: DownloadableArtifacts.Item) async throws {
+  func prepareLLDLinker(_ engine: QueryEngine, llvmArtifact: DownloadableArtifacts.Item) async throws {
     logGenerationStep("Unpacking and copying `lld` linker...")
     let pathsConfiguration = self.pathsConfiguration
     let targetOS = self.targetTriple.os

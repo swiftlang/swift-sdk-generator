@@ -115,7 +115,7 @@ final class FileLock {
           permissions: [.groupReadWrite, .ownerReadWrite, .otherReadWrite]
         ).rawValue
       } catch {
-        throw error.attach(path: self.lockFile)
+        throw error.attach(self.lockFile)
       }
     }
     // Acquire lock on the file.

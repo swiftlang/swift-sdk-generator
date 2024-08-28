@@ -119,10 +119,10 @@ private struct OutputConsumptionState: OptionSet {
 }
 
 /// Type-erasing type analogous to `AnySequence` from the Swift standard library.
-private struct AnyAsyncSequence<Element>: AsyncSequence {
-  private let iteratorFactory: () -> AsyncIterator
+private struct AnyAsyncSequence<Element>: AsyncSequence & Sendable where Element: Sendable {
+  private let iteratorFactory: @Sendable () -> AsyncIterator
 
-  init<S: AsyncSequence>(_ asyncSequence: S) where S.Element == Element {
+  init<S: AsyncSequence & Sendable>(_ asyncSequence: S) where S.Element == Element {
     self.iteratorFactory = {
       var iterator = asyncSequence.makeAsyncIterator()
       return AsyncIterator { try await iterator.next() }

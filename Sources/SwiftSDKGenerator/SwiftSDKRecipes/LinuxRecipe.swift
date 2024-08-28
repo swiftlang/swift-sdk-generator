@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 import Foundation
-import GeneratorEngine
+import Helpers
 import struct SystemPackage.FilePath
 
 public struct LinuxRecipe: SwiftSDKRecipe {
@@ -133,7 +133,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
 
   public func makeSwiftSDK(
     generator: SwiftSDKGenerator,
-    engine: Engine,
+    engine: QueryEngine,
     httpClient client: some HTTPClientProtocol
   ) async throws -> SwiftSDKProduct {
     let sdkDirPath = self.sdkDirPath(paths: generator.pathsConfiguration)

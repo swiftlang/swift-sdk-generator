@@ -10,45 +10,51 @@
 //
 //===----------------------------------------------------------------------===//
 
+import Foundation
 import SystemPackage
 
-public actor LocalFileSystem: FileSystem {
+public actor OSFileSystem: AsyncFileSystem {
   public static let defaultChunkSize = 512 * 1024
 
   let readChunkSize: Int
+  private let ioQueue = DispatchQueue(label: "org.swift.sdk-generator-io")
 
   public init(readChunkSize: Int = defaultChunkSize) {
     self.readChunkSize = readChunkSize
   }
 
-  public func withOpenReadableFile<T>(
+  public func withOpenReadableFile<T: Sendable>(
     _ path: FilePath,
     _ body: (OpenReadableFile) async throws -> T
   ) async throws -> T {
     let fd = try FileDescriptor.open(path, .readOnly)
     // Can't use ``FileDescriptor//closeAfter` here, as that doesn't support async closures.
     do {
-      let result = try await body(.init(readChunkSize: readChunkSize, fileHandle: .local(fd)))
+      let result = try await body(.init(chunkSize: readChunkSize, fileHandle: .real(fd, self.ioQueue)))
       try fd.close()
       return result
     } catch {
       try fd.close()
-      throw error.attach(path: path)
+      throw error.attach(path)
     }
   }
 
-  public func withOpenWritableFile<T>(
-    _ path: SystemPackage.FilePath,
+  public func withOpenWritableFile<T: Sendable>(
+    _ path: FilePath,
     _ body: (OpenWritableFile) async throws -> T
   ) async throws -> T {
     let fd = try FileDescriptor.open(path, .writeOnly)
     do {
-      let result = try await body(.init(fileHandle: .local(fd)))
+      let result = try await body(.init(storage: .real(fd, self.ioQueue), path: path))
       try fd.close()
       return result
     } catch {
       try fd.close()
-      throw error.attach(path: path)
+      throw error.attach(path)
     }
+  }
+
+  public func exists(_ path: SystemPackage.FilePath) async -> Bool {
+    FileManager.default.fileExists(atPath: path.string)
   }
 }

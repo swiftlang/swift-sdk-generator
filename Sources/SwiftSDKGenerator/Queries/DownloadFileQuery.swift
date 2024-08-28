@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 import struct Foundation.URL
-import GeneratorEngine
+import Helpers
 import struct SystemPackage.FilePath
 
 struct DownloadFileQuery: Query {
@@ -28,7 +28,7 @@ struct DownloadFileQuery: Query {
   let localDirectory: FilePath
   let httpClient: any HTTPClientProtocol
 
-  func run(engine: Engine) async throws -> FilePath {
+  func run(engine: QueryEngine) async throws -> FilePath {
     let downloadedFilePath = self.localDirectory.appending(self.remoteURL.lastPathComponent)
     _ = try await self.httpClient.downloadFile(from: self.remoteURL, to: downloadedFilePath)
     return downloadedFilePath
