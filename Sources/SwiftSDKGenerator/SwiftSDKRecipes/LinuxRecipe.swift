@@ -225,7 +225,9 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       hostTriple: self.mainHostTriple
     )
 
-    try await generator.symlinkClangHeaders()
+    if versionsConfiguration.swiftVersion.hasPrefix("5.9") || versionsConfiguration.swiftVersion.hasPrefix("5.10") {
+      try await generator.symlinkClangHeaders()
+    }
 
     let autolinkExtractPath = generator.pathsConfiguration.toolchainBinDirPath.appending("swift-autolink-extract")
 

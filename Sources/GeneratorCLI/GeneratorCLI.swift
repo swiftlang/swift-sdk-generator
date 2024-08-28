@@ -98,7 +98,7 @@ extension GeneratorCLI {
     var swiftBranch: String? = nil
 
     @Option(help: "Version of Swift to supply in the bundle.")
-    var swiftVersion = "5.9.2-RELEASE"
+    var swiftVersion = "5.10.1-RELEASE"
 
     @Option(
       help: """
