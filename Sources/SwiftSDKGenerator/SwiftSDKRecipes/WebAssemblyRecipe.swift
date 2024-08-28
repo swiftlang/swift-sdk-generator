@@ -94,6 +94,8 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
     httpClient: some HTTPClientProtocol
   ) async throws -> SwiftSDKProduct {
     let pathsConfiguration = generator.pathsConfiguration
+    let targetSwiftLibPath = self.targetSwiftPackagePath.appending("usr/lib")
+
     logGenerationStep("Copying Swift binaries for the host triple...")
     var hostTriples: [Triple]? = nil
     if let hostSwiftPackage {
@@ -117,9 +119,12 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
         libraries: unusedHostLibraries + liblldbNames,
         binaries: unusedHostBinaries + ["lldb", "lldb-argdumper", "lldb-server"]
       )
+      // Merge target Swift package with the host package.
+      try await self.mergeTargetSwift(from: targetSwiftLibPath, generator: generator)
+    } else {
+      // Simply copy the target Swift package into the SDK bundle when building host-agnostic SDK.
+      try await generator.copy(from: targetSwiftLibPath, to: pathsConfiguration.toolchainDirPath.appending("usr/lib"))
     }
-
-    try await self.copyTargetSwift(from: self.targetSwiftPackagePath.appending("usr/lib"), generator: generator)
 
     let autolinkExtractPath = generator.pathsConfiguration.toolchainBinDirPath.appending("swift-autolink-extract")
 
@@ -138,7 +143,8 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
     return SwiftSDKProduct(sdkDirPath: sdkDirPath, hostTriples: hostTriples)
   }
 
-  func copyTargetSwift(from distributionPath: FilePath, generator: SwiftSDKGenerator) async throws {
+  /// Merge the target Swift package into the Swift SDK bundle derived from the host Swift package.
+  func mergeTargetSwift(from distributionPath: FilePath, generator: SwiftSDKGenerator) async throws {
     let pathsConfiguration = generator.pathsConfiguration
     logGenerationStep("Copying Swift core libraries for the target triple into Swift SDK bundle...")
     for (pathWithinPackage, pathWithinSwiftSDK, isOptional) in [
