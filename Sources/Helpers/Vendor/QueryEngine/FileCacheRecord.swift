@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 // FIXME: need a new swift-system tag to remove `@preconcurrency`
-@preconcurrency public import struct SystemPackage.FilePath
+@preconcurrency import struct SystemPackage.FilePath
 
 public struct FileCacheRecord: Sendable {
     public let path: FilePath

@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 internal import class Dispatch.DispatchQueue
-internal import struct SystemPackage.FileDescriptor
+import struct SystemPackage.FileDescriptor
 
 /// A read-only thread-safe handle to an open file.
 public struct OpenReadableFile: Sendable {

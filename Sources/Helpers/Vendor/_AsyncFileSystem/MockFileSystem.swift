@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-@preconcurrency public import struct SystemPackage.FilePath
+@preconcurrency import struct SystemPackage.FilePath
 
 /// In-memory implementation of `AsyncFileSystem` for mocking and testing purposes.
 public actor MockFileSystem: AsyncFileSystem {

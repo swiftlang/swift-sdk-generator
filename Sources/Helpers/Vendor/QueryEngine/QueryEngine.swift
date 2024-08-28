@@ -46,7 +46,7 @@ public actor QueryEngine {
   public let fileSystem: any AsyncFileSystem
 
   #if canImport(AsyncHTTPClient)
-  public let httpClient = HTTPClientProtocol()
+  public let httpClient = HTTPClient()
   #endif
 
   public let observabilityScope: Logger
@@ -72,6 +72,10 @@ public actor QueryEngine {
   public func shutDown() async throws {
     precondition(!self.isShutDown, "`QueryEngine/shutDown` should be called only once")
     try self.resultsCache.close()
+
+    #if canImport(AsyncHTTPClient)
+    try await httpClient.shutdown()
+    #endif
 
     self.isShutDown = true
   }
