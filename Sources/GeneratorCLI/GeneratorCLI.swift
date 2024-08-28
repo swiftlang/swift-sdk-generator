@@ -200,7 +200,7 @@ extension GeneratorCLI {
     func run() async throws {
       if self.isInvokedAsDefaultSubcommand() {
         print(
-          "deprecated: Please explicity specify the subcommand to run. For example: $ swift-sdk-generator make-linux-sdk"
+          "deprecated: Please explicitly specify the subcommand to run. For example: $ swift-sdk-generator make-linux-sdk"
         )
       }
       let linuxDistributionDefaultVersion: String
