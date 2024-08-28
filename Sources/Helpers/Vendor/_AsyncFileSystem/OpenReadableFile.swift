@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-internal import class Dispatch.DispatchQueue
+import class Dispatch.DispatchQueue
 import struct SystemPackage.FileDescriptor
 
 /// A read-only thread-safe handle to an open file.

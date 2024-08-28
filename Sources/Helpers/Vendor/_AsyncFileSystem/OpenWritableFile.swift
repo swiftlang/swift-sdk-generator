@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-internal import class Dispatch.DispatchQueue
+import class Dispatch.DispatchQueue
 @preconcurrency import struct SystemPackage.FileDescriptor
 import struct SystemPackage.FilePath
 

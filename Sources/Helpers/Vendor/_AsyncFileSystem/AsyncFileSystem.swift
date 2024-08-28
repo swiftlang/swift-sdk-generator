@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-public import _Concurrency
+import _Concurrency
 @preconcurrency import struct SystemPackage.Errno
 @preconcurrency import struct SystemPackage.FilePath
 

@@ -8,7 +8,7 @@
  See http://swift.org/CONTRIBUTORS.txt for Swift project authors
 */
 
-public import _Concurrency
+import _Concurrency
 
 /// An asynchronous output byte stream.
 ///

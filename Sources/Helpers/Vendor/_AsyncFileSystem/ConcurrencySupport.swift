@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-internal import _Concurrency
-internal import class Dispatch.DispatchQueue
+import _Concurrency
+import class Dispatch.DispatchQueue
 
 extension DispatchQueue {
     /// Schedules blocking synchronous work item on this ``DispatchQueue`` instance.
