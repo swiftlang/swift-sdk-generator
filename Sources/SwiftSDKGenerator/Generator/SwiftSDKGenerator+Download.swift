@@ -156,7 +156,7 @@ extension SwiftSDKGenerator {
 
 private func report(downloadedFiles: [(URL, UInt64)]) {
   let byteCountFormatter = ByteCountFormatter()
-  
+
   for (url, bytes) in downloadedFiles {
     print("\(url) – \(byteCountFormatter.string(fromByteCount: Int64(bytes)))")
   }

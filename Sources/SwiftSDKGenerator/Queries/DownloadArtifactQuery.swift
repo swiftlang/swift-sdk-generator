@@ -55,7 +55,7 @@ private func didProgressChangeSignificantly(
 
 private func report(progress: DownloadProgress, for artifact: DownloadableArtifacts.Item) {
   let byteCountFormatter = ByteCountFormatter()
-  
+
   if let total = progress.totalBytes {
     print("""
     \(artifact.remoteURL.lastPathComponent) \(

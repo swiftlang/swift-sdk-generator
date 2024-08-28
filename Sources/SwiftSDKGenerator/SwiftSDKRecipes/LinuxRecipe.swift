@@ -225,7 +225,8 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       hostTriple: self.mainHostTriple
     )
 
-    if versionsConfiguration.swiftVersion.hasPrefix("5.9") || versionsConfiguration.swiftVersion.hasPrefix("5.10") {
+    if self.versionsConfiguration.swiftVersion.hasPrefix("5.9") ||
+        self.versionsConfiguration.swiftVersion .hasPrefix("5.10") {
       try await generator.symlinkClangHeaders()
     }
 
