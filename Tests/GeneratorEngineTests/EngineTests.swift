@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift open source project
 //
-// Copyright (c) 2023 Apple Inc. and the Swift project authors
+// Copyright (c) 2023-2024 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See https://swift.org/LICENSE.txt for license information
@@ -98,6 +98,21 @@ struct Expression: CachingQuery {
 }
 
 final class EngineTests: XCTestCase {
+  func testFilePathHashing() throws {
+    let path = "/root"
+
+    let hashEncoder1 = HashEncoder<SHA256>()
+    try hashEncoder1.encode(FilePath(path))
+    let digest1 = hashEncoder1.finalize()
+
+    let hashEncoder2 = HashEncoder<SHA256>()
+    try hashEncoder2.encode(String(reflecting: FilePath.self))
+    try hashEncoder2.encode(path)
+    let digest2 = hashEncoder2.finalize()
+
+    XCTAssertEqual(digest1, digest2)
+  }
+
   func testSimpleCaching() async throws {
     let engine = Engine(
       VirtualFileSystem(),
