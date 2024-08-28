@@ -123,6 +123,7 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
       try await self.mergeTargetSwift(from: targetSwiftLibPath, generator: generator)
     } else {
       // Simply copy the target Swift package into the SDK bundle when building host-agnostic SDK.
+      try await generator.createDirectoryIfNeeded(at: pathsConfiguration.toolchainDirPath.appending("usr"))
       try await generator.copy(from: targetSwiftLibPath, to: pathsConfiguration.toolchainDirPath.appending("usr/lib"))
     }
 
