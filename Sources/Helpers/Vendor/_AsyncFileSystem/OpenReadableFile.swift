@@ -36,7 +36,7 @@ public struct OpenReadableFile: Sendable {
     public func read() async throws -> ReadableFileStream {
         switch self.fileHandle {
         case let .real(fileDescriptor, ioQueue):
-            ReadableFileStream.real(
+            return ReadableFileStream.real(
                 .init(
                     fileDescriptor: fileDescriptor,
                     ioQueue: ioQueue,
@@ -45,7 +45,7 @@ public struct OpenReadableFile: Sendable {
             )
             
         case .mock(let array):
-            ReadableFileStream.mock(.init(bytes: array, chunkSize: self.chunkSize))
+            return ReadableFileStream.mock(.init(bytes: array, chunkSize: self.chunkSize))
         }
     }
 }
