@@ -278,15 +278,15 @@ final class IntegrationTests: XCTestCase {
       group.addTask {
         try await echo.run().throwIfNonZero()
       }
-      group.addTask {
+      group.addTask { [elg = self.group!, logger = self.logger!] in
         let echoOutput = await echo.standardOutput
 
         let sed = ProcessExecutor(
-          group: self.group,
+          group: elg,
           executable: "/usr/bin/tr",
           ["[:lower:]", "[:upper:]"],
           standardInput: echoOutput,
-          logger: self.logger
+          logger: logger
         )
         let output = try await sed.runGetAllOutput()
         XCTAssertEqual(String(buffer: output.standardOutput), "FOO\n")
@@ -957,15 +957,15 @@ final class IntegrationTests: XCTestCase {
         of: ProcessExitReason?.self,
         returning: ProcessExitReason.self
       ) { group in
-        group.addTask {
+        group.addTask { [logger = self.logger!] in
           try await ProcessExecutor.run(
             executable: "/bin/sleep", ["100000"],
-            logger: self.logger
+            logger: logger
           )
         }
-        group.addTask {
+        group.addTask { [logger = self.logger!] in
           let waitNS = UInt64.random(in: 0..<10_000_000)
-          self.logger.info("waiting", metadata: ["wait-ns": "\(waitNS)"])
+          logger.info("waiting", metadata: ["wait-ns": "\(waitNS)"])
           try? await Task.sleep(nanoseconds: waitNS)
           return nil
         }
@@ -1025,7 +1025,7 @@ final class IntegrationTests: XCTestCase {
   // Foundation.Process on Linux doesn't correctly detect when child process dies (creating zombie processes)
   func testCanDealWithRunawayChildProcesses() async throws {
     self.logger = Logger(label: "x")
-    self.logger.logLevel = .trace
+    self.logger.logLevel = .info
     let p = ProcessExecutor(
       executable: "/bin/bash",
       [
@@ -1070,10 +1070,19 @@ final class IntegrationTests: XCTestCase {
       try await group.waitForAll()
 
       // Let's check that the subprocess (/usr/bin/yes) of our subprocess (/bin/bash) is actually dead
-      let killRet = kill(pid, 0)
-      let errnoCode = errno
-      XCTAssertEqual(-1, killRet)
-      XCTAssertEqual(ESRCH, errnoCode)
+      // This is a tiny bit racy because the pid isn't immediately invalidated, so let's allow a few failures
+      for attempt in 0 ..< .max {
+        let killRet = kill(pid, 0)
+        let errnoCode = errno
+        guard killRet == -1 || attempt > 5 else {
+          logger.error("kill didn't fail on attempt \(attempt), trying again...")
+          usleep(100_000)
+          continue
+        }
+        XCTAssertEqual(-1, killRet)
+        XCTAssertEqual(ESRCH, errnoCode)
+        break
+      }    
     }
   }
   #endif

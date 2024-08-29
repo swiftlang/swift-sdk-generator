@@ -200,7 +200,7 @@ extension GeneratorCLI {
     func run() async throws {
       if self.isInvokedAsDefaultSubcommand() {
         print(
-          "deprecated: Please explicity specify the subcommand to run. For example: $ swift-sdk-generator make-linux-sdk"
+          "deprecated: Please explicitly specify the subcommand to run. For example: $ swift-sdk-generator make-linux-sdk"
         )
       }
       let linuxDistributionDefaultVersion: String
@@ -287,7 +287,6 @@ extension GeneratorCLI {
   }
 }
 
-// FIXME: replace this with a call on `.formatted()` on `Duration` when it's available in swift-foundation.
 import Foundation
 
 extension Duration {
@@ -298,10 +297,18 @@ extension Duration {
     let components = Calendar.current.dateComponents([.hour, .minute, .second], from: reference, to: date)
 
     if let hours = components.hour, hours > 0 {
+      #if !canImport(Darwin) && compiler(<6.0)
       return String(format: "%02d:%02d:%02d", hours, components.minute ?? 0, components.second ?? 0)
+      #else
+      return self.formatted()
+      #endif
     } else if let minutes = components.minute, minutes > 0 {
+      #if !canImport(Darwin) && compiler(<6.0)
       let seconds = components.second ?? 0
       return "\(minutes) minute\(minutes != 1 ? "s" : "") \(seconds) second\(seconds != 1 ? "s" : "")"
+      #else
+      return "\(self.formatted(.time(pattern: .minuteSecond))) seconds"
+      #endif
     } else {
       return "\(components.second ?? 0) seconds"
     }

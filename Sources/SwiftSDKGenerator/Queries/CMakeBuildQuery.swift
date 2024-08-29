@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-import GeneratorEngine
+import Helpers
 import struct SystemPackage.FilePath
 
 struct CMakeBuildQuery: CachingQuery {
@@ -19,7 +19,7 @@ struct CMakeBuildQuery: CachingQuery {
   let outputBinarySubpath: [FilePath.Component]
   let options: String
 
-  func run(engine: Engine) async throws -> FilePath {
+  func run(engine: QueryEngine) async throws -> FilePath {
     try await Shell.run(
       """
       cmake -S "\(self.sourcesDirectory)"/llvm -B "\(

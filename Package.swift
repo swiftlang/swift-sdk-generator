@@ -34,7 +34,6 @@ let package = Package(
         .product(name: "NIOHTTP1", package: "swift-nio"),
         .product(name: "Logging", package: "swift-log"),
         .product(name: "SystemPackage", package: "swift-system"),
-        "GeneratorEngine",
         "Helpers",
       ],
       exclude: ["Dockerfiles"],
@@ -51,24 +50,20 @@ let package = Package(
         .enableExperimentalFeature("StrictConcurrency=complete"),
       ]
     ),
-    .target(
-      name: "GeneratorEngine",
-      dependencies: [
-        .product(name: "Crypto", package: "swift-crypto"),
-        .product(name: "Logging", package: "swift-log"),
-        .product(name: "SystemPackage", package: "swift-system"),
-        "Helpers",
-        .product(name: "SwiftToolchainCSQLite", package: "swift-toolchain-sqlite"),
-      ]
-    ),
     .testTarget(
       name: "GeneratorEngineTests",
       dependencies: [
-        "GeneratorEngine",
+        "Helpers",
       ]
     ),
     .target(
       name: "Helpers",
+      dependencies: [
+        .product(name: "SwiftToolchainCSQLite", package: "swift-toolchain-sqlite"),
+        .product(name: "Crypto", package: "swift-crypto"),
+        .product(name: "Logging", package: "swift-log"),
+        .product(name: "SystemPackage", package: "swift-system"),
+      ],
       exclude: ["Vendor/README.md"],
       swiftSettings: [
         .enableExperimentalFeature("StrictConcurrency=complete"),
@@ -102,7 +97,8 @@ let package = Package(
         .product(name: "Logging", package: "swift-log"),
       ]
     ),
-  ]
+  ],
+  swiftLanguageVersions: [.v5, .version("6")]
 )
 
 struct Configuration {
@@ -123,7 +119,7 @@ if configuration.useAsyncHttpClient {
   package.dependencies.append(
     .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.19.0")
   )
-  let targetsToAppend: Set<String> = ["SwiftSDKGenerator"]
+  let targetsToAppend: Set<String> = ["SwiftSDKGenerator", "Helpers"]
   for target in package.targets.filter({ targetsToAppend.contains($0.name) }) {
     target.dependencies.append(
       .product(name: "AsyncHTTPClient", package: "async-http-client")

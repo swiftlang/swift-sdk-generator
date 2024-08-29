@@ -5,7 +5,7 @@
 With Swift supporting many different platforms, cross-compilation can boost developer productivity. In certain cases it's
 the only way to build a Swift package.
 
-[SE-0387](https://github.com/apple/swift-evolution/blob/main/proposals/0387-cross-compilation-destinations.md) proposal
+[SE-0387](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0387-cross-compilation-destinations.md) proposal
 introduces Swift SDKs, which bundle together all components required for cross-compilation in a single archive, and
 make cross builds as easy as running a single command.
 
@@ -171,7 +171,7 @@ If you're interested in adding support for a new platform, please open an issue 
 
 If you have any trouble with the Swift SDK Generator, help is available. We recommend:
 
-* Generator's [bug tracker](https://github.com/apple/swift-sdk-generator/issues);
+* Generator's [bug tracker](https://github.com/swiftlang/swift-sdk-generator/issues);
 * The [Swift Forums](https://forums.swift.org/c/development/swiftpm/).
 
 When reporting an issue please follow the bug reporting guidelines, they can be found in [contribution guide](./CONTRIBUTING.md#how-to-submit-a-bug-report).
