@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 import Foundation
-import GeneratorEngine
+import Helpers
 import struct SystemPackage.FilePath
 
 public struct LinuxRecipe: SwiftSDKRecipe {
@@ -133,7 +133,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
 
   public func makeSwiftSDK(
     generator: SwiftSDKGenerator,
-    engine: Engine,
+    engine: QueryEngine,
     httpClient client: some HTTPClientProtocol
   ) async throws -> SwiftSDKProduct {
     let sdkDirPath = self.sdkDirPath(paths: generator.pathsConfiguration)
@@ -225,7 +225,8 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       hostTriple: self.mainHostTriple
     )
 
-    if versionsConfiguration.swiftVersion.hasPrefix("5.9") || versionsConfiguration.swiftVersion.hasPrefix("5.10") {
+    if self.versionsConfiguration.swiftVersion.hasPrefix("5.9") ||
+        self.versionsConfiguration.swiftVersion .hasPrefix("5.10") {
       try await generator.symlinkClangHeaders()
     }
 

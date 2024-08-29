@@ -278,15 +278,15 @@ final class IntegrationTests: XCTestCase {
       group.addTask {
         try await echo.run().throwIfNonZero()
       }
-      group.addTask {
+      group.addTask { [elg = self.group!, logger = self.logger!] in
         let echoOutput = await echo.standardOutput
 
         let sed = ProcessExecutor(
-          group: self.group,
+          group: elg,
           executable: "/usr/bin/tr",
           ["[:lower:]", "[:upper:]"],
           standardInput: echoOutput,
-          logger: self.logger
+          logger: logger
         )
         let output = try await sed.runGetAllOutput()
         XCTAssertEqual(String(buffer: output.standardOutput), "FOO\n")
@@ -957,15 +957,15 @@ final class IntegrationTests: XCTestCase {
         of: ProcessExitReason?.self,
         returning: ProcessExitReason.self
       ) { group in
-        group.addTask {
+        group.addTask { [logger = self.logger!] in
           try await ProcessExecutor.run(
             executable: "/bin/sleep", ["100000"],
-            logger: self.logger
+            logger: logger
           )
         }
-        group.addTask {
+        group.addTask { [logger = self.logger!] in
           let waitNS = UInt64.random(in: 0..<10_000_000)
-          self.logger.info("waiting", metadata: ["wait-ns": "\(waitNS)"])
+          logger.info("waiting", metadata: ["wait-ns": "\(waitNS)"])
           try? await Task.sleep(nanoseconds: waitNS)
           return nil
         }

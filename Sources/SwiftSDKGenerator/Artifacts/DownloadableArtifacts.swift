@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 import struct Foundation.URL
-import GeneratorEngine
+import Helpers
 import struct SystemPackage.FilePath
 
 private extension Triple {

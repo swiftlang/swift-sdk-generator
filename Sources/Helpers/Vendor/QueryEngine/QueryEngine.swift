@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift open source project
 //
-// Copyright (c) 2023 Apple Inc. and the Swift project authors
+// Copyright (c) 2023-2024 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See https://swift.org/LICENSE.txt for license information
@@ -10,18 +10,21 @@
 //
 //===----------------------------------------------------------------------===//
 
-@_exported import Crypto
-import Helpers
-import struct Logging.Logger
-@_exported import struct SystemPackage.FilePath
+import Crypto
+import Logging
+@preconcurrency import SystemPackage
 
-public func withEngine(
-  _ fileSystem: any FileSystem,
+#if canImport(AsyncHTTPClient)
+  import AsyncHTTPClient
+#endif
+
+public func withQueryEngine(
+  _ fileSystem: some AsyncFileSystem,
   _ logger: Logger,
   cacheLocation: SQLite.Location,
-  _ body: @Sendable (Engine) async throws -> ()
+  _ body: @Sendable (QueryEngine) async throws -> Void
 ) async throws {
-  let engine = Engine(
+  let engine = QueryEngine(
     fileSystem,
     logger,
     cacheLocation: cacheLocation
@@ -36,12 +39,17 @@ public func withEngine(
 
 /// Cacheable computations engine. Currently the engine makes an assumption that computations produce same results for
 /// the same query values and write results to a single file path.
-public actor Engine {
+public actor QueryEngine {
   private(set) var cacheHits = 0
   private(set) var cacheMisses = 0
 
-  public let fileSystem: any FileSystem
-  public let logger: Logger
+  public let fileSystem: any AsyncFileSystem
+
+  #if canImport(AsyncHTTPClient)
+  public let httpClient = HTTPClient()
+  #endif
+
+  public let observabilityScope: Logger
   private let resultsCache: SQLiteBackedCache
   private var isShutDown = false
 
@@ -52,18 +60,22 @@ public actor Engine {
   /// - Parameter cacheLocation: Location of cache storage used by the engine.
   /// - Parameter logger: Logger to use during queries execution.
   init(
-    _ fileSystem: any FileSystem,
-    _ logger: Logger,
-    cacheLocation: SQLite.Location
+    _ fileSystem: any AsyncFileSystem,
+    _ observabilityScope: Logger,
+    cacheLocation: SQLite.Location = .memory
   ) {
     self.fileSystem = fileSystem
-    self.logger = logger
-    self.resultsCache = SQLiteBackedCache(tableName: "cache_table", location: cacheLocation, logger)
+    self.observabilityScope = observabilityScope
+    self.resultsCache = SQLiteBackedCache(tableName: "cache_table", location: cacheLocation, observabilityScope)
   }
 
   public func shutDown() async throws {
     precondition(!self.isShutDown, "`QueryEngine/shutDown` should be called only once")
     try self.resultsCache.close()
+
+    #if canImport(AsyncHTTPClient)
+    try await httpClient.shutdown()
+    #endif
 
     self.isShutDown = true
   }

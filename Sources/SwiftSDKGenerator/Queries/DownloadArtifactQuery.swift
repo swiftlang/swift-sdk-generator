@@ -10,7 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-import GeneratorEngine
+import class Foundation.ByteCountFormatter
+import Helpers
 import struct SystemPackage.FilePath
 
 struct DownloadArtifactQuery: Query {
@@ -18,7 +19,7 @@ struct DownloadArtifactQuery: Query {
   let artifact: DownloadableArtifacts.Item
   let httpClient: any HTTPClientProtocol
 
-  func run(engine: Engine) async throws -> FilePath {
+  func run(engine: QueryEngine) async throws -> FilePath {
     print("Downloading remote artifact not available in local cache: \(self.artifact.remoteURL)")
     let stream = self.httpClient.streamDownloadProgress(
       from: self.artifact.remoteURL, to: self.artifact.localPath
@@ -53,6 +54,8 @@ private func didProgressChangeSignificantly(
 }
 
 private func report(progress: DownloadProgress, for artifact: DownloadableArtifacts.Item) {
+  let byteCountFormatter = ByteCountFormatter()
+
   if let total = progress.totalBytes {
     print("""
     \(artifact.remoteURL.lastPathComponent) \(

@@ -11,7 +11,8 @@
 //===----------------------------------------------------------------------===//
 
 import struct Foundation.Data
-@testable import GeneratorEngine
+import Crypto
+@testable import Helpers
 import struct Logging.Logger
 import struct SystemPackage.FilePath
 import XCTest
@@ -19,16 +20,14 @@ import XCTest
 private let encoder = JSONEncoder()
 private let decoder = JSONDecoder()
 
-private extension FileSystem {
+private extension AsyncFileSystem {
   func read<V: Decodable>(_ path: FilePath, bufferLimit: Int = 10 * 1024 * 1024, as: V.Type) async throws -> V {
     let data = try await self.withOpenReadableFile(path) {
       var data = Data()
       for try await chunk in try await $0.read() {
         data.append(contentsOf: chunk)
 
-        guard data.count < bufferLimit else {
-          throw FileSystemError.bufferLimitExceeded(path)
-        }
+        assert(data.count < bufferLimit)
       }
       return data
     }
@@ -47,7 +46,7 @@ private extension FileSystem {
 struct Const: CachingQuery {
   let x: Int
 
-  func run(engine: Engine) async throws -> FilePath {
+  func run(engine: QueryEngine) async throws -> FilePath {
     let resultPath = FilePath("/Const-\(x)")
     try await engine.fileSystem.write(resultPath, self.x)
     return resultPath
@@ -57,7 +56,7 @@ struct Const: CachingQuery {
 struct MultiplyByTwo: CachingQuery {
   let x: Int
 
-  func run(engine: Engine) async throws -> FilePath {
+  func run(engine: QueryEngine) async throws -> FilePath {
     let constPath = try await engine[Const(x: self.x)].path
     let constResult = try await engine.fileSystem.read(constPath, as: Int.self)
 
@@ -70,7 +69,7 @@ struct MultiplyByTwo: CachingQuery {
 struct AddThirty: CachingQuery {
   let x: Int
 
-  func run(engine: Engine) async throws -> FilePath {
+  func run(engine: QueryEngine) async throws -> FilePath {
     let constPath = try await engine[Const(x: self.x)].path
     let constResult = try await engine.fileSystem.read(constPath, as: Int.self)
 
@@ -84,7 +83,7 @@ struct Expression: CachingQuery {
   let x: Int
   let y: Int
 
-  func run(engine: Engine) async throws -> FilePath {
+  func run(engine: QueryEngine) async throws -> FilePath {
     let multiplyPath = try await engine[MultiplyByTwo(x: self.x)].path
     let addThirtyPath = try await engine[AddThirty(x: self.y)].path
 
@@ -114,10 +113,10 @@ final class EngineTests: XCTestCase {
   }
 
   func testSimpleCaching() async throws {
-    let engine = Engine(
-      VirtualFileSystem(),
-      Logger(label: "engine-tests"),
-      cacheLocation: .memory
+    let engine = QueryEngine(
+      MockFileSystem(),
+      Logger(label: "engine-tests")
+//      cacheLocation: .memory
     )
 
     var resultPath = try await engine[Expression(x: 1, y: 2)].path

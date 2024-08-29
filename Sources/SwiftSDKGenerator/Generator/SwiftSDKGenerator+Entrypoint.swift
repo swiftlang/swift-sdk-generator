@@ -15,7 +15,6 @@ import AsyncAlgorithms
 import AsyncHTTPClient
 #endif
 import Foundation
-import GeneratorEngine
 import Helpers
 import RegexBuilder
 import SystemPackage
@@ -34,7 +33,7 @@ public extension Triple.Arch {
 
 public extension SwiftSDKGenerator {
   func run(recipe: SwiftSDKRecipe) async throws {
-    try await withEngine(LocalFileSystem(), self.logger, cacheLocation: self.engineCachePath) { engine in
+    try await withQueryEngine(OSFileSystem(), self.logger, cacheLocation: self.engineCachePath) { engine in
       let httpClientType: HTTPClientProtocol.Type
       #if canImport(AsyncHTTPClient)
       httpClientType = HTTPClient.self

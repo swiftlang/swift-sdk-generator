@@ -41,7 +41,7 @@ final class EndToEndTests: XCTestCase {
   func testPackageInitExecutable() async throws {
     let fm = FileManager.default
 
-    var packageDirectory = FilePath(#file)
+    var packageDirectory = FilePath(#filePath)
     packageDirectory.removeLastComponent()
     packageDirectory.removeLastComponent()
 
@@ -104,7 +104,7 @@ final class EndToEndTests: XCTestCase {
   func testRepeatedSDKBuilds() async throws {
     let fm = FileManager.default
 
-    var packageDirectory = FilePath(#file)
+    var packageDirectory = FilePath(#filePath)
     packageDirectory.removeLastComponent()
     packageDirectory.removeLastComponent()
 

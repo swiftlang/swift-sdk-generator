@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-import GeneratorEngine
+import Helpers
 import struct SystemPackage.FilePath
 
 public struct WebAssemblyRecipe: SwiftSDKRecipe {
@@ -90,7 +90,7 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
 
   public func makeSwiftSDK(
     generator: SwiftSDKGenerator,
-    engine: Engine,
+    engine: QueryEngine,
     httpClient: some HTTPClientProtocol
   ) async throws -> SwiftSDKProduct {
     let pathsConfiguration = generator.pathsConfiguration
