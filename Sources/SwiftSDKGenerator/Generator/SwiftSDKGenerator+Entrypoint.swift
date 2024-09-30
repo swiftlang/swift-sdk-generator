@@ -33,7 +33,7 @@ public extension Triple.Arch {
 
 public extension SwiftSDKGenerator {
   func run(recipe: SwiftSDKRecipe) async throws {
-    try await withQueryEngine(OSFileSystem(), self.logger, cacheLocation: self.engineCachePath) { engine in
+    try await withQueryEngine(SDKFileSystem(), self.logger, cacheLocation: self.engineCachePath) { engine in
       let httpClientType: HTTPClientProtocol.Type
       #if canImport(AsyncHTTPClient)
       httpClientType = HTTPClient.self
