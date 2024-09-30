@@ -10,23 +10,29 @@
 //
 //===----------------------------------------------------------------------===//
 
-import _Concurrency
 import SystemPackage
+import _Concurrency
+@preconcurrency import _NIOFileSystem
+
 import class Dispatch.DispatchQueue
 
 /// Type-erasure wrapper over underlying file system readable streams.
 public enum ReadableFileStream: AsyncSequence {
     public typealias Element = ArraySlice<UInt8>
 
+    case nio(NIOReadableFileStream)
     case real(RealReadableFileStream)
     case mock(MockReadableFileStream)
 
     public enum Iterator: AsyncIteratorProtocol {
+        case nio(NIOReadableFileStream.Iterator)
         case real(RealReadableFileStream.Iterator)
         case mock(MockReadableFileStream.Iterator)
 
         public func next() async throws -> ArraySlice<UInt8>? {
             switch self {
+            case .nio(let local):
+                return try await local.next()
             case .real(let local):
                 return try await local.next()
             case .mock(let virtual):
@@ -37,11 +43,48 @@ public enum ReadableFileStream: AsyncSequence {
 
     public func makeAsyncIterator() -> Iterator {
         switch self {
+        case .nio(let real):
+            return .nio(real.makeAsyncIterator())
         case .real(let real):
             return .real(real.makeAsyncIterator())
         case .mock(let mock):
             return .mock(mock.makeAsyncIterator())
         }
+    }
+}
+
+public struct NIOReadableFileStream: AsyncSequence {
+
+    public typealias Element = ArraySlice<UInt8>
+    let fileDescriptor: ReadFileHandle
+    let readChunkSize: Int
+
+    public final class Iterator: AsyncIteratorProtocol {
+        init(_ fileDescriptor: ReadFileHandle, readChunkSize: Int) {
+            self.chunkSize = readChunkSize
+            self.reader = fileDescriptor.bufferedReader()
+        }
+        private let chunkSize: Int
+        private var reader: BufferedReader<ReadFileHandle>
+
+        public func next() async throws -> ArraySlice<UInt8>? {
+            let next = try await reader.read(.bytes(Int64(chunkSize)))
+            var buffer = [UInt8](repeating: 0, count: chunkSize)
+            guard next.writableBytes > 0 else {
+                    return nil
+            }
+            buffer.withUnsafeMutableBytes { destBytes in
+                    next.withUnsafeReadableBytes { srcBytes in
+                        destBytes.copyBytes(from: srcBytes)
+                    }
+                }
+            buffer.removeLast(chunkSize - next.writableBytes)
+            return buffer[...]
+        }
+    }
+
+    public func makeAsyncIterator() -> Iterator {
+        Iterator(self.fileDescriptor, readChunkSize: self.readChunkSize)
     }
 }
 

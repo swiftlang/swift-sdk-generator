@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+@preconcurrency import _NIOFileSystem
+
 import class Dispatch.DispatchQueue
 import struct SystemPackage.FileDescriptor
 
@@ -20,6 +22,7 @@ public struct OpenReadableFile: Sendable {
 
     /// Underlying storage for this file handle, dependent on the file system type that produced it.
     enum Storage {
+        case nio(ReadFileHandle)
         /// Operating system file descriptor and a queue used for reading from that file descriptor without blocking
         /// the Swift Concurrency thread pool.
         case real(FileDescriptor, DispatchQueue)
@@ -30,11 +33,17 @@ public struct OpenReadableFile: Sendable {
 
     /// Concrete instance of underlying file storage.
     let fileHandle: Storage
-    
     /// Creates a readable ``AsyncSequence`` that can be iterated on to read from this file handle.
     /// - Returns: `ReadableFileStream` value conforming to ``AsyncSequence``, ready for asynchronous iteration.
     public func read() async throws -> ReadableFileStream {
         switch self.fileHandle {
+        case let .nio(fileDescriptor):
+            return ReadableFileStream.nio(
+                .init(
+                    fileDescriptor: fileDescriptor,
+                    readChunkSize: self.chunkSize
+                )
+            )
         case let .real(fileDescriptor, ioQueue):
             return ReadableFileStream.real(
                 .init(
@@ -43,7 +52,6 @@ public struct OpenReadableFile: Sendable {
                     readChunkSize: self.chunkSize
                 )
             )
-            
         case .mock(let array):
             return ReadableFileStream.mock(.init(bytes: array, chunkSize: self.chunkSize))
         }
