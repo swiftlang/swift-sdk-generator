@@ -115,6 +115,19 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     toolset.librarian = Toolset.ToolProperties(path: "llvm-ar")
   }
 
+  public func applyPlatformOptions(
+    metadata: inout SwiftSDKMetadataV4.TripleProperties,
+    paths: PathsConfiguration,
+    targetTriple: Triple
+  ) {
+    var relativeSDKDir = self.sdkDirPath(paths: paths)
+    guard relativeSDKDir.removePrefix(paths.swiftSDKRootPath) else {
+      fatalError("The SDK directory path must be a subdirectory of the Swift SDK root path.")
+    }
+    metadata.swiftResourcesPath = relativeSDKDir.appending("usr/lib/swift").string
+    metadata.swiftStaticResourcesPath = relativeSDKDir.appending("usr/lib/swift_static").string
+  }
+
   public var defaultArtifactID: String {
     """
     \(self.versionsConfiguration.swiftVersion)_\(self.linuxDistribution.name.rawValue)_\(
