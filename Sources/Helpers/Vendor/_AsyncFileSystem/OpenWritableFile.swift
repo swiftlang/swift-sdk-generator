@@ -9,6 +9,7 @@
 // See https://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
 //
 //===----------------------------------------------------------------------===//
+@preconcurrency import _NIOFileSystem
 
 import class Dispatch.DispatchQueue
 @preconcurrency import struct SystemPackage.FileDescriptor
@@ -18,6 +19,7 @@ import struct SystemPackage.FilePath
 public actor OpenWritableFile: WritableStream {
     /// Underlying storage for this file handle, dependent on the file system type that produced it.
     enum Storage {
+        case nio(WriteFileHandle)
         /// Operating system file descriptor and a queue used for reading from that file descriptor without blocking
         /// the Swift Concurrency thread pool.
         case real(FileDescriptor, DispatchQueue)
@@ -48,6 +50,14 @@ public actor OpenWritableFile: WritableStream {
     public func write(_ bytes: some Collection<UInt8> & Sendable) async throws {
         assert(!isClosed)
         switch self.storage {
+        case let .nio(FileDescriptor):
+            var writer = FileDescriptor.bufferedWriter()
+            do {
+                let writtenBytesCount = try await writer.write(contentsOf: bytes)
+                assert(bytes.count == writtenBytesCount)
+            } catch {
+                throw error.attach(path)
+            }
         case let .real(fileDescriptor, queue):
             let path = self.path
             try await queue.scheduleOnQueue {
