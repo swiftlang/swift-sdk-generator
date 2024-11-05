@@ -17,6 +17,38 @@ import XCTest
 
 @testable import SwiftSDKGenerator
 
+extension FileManager {
+  func withTemporaryDirectory<T>(logger: Logger, cleanup: Bool = true, body: (URL) async throws -> T) async throws -> T {
+    // Create a temporary directory using a UUID.  Throws if the directory already exists.
+    // The docs suggest using FileManager.url(for: .itemReplacementDirectory, ...) to create a temporary directory,
+    // but on Linux the directory name contains spaces, which means we need to be careful to quote it everywhere:
+    //
+    //     `(A Document Being Saved By \(name))`
+    //
+    // https://github.com/swiftlang/swift-corelibs-foundation/blob/21b3196b33a64d53a0989881fc9a486227b4a316/Sources/Foundation/FileManager.swift#L152
+    var logger = logger
+
+    let temporaryDirectory = self.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    logger[metadataKey: "temporaryDirectory"] = "\(temporaryDirectory.path)"
+
+    try createDirectory(at: temporaryDirectory, withIntermediateDirectories: false)
+    defer {
+        // Best effort cleanup.
+        do {
+            if cleanup {
+                try removeItem(at: temporaryDirectory)
+                logger.info("Removed temporary directory")
+            } else {
+                logger.info("Keeping temporary directory")
+            }
+        } catch {}
+    }
+
+    logger.info("Created temporary directory")
+    return try await body(temporaryDirectory)
+  }
+}
+
 final class EndToEndTests: XCTestCase {
   private let testcases = [
     #"""
@@ -37,10 +69,14 @@ final class EndToEndTests: XCTestCase {
 
   private let logger = Logger(label: "swift-sdk-generator")
 
+  // Building an SDK requires running the sdk-generator with `swift run swift-sdk-generator`.
+  // This takes a lock on `.build`, but if the tests are being run by `swift test` the outer Swift Package Manager
+  // instance will already hold this lock, causing the test to deadlock.   We can work around this by giving
+  // the `swift run swift-sdk-generator` instance its own scratch directory.
   #if !os(macOS)
-  func buildSDK(inDirectory packageDirectory: FilePath, withArguments runArguments: String) async throws -> String {
+  func buildSDK(inDirectory packageDirectory: FilePath, scratchPath: String, withArguments runArguments: String) async throws -> String {
     let generatorOutput = try await Shell.readStdout(
-      "cd \(packageDirectory) && swift run swift-sdk-generator \(runArguments)"
+      "cd \(packageDirectory) && swift run --scratch-path \"\(scratchPath)\" swift-sdk-generator \(runArguments)"
     )
 
     let installCommand = try XCTUnwrap(generatorOutput.split(separator: "\n").first {
@@ -84,10 +120,9 @@ final class EndToEndTests: XCTestCase {
     }
 
     for runArguments in possibleArguments {
-      let bundleName = try await buildSDK(inDirectory: packageDirectory, withArguments: runArguments)
-
-      let installOutput = try await Shell.readStdout(String(installCommand))
-      XCTAssertTrue(installOutput.contains("successfully installed"))
+      let bundleName = try await FileManager.default.withTemporaryDirectory(logger: logger) { tempDir in
+        try await buildSDK(inDirectory: packageDirectory, scratchPath: tempDir.path, withArguments: runArguments)
+      }
 
       for testcase in self.testcases {
         let testPackageURL = FileManager.default.temporaryDirectory.appendingPathComponent("swift-sdk-generator-test")
@@ -130,8 +165,10 @@ final class EndToEndTests: XCTestCase {
     }
 
     for runArguments in possibleArguments {
-      let _ = try await buildSDK(inDirectory: packageDirectory, withArguments: runArguments)
-      let _ = try await buildSDK(inDirectory: packageDirectory, withArguments: runArguments)
+      try await FileManager.default.withTemporaryDirectory(logger: logger) { tempDir in
+        let _ = try await buildSDK(inDirectory: packageDirectory, scratchPath: tempDir.path, withArguments: runArguments)
+        let _ = try await buildSDK(inDirectory: packageDirectory, scratchPath: tempDir.path, withArguments: runArguments)
+      }
     }
   }
   #endif
