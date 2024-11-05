@@ -38,6 +38,32 @@ final class EndToEndTests: XCTestCase {
   private let logger = Logger(label: "swift-sdk-generator")
 
   #if !os(macOS)
+  func buildSDK(inDirectory packageDirectory: FilePath, withArguments runArguments: String) async throws -> String {
+    let generatorOutput = try await Shell.readStdout(
+      "cd \(packageDirectory) && swift run swift-sdk-generator \(runArguments)"
+    )
+
+    let installCommand = try XCTUnwrap(generatorOutput.split(separator: "\n").first {
+      $0.contains("swift experimental-sdk install")
+    })
+
+    let bundleName = try XCTUnwrap(
+      FilePath(String(XCTUnwrap(installCommand.split(separator: " ").last))).components.last
+    ).stem
+
+    let installedSDKs = try await Shell.readStdout("swift experimental-sdk list").components(separatedBy: "\n")
+
+    // Make sure this bundle hasn't been installed already.
+    if installedSDKs.contains(bundleName) {
+      try await Shell.run("swift experimental-sdk remove \(bundleName)")
+    }
+
+    let installOutput = try await Shell.readStdout(String(installCommand))
+    XCTAssertTrue(installOutput.contains("successfully installed"))
+
+    return bundleName
+  }
+
   func testPackageInitExecutable() async throws {
     throw XCTSkip("EndToEnd tests currently deadlock under `swift test`: https://github.com/swiftlang/swift-sdk-generator/issues/143")
 
@@ -58,24 +84,7 @@ final class EndToEndTests: XCTestCase {
     }
 
     for runArguments in possibleArguments {
-      let generatorOutput = try await Shell.readStdout(
-        "cd \(packageDirectory) && swift run swift-sdk-generator \(runArguments)"
-      )
-
-      let installCommand = try XCTUnwrap(generatorOutput.split(separator: "\n").first {
-        $0.contains("swift experimental-sdk install")
-      })
-
-      let bundleName = try XCTUnwrap(
-        FilePath(String(XCTUnwrap(installCommand.split(separator: " ").last))).components.last
-      ).stem
-
-      let installedSDKs = try await Shell.readStdout("swift experimental-sdk list").components(separatedBy: "\n")
-
-      // Make sure this bundle hasn't been installed already.
-      if installedSDKs.contains(bundleName) {
-        try await Shell.run("swift experimental-sdk remove \(bundleName)")
-      }
+      let bundleName = try await buildSDK(inDirectory: packageDirectory, withArguments: runArguments)
 
       let installOutput = try await Shell.readStdout(String(installCommand))
       XCTAssertTrue(installOutput.contains("successfully installed"))
@@ -121,15 +130,8 @@ final class EndToEndTests: XCTestCase {
     }
 
     for runArguments in possibleArguments {
-      let firstGeneratorOutput = try await Shell.readStdout(
-        "cd \(packageDirectory) && swift run swift-sdk-generator \(runArguments)"
-      )
-      XCTAssert(firstGeneratorOutput.contains("swift experimental-sdk install"))
-
-      let repeatGeneratorOutput = try await Shell.readStdout(
-        "cd \(packageDirectory) && swift run swift-sdk-generator \(runArguments)"
-      )
-      XCTAssert(repeatGeneratorOutput.contains("swift experimental-sdk install"))
+      let _ = try await buildSDK(inDirectory: packageDirectory, withArguments: runArguments)
+      let _ = try await buildSDK(inDirectory: packageDirectory, withArguments: runArguments)
     }
   }
   #endif
