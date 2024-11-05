@@ -103,8 +103,6 @@ final class EndToEndTests: XCTestCase {
   func testPackageInitExecutable() async throws {
     throw XCTSkip("EndToEnd tests currently deadlock under `swift test`: https://github.com/swiftlang/swift-sdk-generator/issues/143")
 
-    let fm = FileManager.default
-
     var packageDirectory = FilePath(#filePath)
     packageDirectory.removeLastComponent()
     packageDirectory.removeLastComponent()
@@ -125,24 +123,27 @@ final class EndToEndTests: XCTestCase {
       }
 
       for testcase in self.testcases {
-        let testPackageURL = FileManager.default.temporaryDirectory.appendingPathComponent("swift-sdk-generator-test")
-        let testPackageDir = FilePath(testPackageURL.path)
-        try? fm.removeItem(atPath: testPackageDir.string)
-        try fm.createDirectory(atPath: testPackageDir.string, withIntermediateDirectories: true)
+        try await FileManager.default.withTemporaryDirectory(logger: logger) { tempDir in
+          let testPackageURL = tempDir.appendingPathComponent("swift-sdk-generator-test")
+          let testPackageDir = FilePath(testPackageURL.path)
+          try FileManager.default.createDirectory(atPath: testPackageDir.string, withIntermediateDirectories: true)
 
-        try await Shell.run("swift package --package-path \(testPackageDir) init --type executable")
-        let main_swift = testPackageURL.appendingPathComponent("Sources/main.swift")
-        try testcase.write(to: main_swift, atomically: true, encoding: .utf8)
+          try await Shell.run("swift package --package-path \(testPackageDir) init --type executable")
+          let main_swift = testPackageURL.appendingPathComponent("Sources/main.swift")
+          try testcase.write(to: main_swift, atomically: true, encoding: .utf8)
 
-        var buildOutput = try await Shell.readStdout(
-          "swift build --package-path \(testPackageDir) --experimental-swift-sdk \(bundleName)"
-        )
-        XCTAssertTrue(buildOutput.contains("Build complete!"))
-        try await Shell.run("rm -rf \(testPackageDir.appending(".build"))")
-        buildOutput = try await Shell.readStdout(
-          "swift build --package-path \(testPackageDir) --experimental-swift-sdk \(bundleName) --static-swift-stdlib"
-        )
-        XCTAssertTrue(buildOutput.contains("Build complete!"))
+          var buildOutput = try await Shell.readStdout(
+            "swift build --package-path \(testPackageDir) --experimental-swift-sdk \(bundleName)"
+          )
+          XCTAssertTrue(buildOutput.contains("Build complete!"))
+
+          try await Shell.run("rm -rf \(testPackageDir.appending(".build"))")
+
+          buildOutput = try await Shell.readStdout(
+            "swift build --package-path \(testPackageDir) --experimental-swift-sdk \(bundleName) --static-swift-stdlib"
+          )
+          XCTAssertTrue(buildOutput.contains("Build complete!"))
+        }
       }
     }
   }
