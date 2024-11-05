@@ -106,8 +106,6 @@ final class EndToEndTests: XCTestCase {
   func testRepeatedSDKBuilds() async throws {
     throw XCTSkip("EndToEnd tests currently deadlock under `swift test`: https://github.com/swiftlang/swift-sdk-generator/issues/143")
 
-    let fm = FileManager.default
-
     var packageDirectory = FilePath(#filePath)
     packageDirectory.removeLastComponent()
     packageDirectory.removeLastComponent()
@@ -123,12 +121,6 @@ final class EndToEndTests: XCTestCase {
     }
 
     for runArguments in possibleArguments {
-      let testPackageURL = FileManager.default.temporaryDirectory.appendingPathComponent("swift-sdk-generator-test")
-      let testPackageDir = FilePath(testPackageURL.path)
-      try? fm.removeItem(atPath: testPackageDir.string)
-      try fm.createDirectory(atPath: testPackageDir.string, withIntermediateDirectories: true)
-      defer { try? fm.removeItem(atPath: testPackageDir.string) }
-
       let firstGeneratorOutput = try await Shell.readStdout(
         "cd \(packageDirectory) && swift run swift-sdk-generator \(runArguments)"
       )
