@@ -73,7 +73,6 @@ final class EndToEndTests: XCTestCase {
   // This takes a lock on `.build`, but if the tests are being run by `swift test` the outer Swift Package Manager
   // instance will already hold this lock, causing the test to deadlock.   We can work around this by giving
   // the `swift run swift-sdk-generator` instance its own scratch directory.
-  #if !os(macOS)
   func buildSDK(inDirectory packageDirectory: FilePath, scratchPath: String, withArguments runArguments: String) async throws -> String {
     let generatorOutput = try await Shell.readStdout(
       "cd \(packageDirectory) && swift run --scratch-path \"\(scratchPath)\" swift-sdk-generator \(runArguments)"
@@ -101,7 +100,9 @@ final class EndToEndTests: XCTestCase {
   }
 
   func testPackageInitExecutable() async throws {
-    throw XCTSkip("EndToEnd tests currently deadlock under `swift test`: https://github.com/swiftlang/swift-sdk-generator/issues/143")
+    if ProcessInfo.processInfo.environment.keys.contains("JENKINS_URL") {
+      throw XCTSkip("EndToEnd tests cannot currently run in CI: https://github.com/swiftlang/swift-sdk-generator/issues/145")
+    }
 
     var packageDirectory = FilePath(#filePath)
     packageDirectory.removeLastComponent()
@@ -118,6 +119,12 @@ final class EndToEndTests: XCTestCase {
     }
 
     for runArguments in possibleArguments {
+      if runArguments.contains("rhel") {
+        // Temporarily skip the RHEL-based SDK.  XCTSkip() is not suitable as it would skipping the entire test case
+        logger.warning("RHEL-based SDKs currently do not work with Swift 6.0: https://github.com/swiftlang/swift-sdk-generator/issues/138")
+        continue
+      }
+
       let bundleName = try await FileManager.default.withTemporaryDirectory(logger: logger) { tempDir in
         try await buildSDK(inDirectory: packageDirectory, scratchPath: tempDir.path, withArguments: runArguments)
       }
@@ -149,7 +156,9 @@ final class EndToEndTests: XCTestCase {
   }
 
   func testRepeatedSDKBuilds() async throws {
-    throw XCTSkip("EndToEnd tests currently deadlock under `swift test`: https://github.com/swiftlang/swift-sdk-generator/issues/143")
+    if ProcessInfo.processInfo.environment.keys.contains("JENKINS_URL") {
+      throw XCTSkip("EndToEnd tests cannot currently run in CI: https://github.com/swiftlang/swift-sdk-generator/issues/145")
+    }
 
     var packageDirectory = FilePath(#filePath)
     packageDirectory.removeLastComponent()
@@ -166,11 +175,16 @@ final class EndToEndTests: XCTestCase {
     }
 
     for runArguments in possibleArguments {
+      if runArguments.contains("rhel") {
+        // Temporarily skip the RHEL-based SDK.  XCTSkip() is not suitable as it would skipping the entire test case
+        logger.warning("RHEL-based SDKs currently do not work with Swift 6.0: https://github.com/swiftlang/swift-sdk-generator/issues/138")
+        continue
+      }
+
       try await FileManager.default.withTemporaryDirectory(logger: logger) { tempDir in
         let _ = try await buildSDK(inDirectory: packageDirectory, scratchPath: tempDir.path, withArguments: runArguments)
         let _ = try await buildSDK(inDirectory: packageDirectory, scratchPath: tempDir.path, withArguments: runArguments)
       }
     }
   }
-  #endif
 }
