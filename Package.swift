@@ -63,6 +63,7 @@ let package = Package(
         .product(name: "Crypto", package: "swift-crypto"),
         .product(name: "Logging", package: "swift-log"),
         .product(name: "SystemPackage", package: "swift-system"),
+        .product(name: "_NIOFileSystem", package: "swift-nio"),
       ],
       exclude: ["Vendor/README.md"],
       swiftSettings: [
