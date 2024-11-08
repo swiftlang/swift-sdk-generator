@@ -39,6 +39,8 @@ final class EndToEndTests: XCTestCase {
 
   #if !os(macOS)
   func testPackageInitExecutable() async throws {
+    throw XCTSkip("EndToEnd tests currently deadlock under `swift test`: https://github.com/swiftlang/swift-sdk-generator/issues/143")
+
     let fm = FileManager.default
 
     var packageDirectory = FilePath(#filePath)
@@ -102,6 +104,8 @@ final class EndToEndTests: XCTestCase {
   }
 
   func testRepeatedSDKBuilds() async throws {
+    throw XCTSkip("EndToEnd tests currently deadlock under `swift test`: https://github.com/swiftlang/swift-sdk-generator/issues/143")
+
     let fm = FileManager.default
 
     var packageDirectory = FilePath(#filePath)
