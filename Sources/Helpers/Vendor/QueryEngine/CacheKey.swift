@@ -167,7 +167,11 @@ extension FilePath.Component: LeafCacheKey {
 
 extension URL: LeafCacheKey {
   func hash(with hashFunction: inout some HashFunction) {
-    String(reflecting: Self.self).hash(with: &hashFunction)
+    // Until Swift 6.0, the fully-qualified name of the URL type was `Foundation.URL`.
+    // After the adoption of FoundationEssentials, the name changed to `FoundationEssentials.URL`.
+    // This difference causes the hashes to change, so for backwards compatibility we pin the
+    // type name to `Foundation.URL`.
+    "Foundation.URL".hash(with: &hashFunction)
     self.description.hash(with: &hashFunction)
   }
 }
