@@ -17,6 +17,38 @@ import XCTest
 
 @testable import SwiftSDKGenerator
 
+extension FileManager {
+  func withTemporaryDirectory<T>(logger: Logger, cleanup: Bool = true, body: (URL) async throws -> T) async throws -> T {
+    // Create a temporary directory using a UUID.  Throws if the directory already exists.
+    // The docs suggest using FileManager.url(for: .itemReplacementDirectory, ...) to create a temporary directory,
+    // but on Linux the directory name contains spaces, which means we need to be careful to quote it everywhere:
+    //
+    //     `(A Document Being Saved By \(name))`
+    //
+    // https://github.com/swiftlang/swift-corelibs-foundation/blob/21b3196b33a64d53a0989881fc9a486227b4a316/Sources/Foundation/FileManager.swift#L152
+    var logger = logger
+
+    let temporaryDirectory = self.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    logger[metadataKey: "temporaryDirectory"] = "\(temporaryDirectory.path)"
+
+    try createDirectory(at: temporaryDirectory, withIntermediateDirectories: false)
+    defer {
+        // Best effort cleanup.
+        do {
+            if cleanup {
+                try removeItem(at: temporaryDirectory)
+                logger.info("Removed temporary directory")
+            } else {
+                logger.info("Keeping temporary directory")
+            }
+        } catch {}
+    }
+
+    logger.info("Created temporary directory")
+    return try await body(temporaryDirectory)
+  }
+}
+
 final class EndToEndTests: XCTestCase {
   private let testcases = [
     #"""
@@ -37,11 +69,40 @@ final class EndToEndTests: XCTestCase {
 
   private let logger = Logger(label: "swift-sdk-generator")
 
-  #if !os(macOS)
-  func testPackageInitExecutable() async throws {
-    throw XCTSkip("EndToEnd tests currently deadlock under `swift test`: https://github.com/swiftlang/swift-sdk-generator/issues/143")
+  // Building an SDK requires running the sdk-generator with `swift run swift-sdk-generator`.
+  // This takes a lock on `.build`, but if the tests are being run by `swift test` the outer Swift Package Manager
+  // instance will already hold this lock, causing the test to deadlock.   We can work around this by giving
+  // the `swift run swift-sdk-generator` instance its own scratch directory.
+  func buildSDK(inDirectory packageDirectory: FilePath, scratchPath: String, withArguments runArguments: String) async throws -> String {
+    let generatorOutput = try await Shell.readStdout(
+      "cd \(packageDirectory) && swift run --scratch-path \"\(scratchPath)\" swift-sdk-generator \(runArguments)"
+    )
 
-    let fm = FileManager.default
+    let installCommand = try XCTUnwrap(generatorOutput.split(separator: "\n").first {
+      $0.contains("swift experimental-sdk install")
+    })
+
+    let bundleName = try XCTUnwrap(
+      FilePath(String(XCTUnwrap(installCommand.split(separator: " ").last))).components.last
+    ).stem
+
+    let installedSDKs = try await Shell.readStdout("swift experimental-sdk list").components(separatedBy: "\n")
+
+    // Make sure this bundle hasn't been installed already.
+    if installedSDKs.contains(bundleName) {
+      try await Shell.run("swift experimental-sdk remove \(bundleName)")
+    }
+
+    let installOutput = try await Shell.readStdout(String(installCommand))
+    XCTAssertTrue(installOutput.contains("successfully installed"))
+
+    return bundleName
+  }
+
+  func testPackageInitExecutable() async throws {
+    if ProcessInfo.processInfo.environment.keys.contains("JENKINS_URL") {
+      throw XCTSkip("EndToEnd tests cannot currently run in CI: https://github.com/swiftlang/swift-sdk-generator/issues/145")
+    }
 
     var packageDirectory = FilePath(#filePath)
     packageDirectory.removeLastComponent()
@@ -58,55 +119,46 @@ final class EndToEndTests: XCTestCase {
     }
 
     for runArguments in possibleArguments {
-      let generatorOutput = try await Shell.readStdout(
-        "cd \(packageDirectory) && swift run swift-sdk-generator \(runArguments)"
-      )
-
-      let installCommand = try XCTUnwrap(generatorOutput.split(separator: "\n").first {
-        $0.contains("swift experimental-sdk install")
-      })
-
-      let bundleName = try XCTUnwrap(
-        FilePath(String(XCTUnwrap(installCommand.split(separator: " ").last))).components.last
-      ).stem
-
-      let installedSDKs = try await Shell.readStdout("swift experimental-sdk list").components(separatedBy: "\n")
-
-      // Make sure this bundle hasn't been installed already.
-      if installedSDKs.contains(bundleName) {
-        try await Shell.run("swift experimental-sdk remove \(bundleName)")
+      if runArguments.contains("rhel") {
+        // Temporarily skip the RHEL-based SDK.  XCTSkip() is not suitable as it would skipping the entire test case
+        logger.warning("RHEL-based SDKs currently do not work with Swift 6.0: https://github.com/swiftlang/swift-sdk-generator/issues/138")
+        continue
       }
 
-      let installOutput = try await Shell.readStdout(String(installCommand))
-      XCTAssertTrue(installOutput.contains("successfully installed"))
+      let bundleName = try await FileManager.default.withTemporaryDirectory(logger: logger) { tempDir in
+        try await buildSDK(inDirectory: packageDirectory, scratchPath: tempDir.path, withArguments: runArguments)
+      }
 
       for testcase in self.testcases {
-        let testPackageURL = FileManager.default.temporaryDirectory.appendingPathComponent("swift-sdk-generator-test")
-        let testPackageDir = FilePath(testPackageURL.path)
-        try? fm.removeItem(atPath: testPackageDir.string)
-        try fm.createDirectory(atPath: testPackageDir.string, withIntermediateDirectories: true)
+        try await FileManager.default.withTemporaryDirectory(logger: logger) { tempDir in
+          let testPackageURL = tempDir.appendingPathComponent("swift-sdk-generator-test")
+          let testPackageDir = FilePath(testPackageURL.path)
+          try FileManager.default.createDirectory(atPath: testPackageDir.string, withIntermediateDirectories: true)
 
-        try await Shell.run("swift package --package-path \(testPackageDir) init --type executable")
-        let main_swift = testPackageURL.appendingPathComponent("Sources/main.swift")
-        try testcase.write(to: main_swift, atomically: true, encoding: .utf8)
+          try await Shell.run("swift package --package-path \(testPackageDir) init --type executable")
+          let main_swift = testPackageURL.appendingPathComponent("Sources/main.swift")
+          try testcase.write(to: main_swift, atomically: true, encoding: .utf8)
 
-        var buildOutput = try await Shell.readStdout(
-          "swift build --package-path \(testPackageDir) --experimental-swift-sdk \(bundleName)"
-        )
-        XCTAssertTrue(buildOutput.contains("Build complete!"))
-        try await Shell.run("rm -rf \(testPackageDir.appending(".build"))")
-        buildOutput = try await Shell.readStdout(
-          "swift build --package-path \(testPackageDir) --experimental-swift-sdk \(bundleName) --static-swift-stdlib"
-        )
-        XCTAssertTrue(buildOutput.contains("Build complete!"))
+          var buildOutput = try await Shell.readStdout(
+            "swift build --package-path \(testPackageDir) --experimental-swift-sdk \(bundleName)"
+          )
+          XCTAssertTrue(buildOutput.contains("Build complete!"))
+
+          try await Shell.run("rm -rf \(testPackageDir.appending(".build"))")
+
+          buildOutput = try await Shell.readStdout(
+            "swift build --package-path \(testPackageDir) --experimental-swift-sdk \(bundleName) --static-swift-stdlib"
+          )
+          XCTAssertTrue(buildOutput.contains("Build complete!"))
+        }
       }
     }
   }
 
   func testRepeatedSDKBuilds() async throws {
-    throw XCTSkip("EndToEnd tests currently deadlock under `swift test`: https://github.com/swiftlang/swift-sdk-generator/issues/143")
-
-    let fm = FileManager.default
+    if ProcessInfo.processInfo.environment.keys.contains("JENKINS_URL") {
+      throw XCTSkip("EndToEnd tests cannot currently run in CI: https://github.com/swiftlang/swift-sdk-generator/issues/145")
+    }
 
     var packageDirectory = FilePath(#filePath)
     packageDirectory.removeLastComponent()
@@ -123,22 +175,16 @@ final class EndToEndTests: XCTestCase {
     }
 
     for runArguments in possibleArguments {
-      let testPackageURL = FileManager.default.temporaryDirectory.appendingPathComponent("swift-sdk-generator-test")
-      let testPackageDir = FilePath(testPackageURL.path)
-      try? fm.removeItem(atPath: testPackageDir.string)
-      try fm.createDirectory(atPath: testPackageDir.string, withIntermediateDirectories: true)
-      defer { try? fm.removeItem(atPath: testPackageDir.string) }
+      if runArguments.contains("rhel") {
+        // Temporarily skip the RHEL-based SDK.  XCTSkip() is not suitable as it would skipping the entire test case
+        logger.warning("RHEL-based SDKs currently do not work with Swift 6.0: https://github.com/swiftlang/swift-sdk-generator/issues/138")
+        continue
+      }
 
-      let firstGeneratorOutput = try await Shell.readStdout(
-        "cd \(packageDirectory) && swift run swift-sdk-generator \(runArguments)"
-      )
-      XCTAssert(firstGeneratorOutput.contains("swift experimental-sdk install"))
-
-      let repeatGeneratorOutput = try await Shell.readStdout(
-        "cd \(packageDirectory) && swift run swift-sdk-generator \(runArguments)"
-      )
-      XCTAssert(repeatGeneratorOutput.contains("swift experimental-sdk install"))
+      try await FileManager.default.withTemporaryDirectory(logger: logger) { tempDir in
+        let _ = try await buildSDK(inDirectory: packageDirectory, scratchPath: tempDir.path, withArguments: runArguments)
+        let _ = try await buildSDK(inDirectory: packageDirectory, scratchPath: tempDir.path, withArguments: runArguments)
+      }
     }
   }
-  #endif
 }
