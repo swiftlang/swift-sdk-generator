@@ -41,11 +41,19 @@ extension SwiftSDKGenerator {
     logGenerationStep("Unpacking and copying Swift binaries for the host triple...")
     let pathsConfiguration = self.pathsConfiguration
 
-    try await inTemporaryDirectory { fileSystem, tmpDir in
-      try await fileSystem.unpack(file: hostSwiftPackagePath, into: tmpDir)
-      try await self.removeToolchainComponents(tmpDir)
-      try await fileSystem.rsync(from: tmpDir.appending("usr"), to: pathsConfiguration.toolchainDirPath)
-    }
+    let excludes =
+      unusedDarwinPlatforms.map { "--exclude usr/lib/swift/\($0)" } +
+      unusedDarwinPlatforms.map { "--exclude usr/lib/swift_static/\($0)" } +
+      unusedHostBinaries.map { "--exclude usr/bin/\($0)" } +
+      unusedHostLibraries.map { "--exclude usr/lib/\($0)" }
+
+    try await Shell.run(
+      #"""
+      tar -x --to-stdout -f \#(hostSwiftPackagePath) \*.pkg/Payload |
+      tar -C "\#(pathsConfiguration.toolchainDirPath)" -x \#(excludes.joined(separator: " ")) --include usr
+      """#,
+      shouldLogCommands: isVerbose
+    )
   }
 
   func removeToolchainComponents(
