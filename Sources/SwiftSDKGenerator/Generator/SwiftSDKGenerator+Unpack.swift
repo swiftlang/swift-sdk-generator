@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 import Helpers
+
 import struct SystemPackage.FilePath
 
 let unusedDarwinPlatforms = [
@@ -99,16 +100,21 @@ extension SwiftSDKGenerator {
       FilePath.Component(llvmArtifact.localPath.stem!)!.stem
     )
     try self.createDirectoryIfNeeded(at: untarDestination)
-    try await self.untar(
-      file: llvmArtifact.localPath,
-      into: untarDestination,
-      stripComponents: 1
-    )
 
     let unpackedLLDPath: FilePath
     if llvmArtifact.isPrebuilt {
-      unpackedLLDPath = untarDestination.appending("bin/lld")
+      unpackedLLDPath = try await engine[TarExtractQuery(
+        file: llvmArtifact.localPath,
+        into: untarDestination,
+        outputBinarySubpath: ["bin", "lld"],
+        stripComponents: 1
+      )].path
     } else {
+      try await self.untar(
+        file: llvmArtifact.localPath,
+        into: untarDestination,
+        stripComponents: 1
+      )
       unpackedLLDPath = try await engine[CMakeBuildQuery(
         sourcesDirectory: untarDestination,
         outputBinarySubpath: ["bin", "lld"],
