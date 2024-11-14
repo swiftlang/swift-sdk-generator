@@ -85,6 +85,14 @@ extension SwiftSDKGenerator {
         }
         try await generator.createSymlink(at: sdkDirPath.appending("lib"), pointingTo: "usr/lib")
 
+        // Copy the ELF interpreter
+        try await generator.copyFromDockerContainer(
+            id: containerID,
+            from: FilePath(targetTriple.interpreterPath),
+            to: sdkDirPath.appending(targetTriple.interpreterPath),
+            failIfNotExists: true
+        )
+
         // Python artifacts are redundant.
         try await generator.removeRecursively(at: sdkUsrLibPath.appending("python3.10"))
 
@@ -106,6 +114,16 @@ extension SwiftSDKGenerator {
       ("swift/CoreFoundation", sdkDirPath.appending("usr/include")),
     ] {
       try await rsync(from: distributionPath.appending(pathWithinPackage), to: pathWithinSwiftSDK)
+    }
+  }
+}
+
+extension Triple {
+  var interpreterPath: String {
+    switch self.archName {
+      case "x86_64": "/lib64/ld-linux-x86-64.so.2"
+      case "aarch64": "/lib/ld-linux-aarch64.so.1"
+      default: fatalError("unsupported architecture \(self.archName)")
     }
   }
 }
