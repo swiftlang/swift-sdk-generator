@@ -75,7 +75,7 @@ final class EndToEndTests: XCTestCase {
   // the `swift run swift-sdk-generator` instance its own scratch directory.
   func buildSDK(inDirectory packageDirectory: FilePath, scratchPath: String, withArguments runArguments: String) async throws -> String {
     let generatorOutput = try await Shell.readStdout(
-      "cd \(packageDirectory) && swift run --scratch-path \"\(scratchPath)\" swift-sdk-generator \(runArguments)"
+      "cd \(packageDirectory) && swift run --scratch-path \"\(scratchPath)\" swift-sdk-generator make-linux-sdk \(runArguments)"
     )
 
     let installCommand = try XCTUnwrap(generatorOutput.split(separator: "\n").first {
