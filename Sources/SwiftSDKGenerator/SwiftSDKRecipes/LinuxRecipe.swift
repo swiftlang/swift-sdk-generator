@@ -105,13 +105,20 @@ public struct LinuxRecipe: SwiftSDKRecipe {
   }
 
   public func applyPlatformOptions(toolset: inout Toolset, targetTriple: Triple) {
-    toolset.swiftCompiler = Toolset.ToolProperties(extraCLIOptions: [
-      "-use-ld=lld",
-      "-Xlinker",
-      "-R/usr/lib/swift/linux/",
-    ])
+    var swiftCompilerOptions = ["-Xlinker", "-R/usr/lib/swift/linux/"]
+
+    // Swift 5.9 does not handle the `-use-ld` option properly:
+    //   https://github.com/swiftlang/swift-package-manager/issues/7222
+    if self.versionsConfiguration.swiftVersion.hasPrefix("5.9") {
+      swiftCompilerOptions += ["-Xclang-linker", "--ld-path=ld.lld"]
+    } else {
+      swiftCompilerOptions.append("-use-ld=lld")
+      toolset.linker = Toolset.ToolProperties(path: "ld.lld")
+    }
+
+    toolset.swiftCompiler = Toolset.ToolProperties(extraCLIOptions: swiftCompilerOptions)
+
     toolset.cxxCompiler = Toolset.ToolProperties(extraCLIOptions: ["-lstdc++"])
-    toolset.linker = Toolset.ToolProperties(path: "ld.lld")
     toolset.librarian = Toolset.ToolProperties(path: "llvm-ar")
   }
 
