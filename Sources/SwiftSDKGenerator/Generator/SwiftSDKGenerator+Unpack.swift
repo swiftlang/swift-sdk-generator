@@ -86,7 +86,7 @@ extension SwiftSDKGenerator {
     try await inTemporaryDirectory { fs, tmpDir in
       try await fs.unpack(file: targetSwiftPackagePath, into: tmpDir)
       try await fs.copyTargetSwift(
-        from: tmpDir.appending(relativePathToRoot).appending("usr/lib"), sdkDirPath: sdkDirPath
+        from: tmpDir.appending(relativePathToRoot).appending("usr"), sdkDirPath: sdkDirPath
       )
     }
   }

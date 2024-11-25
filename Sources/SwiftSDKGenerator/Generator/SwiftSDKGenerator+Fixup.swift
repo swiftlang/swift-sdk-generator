@@ -48,44 +48,6 @@ extension SwiftSDKGenerator {
     }
   }
 
-  func fixGlibcModuleMap(at path: FilePath, hostTriple: Triple) throws {
-    logGenerationStep("Fixing absolute paths in `glibc.modulemap`...")
-
-    guard doesFileExist(at: path) else {
-      throw GeneratorError.fileDoesNotExist(path)
-    }
-
-    let privateIncludesPath = path.removingLastComponent().appending("private_includes")
-    try removeRecursively(at: privateIncludesPath)
-    try createDirectoryIfNeeded(at: privateIncludesPath)
-
-    let regex = Regex {
-      #/\n( *header )"\/+usr\/include\//#
-      Capture {
-        Optionally {
-          hostTriple.arch!.linuxConventionName
-          "-linux-gnu"
-        }
-      }
-      #/([^\"]+)\"/#
-    }
-
-    var moduleMap = try String(data: readFile(at: path), encoding: .utf8)!
-    try moduleMap.replace(regex) {
-      let (_, headerKeyword, _, headerPath) = $0.output
-
-      let newHeaderRelativePath = headerPath.replacing("/", with: "_")
-      try writeFile(
-        at: privateIncludesPath.appending(String(newHeaderRelativePath)),
-        Data("#include <linux/uuid.h>\n".utf8)
-      )
-
-      return #"\#n\#(headerKeyword) "private_includes/\#(newHeaderRelativePath)""#
-    }
-
-    try writeFile(at: path, Data(moduleMap.utf8))
-  }
-
   func symlinkClangHeaders() throws {
     try self.createSymlink(
       at: self.pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static/clang"),

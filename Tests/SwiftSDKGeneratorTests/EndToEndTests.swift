@@ -187,14 +187,6 @@ func skipSlow() throws {
   )
 }
 
-// Skip known failing tests unless an environment variable is set
-func skipBroken(_ message: String) throws {
-  try XCTSkipUnless(
-    ProcessInfo.processInfo.environment.keys.contains("SWIFT_SDK_GENERATOR_RUN_BROKEN_TESTS"),
-    "Skipping broken test because SWIFT_SDK_GENERATOR_RUN_BROKEN_TESTS is not set: \(message)"
-  )
-}
-
 func buildTestcase(_ logger: Logger, testcase: String, bundleName: String, tempDir: URL) async throws {
   let testPackageURL = tempDir.appendingPathComponent("swift-sdk-generator-test")
   let testPackageDir = FilePath(testPackageURL.path)
@@ -318,25 +310,21 @@ final class Swift60_UbuntuEndToEndTests: XCTestCase {
   )
 
   func testAarch64Direct() async throws {
-    try skipBroken("https://github.com/swiftlang/swift-sdk-generator/issues/152")
     try skipSlow()
     try await buildTestcases(config: config.withArchitecture("aarch64"))
   }
 
   func testX86_64Direct() async throws {
-    try skipBroken("https://github.com/swiftlang/swift-sdk-generator/issues/152")
     try skipSlow()
     try await buildTestcases(config: config.withArchitecture("x86_64"))
   }
 
   func testAarch64FromContainer() async throws {
-    try skipBroken("https://github.com/swiftlang/swift-sdk-generator/issues/152")
     try skipSlow()
     try await buildTestcases(config: config.withArchitecture("aarch64").withDocker())
   }
 
   func testX86_64FromContainer() async throws {
-    try skipBroken("https://github.com/swiftlang/swift-sdk-generator/issues/152")
     try skipSlow()
     try await buildTestcases(config: config.withArchitecture("x86_64").withDocker())
   }
@@ -389,13 +377,11 @@ final class Swift60_RHELEndToEndTests: XCTestCase {
   )
 
   func testAarch64FromContainer() async throws {
-    try skipBroken("https://github.com/swiftlang/swift-sdk-generator/issues/152")
     try skipSlow()
     try await buildTestcases(config: config.withArchitecture("aarch64").withDocker())
   }
 
   func testX86_64FromContainer() async throws {
-    try skipBroken("https://github.com/swiftlang/swift-sdk-generator/issues/152")
     try skipSlow()
     try await buildTestcases(config: config.withArchitecture("x86_64").withDocker())
   }

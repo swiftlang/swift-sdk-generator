@@ -122,6 +122,19 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     toolset.librarian = Toolset.ToolProperties(path: "llvm-ar")
   }
 
+  public func applyPlatformOptions(
+    metadata: inout SwiftSDKMetadataV4.TripleProperties,
+    paths: PathsConfiguration,
+    targetTriple: Triple
+  ) {
+    var relativeSDKDir = self.sdkDirPath(paths: paths)
+    guard relativeSDKDir.removePrefix(paths.swiftSDKRootPath) else {
+      fatalError("The SDK directory path must be a subdirectory of the Swift SDK root path.")
+    }
+    metadata.swiftResourcesPath = relativeSDKDir.appending("usr/lib/swift").string
+    metadata.swiftStaticResourcesPath = relativeSDKDir.appending("usr/lib/swift_static").string
+  }
+
   public var defaultArtifactID: String {
     """
     \(self.versionsConfiguration.swiftVersion)_\(self.linuxDistribution.name.rawValue)_\(
@@ -211,7 +224,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       )
     case let .localPackage(filePath):
       try await generator.copyTargetSwift(
-        from: filePath.appending("usr/lib"), sdkDirPath: sdkDirPath
+        from: filePath.appending("usr"), sdkDirPath: sdkDirPath
       )
     case .remoteTarball:
       try await generator.unpackTargetSwiftPackage(
@@ -224,13 +237,6 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     try await generator.prepareLLDLinker(engine, llvmArtifact: downloadableArtifacts.hostLLVM)
 
     try await generator.fixAbsoluteSymlinks(sdkDirPath: sdkDirPath)
-
-    let targetCPU = generator.targetTriple.arch!
-    try await generator.fixGlibcModuleMap(
-      at: generator.pathsConfiguration.toolchainDirPath
-        .appending("/usr/lib/swift/linux/\(targetCPU.linuxConventionName)/glibc.modulemap"),
-      hostTriple: self.mainHostTriple
-    )
 
     if self.versionsConfiguration.swiftVersion.hasPrefix("5.9") ||
         self.versionsConfiguration.swiftVersion .hasPrefix("5.10") {
