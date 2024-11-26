@@ -174,12 +174,18 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       engine,
       downloadableArtifacts: &downloadableArtifacts,
       itemsToDownload: { artifacts in
-        var items = [artifacts.hostLLVM]
+        var items: [DownloadableArtifacts.Item] = []
+
+        if !self.versionsConfiguration.swiftVersion.hasPrefix("6.0") {
+          items.append(artifacts.hostLLVM)
+        }
+
         switch self.targetSwiftSource {
         case .remoteTarball:
           items.append(artifacts.targetSwift)
         case .docker, .localPackage: break
         }
+
         switch self.hostSwiftSource {
         case .remoteTarball:
           items.append(artifacts.hostSwift)
@@ -234,7 +240,9 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       )
     }
 
-    try await generator.prepareLLDLinker(engine, llvmArtifact: downloadableArtifacts.hostLLVM)
+    if !self.versionsConfiguration.swiftVersion.hasPrefix("6.0") {
+      try await generator.prepareLLDLinker(engine, llvmArtifact: downloadableArtifacts.hostLLVM)
+    }
 
     try await generator.fixAbsoluteSymlinks(sdkDirPath: sdkDirPath)
 
