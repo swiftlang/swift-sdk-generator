@@ -15,12 +15,15 @@ import Helpers
 import struct SystemPackage.FilePath
 
 let unusedDarwinPlatforms = [
-  "watchsimulator",
-  "iphonesimulator",
-  "appletvsimulator",
-  "iphoneos",
-  "watchos",
   "appletvos",
+  "appletvsimulator",
+  "embedded",
+  "iphoneos",
+  "iphonesimulator",
+  "watchos",
+  "watchsimulator",
+  "xros",
+  "xrsimulator",
 ]
 
 let unusedHostBinaries = [
@@ -28,6 +31,7 @@ let unusedHostBinaries = [
   "docc",
   "dsymutil",
   "sourcekit-lsp",
+  "swift-format",
   "swift-package",
   "swift-package-collection",
 ]
