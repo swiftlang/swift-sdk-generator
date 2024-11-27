@@ -270,7 +270,6 @@ final class Swift59_UbuntuEndToEndTests: XCTestCase {
   }
 
   func testAarch64FromContainer() async throws {
-    try skipBroken("https://github.com/swiftlang/swift-sdk-generator/issues/147")
     try skipSlow()
     try await buildTestcases(config: config.withArchitecture("aarch64").withDocker())
   }
@@ -300,7 +299,6 @@ final class Swift510_UbuntuEndToEndTests: XCTestCase {
   }
 
   func testAarch64FromContainer() async throws {
-    try skipBroken("https://github.com/swiftlang/swift-sdk-generator/issues/147")
     try skipSlow()
     try await buildTestcases(config: config.withArchitecture("aarch64").withDocker())
   }
@@ -353,7 +351,6 @@ final class Swift59_RHELEndToEndTests: XCTestCase {
   )
 
   func testAarch64FromContainer() async throws {
-    try skipBroken("https://github.com/swiftlang/swift-sdk-generator/issues/147")
     try skipSlow()
     try await buildTestcases(config: config.withArchitecture("aarch64").withDocker())
   }
@@ -373,7 +370,6 @@ final class Swift510_RHELEndToEndTests: XCTestCase {
   )
 
   func testAarch64FromContainer() async throws {
-    try skipBroken("https://github.com/swiftlang/swift-sdk-generator/issues/147")
     try skipSlow()
     try await buildTestcases(config: config.withArchitecture("aarch64").withDocker())
   }
@@ -393,7 +389,7 @@ final class Swift60_RHELEndToEndTests: XCTestCase {
   )
 
   func testAarch64FromContainer() async throws {
-    try skipBroken("https://github.com/swiftlang/swift-sdk-generator/issues/147")
+    try skipBroken("https://github.com/swiftlang/swift-sdk-generator/issues/152")
     try skipSlow()
     try await buildTestcases(config: config.withArchitecture("aarch64").withDocker())
   }
