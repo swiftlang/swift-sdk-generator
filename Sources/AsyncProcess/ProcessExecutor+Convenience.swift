@@ -75,6 +75,7 @@ public extension ProcessExecutor {
     _ arguments: [String],
     standardInput: StandardInput,
     environment: [String: String] = [:],
+    teardownSequence: TeardownSequence = TeardownSequence(),
     logger: Logger = ProcessExecutor.disableLogging
   ) async throws -> ProcessExitReason where StandardInput.Element == ByteBuffer {
     let p = Self(
@@ -85,6 +86,7 @@ public extension ProcessExecutor {
       standardInput: standardInput,
       standardOutput: .discard,
       standardError: .discard,
+      teardownSequence: teardownSequence,
       logger: logger
     )
     return try await p.run()
@@ -112,6 +114,7 @@ public extension ProcessExecutor {
     _ arguments: [String],
     standardInput: StandardInput,
     environment: [String: String] = [:],
+    teardownSequence: TeardownSequence = TeardownSequence(),
     logger: Logger,
     logConfiguration: OutputLoggingSettings
   ) async throws -> ProcessExitReason where StandardInput.Element == ByteBuffer {
@@ -123,6 +126,7 @@ public extension ProcessExecutor {
       standardInput: standardInput,
       standardOutput: .stream,
       standardError: .stream,
+      teardownSequence: teardownSequence,
       logger: logger
     )
     return try await withThrowingTaskGroup(of: ProcessExitReason?.self) { group in
@@ -179,6 +183,7 @@ public extension ProcessExecutor {
     outputProcessor: @escaping @Sendable (ProcessOutputStream, ByteBuffer) async throws -> (),
     splitOutputIntoLines: Bool = false,
     environment: [String: String] = [:],
+    teardownSequence: TeardownSequence = TeardownSequence(),
     logger: Logger = ProcessExecutor.disableLogging
   ) async throws -> ProcessExitReason where StandardInput.Element == ByteBuffer {
     let exe = ProcessExecutor(
@@ -189,6 +194,7 @@ public extension ProcessExecutor {
       standardInput: standardInput,
       standardOutput: .stream,
       standardError: .stream,
+      teardownSequence: teardownSequence,
       logger: logger
     )
     return try await withThrowingTaskGroup(of: ProcessExitReason?.self) { group in
@@ -269,6 +275,7 @@ public extension ProcessExecutor {
     collectStandardError: Bool,
     perStreamCollectionLimitBytes: Int = 128 * 1024,
     environment: [String: String] = [:],
+    teardownSequence: TeardownSequence = TeardownSequence(),
     logger: Logger = ProcessExecutor.disableLogging
   ) async throws -> ProcessExitReasonAndOutput where StandardInput.Element == ByteBuffer {
     let exe = ProcessExecutor(
@@ -279,6 +286,7 @@ public extension ProcessExecutor {
       standardInput: standardInput,
       standardOutput: collectStandardOutput ? .stream : .discard,
       standardError: collectStandardError ? .stream : .discard,
+      teardownSequence: teardownSequence,
       logger: logger
     )
 
@@ -351,6 +359,7 @@ public extension ProcessExecutor {
     executable: String,
     _ arguments: [String],
     environment: [String: String] = [:],
+    teardownSequence: TeardownSequence = TeardownSequence(),
     logger: Logger = ProcessExecutor.disableLogging
   ) async throws -> ProcessExitReason {
     try await self.run(
@@ -359,6 +368,7 @@ public extension ProcessExecutor {
       arguments,
       standardInput: EOFSequence(),
       environment: environment,
+      teardownSequence: teardownSequence,
       logger: logger
     )
   }
@@ -381,6 +391,7 @@ public extension ProcessExecutor {
     executable: String,
     _ arguments: [String],
     environment: [String: String] = [:],
+    teardownSequence: TeardownSequence = TeardownSequence(),
     logger: Logger,
     logConfiguration: OutputLoggingSettings
   ) async throws -> ProcessExitReason {
@@ -390,6 +401,7 @@ public extension ProcessExecutor {
       arguments,
       standardInput: EOFSequence(),
       environment: environment,
+      teardownSequence: teardownSequence,
       logger: logger,
       logConfiguration: logConfiguration
     )
@@ -417,6 +429,7 @@ public extension ProcessExecutor {
     outputProcessor: @escaping @Sendable (ProcessOutputStream, ByteBuffer) async throws -> (),
     splitOutputIntoLines: Bool = false,
     environment: [String: String] = [:],
+    teardownSequence: TeardownSequence = TeardownSequence(),
     logger: Logger = ProcessExecutor.disableLogging
   ) async throws -> ProcessExitReason {
     try await self.runProcessingOutput(
@@ -427,6 +440,7 @@ public extension ProcessExecutor {
       outputProcessor: outputProcessor,
       splitOutputIntoLines: splitOutputIntoLines,
       environment: environment,
+      teardownSequence: teardownSequence,
       logger: logger
     )
   }
@@ -455,6 +469,7 @@ public extension ProcessExecutor {
     collectStandardError: Bool,
     perStreamCollectionLimitBytes: Int = 128 * 1024,
     environment: [String: String] = [:],
+    teardownSequence: TeardownSequence = TeardownSequence(),
     logger: Logger = ProcessExecutor.disableLogging
   ) async throws -> ProcessExitReasonAndOutput {
     try await self.runCollectingOutput(
@@ -465,6 +480,7 @@ public extension ProcessExecutor {
       collectStandardError: collectStandardError,
       perStreamCollectionLimitBytes: perStreamCollectionLimitBytes,
       environment: environment,
+      teardownSequence: teardownSequence,
       logger: logger
     )
   }

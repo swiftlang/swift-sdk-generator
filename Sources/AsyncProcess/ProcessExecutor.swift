@@ -10,13 +10,32 @@
 //
 //===----------------------------------------------------------------------===//
 
+import AsyncAlgorithms
 import Atomics
 import Logging
 import NIO
+import ProcessSpawnSync
 
 @_exported import struct SystemPackage.FileDescriptor
 
+#if os(Linux) || ASYNC_PROCESS_FORCE_PS_PROCESS
+// Foundation.Process is too buggy on Linux
+//
+// - Foundation.Process on Linux throws error Error Domain=NSCocoaErrorDomain Code=256 "(null)" if executable not found
+//   https://github.com/swiftlang/swift-corelibs-foundation/issues/4810
+// - Foundation.Process on Linux doesn't correctly detect when child process dies (creating zombie processes)
+//   https://github.com/swiftlang/swift-corelibs-foundation/issues/4795
+// - Foundation.Process on Linux seems to inherit the Process.run()-calling thread's signal mask, even SIGTERM blocked
+//   https://github.com/swiftlang/swift-corelibs-foundation/issues/4772
+typealias Process = PSProcess
+#endif
+
+#if os(iOS) || os(tvOS) || os(watchOS)
+// Note: Process() in iOS/tvOS/watchOS is available in internal builds only under Foundation Private/headers
+import Foundation_Private.NSTask
+#else
 import Foundation
+#endif
 
 public struct ProcessOutputStream: Sendable & Hashable & CustomStringConvertible {
   enum Backing {
@@ -509,12 +528,22 @@ public final actor ProcessExecutor {
     )
 
     p.terminationHandler = { p in
-      let pidExchangeWorked = self.processPid.compareExchange(
-        expected: p.processIdentifier,
-        desired: -1,
-        ordering: .sequentiallyConsistent
-      ).exchanged
-      assert(pidExchangeWorked)
+      let pProcessID = p.processIdentifier
+      var terminationPidExchange: (exchanged: Bool, original: pid_t) = (false, -1)
+      while !terminationPidExchange.exchanged {
+        terminationPidExchange = self.processPid.compareExchange(
+          expected: pProcessID,
+          desired: -1,
+          ordering: .sequentiallyConsistent
+        )
+        if !terminationPidExchange.exchanged {
+          precondition(
+            terminationPidExchange.original == 0,
+            "termination pid exchange failed: \(terminationPidExchange)"
+          )
+          Thread.sleep(forTimeInterval: 0.01)
+        }
+      }
       self.logger.debug(
         "finished running command",
         metadata: [
@@ -560,6 +589,8 @@ public final actor ProcessExecutor {
         ordering: .relaxed
       )
       terminationStreamProducer.finish() // The termination handler will never have fired.
+      try! self.standardOutputWriteHandle?.close()
+      try! self.standardErrorWriteHandle?.close()
       assert(worked) // We just set it to running above, shouldn't be able to race (no `await`).
       assert(original == RunningStateApproximation.running.rawValue) // We compare-and-exchange it.
       throw error
@@ -567,7 +598,12 @@ public final actor ProcessExecutor {
 
     // At this point, the process is running, we should therefore have a process ID (unless we're already dead).
     let childPid = p.processIdentifier
-    _ = self.processPid.compareExchange(expected: 0, desired: childPid, ordering: .sequentiallyConsistent)
+    let runPidExchange = self.processPid.compareExchange(
+      expected: 0,
+      desired: childPid,
+      ordering: .sequentiallyConsistent
+    )
+    precondition(runPidExchange.exchanged, "run pid exchange failed: \(runPidExchange)")
     assert(childPid != 0 || !p.isRunning)
     self.logger.debug(
       "running command",
@@ -658,6 +694,7 @@ public final actor ProcessExecutor {
       }
 
       var exitReason: ProcessExitReason? = nil
+      // cannot fix this warning yet (rdar://113844171)
       while let result = try await runProcessGroup.next() {
         if let result {
           exitReason = result
