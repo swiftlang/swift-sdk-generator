@@ -121,8 +121,8 @@ extension SwiftSDKGenerator {
 extension Triple {
   var interpreterPath: String {
     switch self.archName {
-      case "x86_64": "/lib64/ld-linux-x86-64.so.2"
-      case "aarch64": "/lib/ld-linux-aarch64.so.1"
+      case "x86_64": return "/lib64/ld-linux-x86-64.so.2"
+      case "aarch64": return "/lib/ld-linux-aarch64.so.1"
       default: fatalError("unsupported architecture \(self.archName)")
     }
   }
