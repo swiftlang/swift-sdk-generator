@@ -97,7 +97,6 @@ extension SwiftSDKGenerator {
         try await generator.removeRecursively(at: sdkUsrLibPath.appending("python3.10"))
 
         try await generator.removeRecursively(at: sdkUsrLibPath.appending("ssl"))
-        try await generator.copyTargetSwift(from: sdkUsrPath, sdkDirPath: sdkDirPath)
       }
     }
   }
