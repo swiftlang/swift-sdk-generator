@@ -61,8 +61,8 @@ struct GeneratorCLI: AsyncParsableCommand {
   }
 }
 
-extension Triple.Arch: ExpressibleByArgument {}
-extension Triple: ExpressibleByArgument {
+extension Triple.Arch: ArgumentParser.ExpressibleByArgument {}
+extension Triple: ArgumentParser.ExpressibleByArgument {
   public init?(argument: String) {
     self.init(argument, normalizing: false)
   }
