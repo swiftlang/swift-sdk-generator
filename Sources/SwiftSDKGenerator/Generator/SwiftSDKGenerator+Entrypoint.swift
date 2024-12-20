@@ -41,12 +41,14 @@ public extension SwiftSDKGenerator {
       httpClientType = OfflineHTTPClient.self
       #endif
       try await httpClientType.with { client in
-        if !self.isIncremental {
-          try await self.removeRecursively(at: pathsConfiguration.toolchainDirPath)
+        if self.includeHostToolchain {
+          if !self.isIncremental {
+            try await self.removeRecursively(at: pathsConfiguration.toolchainDirPath)
+          }
+          try await self.createDirectoryIfNeeded(at: pathsConfiguration.toolchainDirPath)
         }
 
         try await self.createDirectoryIfNeeded(at: pathsConfiguration.artifactsCachePath)
-        try await self.createDirectoryIfNeeded(at: pathsConfiguration.toolchainDirPath)
 
         let swiftSDKProduct = try await recipe.makeSwiftSDK(generator: self, engine: engine, httpClient: client)
 
@@ -58,7 +60,7 @@ public extension SwiftSDKGenerator {
           recipe: recipe
         )
 
-        try await generateArtifactBundleManifest(hostTriples: swiftSDKProduct.hostTriples)
+        try await generateArtifactBundleManifest(hostTriples: self.includeHostToolchain ? swiftSDKProduct.hostTriples : nil)
 
         logGenerationStep(
           """
