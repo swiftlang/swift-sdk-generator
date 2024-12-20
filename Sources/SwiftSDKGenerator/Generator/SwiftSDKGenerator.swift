@@ -24,6 +24,7 @@ public actor SwiftSDKGenerator {
   let isIncremental: Bool
   let isVerbose: Bool
   let engineCachePath: SQLite.Location
+  let includeHostToolchain: Bool
   let logger: Logger
 
   public init(
@@ -32,6 +33,7 @@ public actor SwiftSDKGenerator {
     artifactID: String,
     isIncremental: Bool,
     isVerbose: Bool,
+    includeHostToolchain: Bool,
     logger: Logger
   ) async throws {
     logGenerationStep("Looking up configuration values...")
@@ -56,6 +58,7 @@ public actor SwiftSDKGenerator {
     self.isVerbose = isVerbose
 
     self.engineCachePath = .path(self.pathsConfiguration.artifactsCachePath.appending("cache.db"))
+    self.includeHostToolchain = includeHostToolchain
     self.logger = logger
   }
 

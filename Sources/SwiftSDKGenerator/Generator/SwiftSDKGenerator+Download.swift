@@ -120,7 +120,9 @@ extension SwiftSDKGenerator {
       }
     }
 
-    try createDirectoryIfNeeded(at: pathsConfiguration.toolchainBinDirPath)
+    if self.includeHostToolchain {
+      try createDirectoryIfNeeded(at: pathsConfiguration.toolchainBinDirPath)
+    }
   }
 
   func downloadFiles(
