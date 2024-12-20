@@ -67,6 +67,7 @@ final class ArchitectureMappingTests: XCTestCase {
       // combinations of build and runtime architecture
       isIncremental: false,
       isVerbose: false,
+      includeHostToolchain: true,
       logger: Logger(label: "org.swift.swift-sdk-generator")
     )
 

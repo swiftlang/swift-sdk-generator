@@ -117,7 +117,10 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       swiftCompilerOptions += ["-Xclang-linker", "--ld-path=ld.lld"]
     } else {
       swiftCompilerOptions.append("-use-ld=lld")
-      toolset.linker = Toolset.ToolProperties(path: "ld.lld")
+
+      if self.hostSwiftSource != .skip {
+        toolset.linker = Toolset.ToolProperties(path: "ld.lld")
+      }
     }
 
     toolset.swiftCompiler = Toolset.ToolProperties(extraCLIOptions: swiftCompilerOptions)
