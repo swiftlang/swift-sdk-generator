@@ -183,7 +183,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       itemsToDownload: { artifacts in
         var items: [DownloadableArtifacts.Item] = []
 
-        if !self.versionsConfiguration.swiftVersion.hasPrefix("6.0") {
+        if self.hostSwiftSource != .skip && !self.versionsConfiguration.swiftVersion.hasPrefix("6.0") {
           items.append(artifacts.hostLLVM)
         }
 
@@ -252,6 +252,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
 
     try await generator.fixAbsoluteSymlinks(sdkDirPath: sdkDirPath)
 
+    var hostTriples: [Triple]? = [self.mainHostTriple]
     if self.hostSwiftSource != .skip {
       if !self.versionsConfiguration.swiftVersion.hasPrefix("6.0") {
         try await generator.prepareLLDLinker(engine, llvmArtifact: downloadableArtifacts.hostLLVM)
@@ -268,8 +269,11 @@ public struct LinuxRecipe: SwiftSDKRecipe {
         logGenerationStep("Fixing `swift-autolink-extract` symlink...")
         try await generator.createSymlink(at: autolinkExtractPath, pointingTo: "swift")
       }
+    } else if self.versionsConfiguration.swiftVersion.hasPrefix("6.0") {
+      // We can exclude the host triples starting in Swift 6.0
+      hostTriples = nil
     }
 
-    return SwiftSDKProduct(sdkDirPath: sdkDirPath, hostTriples: [self.mainHostTriple])
+    return SwiftSDKProduct(sdkDirPath: sdkDirPath, hostTriples: hostTriples)
   }
 }

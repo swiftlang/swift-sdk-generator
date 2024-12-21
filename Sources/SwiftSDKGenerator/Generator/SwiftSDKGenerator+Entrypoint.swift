@@ -52,7 +52,7 @@ public extension SwiftSDKGenerator {
 
         let swiftSDKProduct = try await recipe.makeSwiftSDK(generator: self, engine: engine, httpClient: client)
 
-        let toolsetJSONPath = try await generateToolsetJSON(recipe: recipe)
+        let toolsetJSONPath = try await self.generateToolsetJSON(recipe: recipe)
 
         try await generateDestinationJSON(
           toolsetPath: toolsetJSONPath,
@@ -60,7 +60,7 @@ public extension SwiftSDKGenerator {
           recipe: recipe
         )
 
-        try await generateArtifactBundleManifest(hostTriples: self.includeHostToolchain ? swiftSDKProduct.hostTriples : nil)
+        try await generateArtifactBundleManifest(hostTriples: swiftSDKProduct.hostTriples)
 
         logGenerationStep(
           """
