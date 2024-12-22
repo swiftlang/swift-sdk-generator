@@ -120,6 +120,7 @@ extension Triple {
     switch self.archName {
       case "x86_64": return "/lib64/ld-linux-x86-64.so.2"
       case "aarch64": return "/lib/ld-linux-aarch64.so.1"
+      case "armv7": return "/lib/ld-linux-armhf.so.3"
       default: fatalError("unsupported architecture \(self.archName)")
     }
   }
