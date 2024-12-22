@@ -73,6 +73,11 @@ extension SwiftSDKGenerator {
         // But not in all containers, so don't fail if it does not exist.
         if case .ubuntu = targetDistribution {
           subpaths += [("\(targetTriple.archName)-linux-gnu", false)]
+
+          // Custom subpath for armv7
+          if targetTriple.archName == "armv7" {
+            subpaths += [("arm-linux-gnueabihf", false)]
+          }
         }
 
         for (subpath, failIfNotExists) in subpaths {
