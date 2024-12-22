@@ -33,6 +33,7 @@ extension Triple.Arch {
     case .aarch64: return "aarch64"
     case .x86_64: return "x86_64"
     case .wasm32: return "wasm32"
+    case .arm: return "armv7"
     default: fatalError("\(self) is not supported yet")
     }
   }
