@@ -269,9 +269,14 @@ public struct LinuxRecipe: SwiftSDKRecipe {
         logGenerationStep("Fixing `swift-autolink-extract` symlink...")
         try await generator.createSymlink(at: autolinkExtractPath, pointingTo: "swift")
       }
-    } else if self.versionsConfiguration.swiftVersion.hasPrefix("6.0") {
-      // We can exclude the host triples starting in Swift 6.0
-      hostTriples = nil
+    } else {
+      // Add all triples that Swift currently supports
+      hostTriples = [
+        Triple("x86_64-unknown-linux-gnu"),
+        Triple("aarch64-unknown-linux-gnu"),
+        Triple("x86_64-apple-macos"),
+        Triple("arm64-apple-macos"),
+      ]
     }
 
     return SwiftSDKProduct(sdkDirPath: sdkDirPath, hostTriples: hostTriples)
