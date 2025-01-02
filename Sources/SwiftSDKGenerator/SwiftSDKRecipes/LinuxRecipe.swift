@@ -24,7 +24,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
   public enum HostSwiftSource: Sendable, Equatable {
     case localPackage(FilePath)
     case remoteTarball
-    case skip
+    case preinstalled
   }
 
   let mainTargetTriple: Triple
@@ -75,7 +75,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     }
     let hostSwiftSource: HostSwiftSource
     if includeHostToolchain == false {
-      hostSwiftSource = .skip
+      hostSwiftSource = .preinstalled
     } else if let hostSwiftPackagePath {
       hostSwiftSource = .localPackage(FilePath(hostSwiftPackagePath))
     } else {
@@ -118,7 +118,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     } else {
       swiftCompilerOptions.append("-use-ld=lld")
 
-      if self.hostSwiftSource != .skip {
+      if self.hostSwiftSource != .preinstalled {
         toolset.linker = Toolset.ToolProperties(path: "ld.lld")
       }
     }
@@ -183,7 +183,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       itemsToDownload: { artifacts in
         var items: [DownloadableArtifacts.Item] = []
 
-        if self.hostSwiftSource != .skip && !self.versionsConfiguration.swiftVersion.hasPrefix("6.0") {
+        if self.hostSwiftSource != .preinstalled && !self.versionsConfiguration.swiftVersion.hasPrefix("6.0") {
           items.append(artifacts.hostLLVM)
         }
 
@@ -197,7 +197,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
         case .remoteTarball:
           items.append(artifacts.hostSwift)
         case .localPackage: break
-        case .skip: break
+        case .preinstalled: break
         }
         return items
       }
@@ -227,7 +227,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       try await generator.unpackHostSwift(
         hostSwiftPackagePath: downloadableArtifacts.hostSwift.localPath
       )
-    case .skip:
+    case .preinstalled:
       break
     }
 
@@ -253,7 +253,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     try await generator.fixAbsoluteSymlinks(sdkDirPath: sdkDirPath)
 
     var hostTriples: [Triple]? = [self.mainHostTriple]
-    if self.hostSwiftSource != .skip {
+    if self.hostSwiftSource != .preinstalled {
       if !self.versionsConfiguration.swiftVersion.hasPrefix("6.0") {
         try await generator.prepareLLDLinker(engine, llvmArtifact: downloadableArtifacts.hostLLVM)
       }
