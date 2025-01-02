@@ -52,7 +52,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     fromContainerImage: String?,
     hostSwiftPackagePath: String?,
     targetSwiftPackagePath: String?,
-    noHostToolchain: Bool = false
+    includeHostToolchain: Bool = false
   ) throws {
     let versionsConfiguration = try VersionsConfiguration(
       swiftVersion: swiftVersion,
@@ -74,7 +74,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       }
     }
     let hostSwiftSource: HostSwiftSource
-    if noHostToolchain {
+    if includeHostToolchain == false {
       hostSwiftSource = .skip
     } else if let hostSwiftPackagePath {
       hostSwiftSource = .localPackage(FilePath(hostSwiftPackagePath))

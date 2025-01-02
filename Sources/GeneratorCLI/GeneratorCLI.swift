@@ -36,7 +36,7 @@ struct GeneratorCLI: AsyncParsableCommand {
         artifactID: options.sdkName ?? recipe.defaultArtifactID,
         isIncremental: options.incremental,
         isVerbose: options.verbose,
-        includeHostToolchain: !options.noHostToolchain,
+        includeHostToolchain: options.includeHostToolchain,
         logger: logger
       )
 
@@ -109,9 +109,14 @@ extension GeneratorCLI {
     var hostSwiftPackagePath: String? = nil
 
     @Flag(
-      help: "Don't include host toolchain in generated SDK, making it similar to the Static SDKs for Linux."
+      inversion: .prefixedNo,
+      help: """
+      Whether or not to include the host toolchain in the Swift SDK.
+      If the host toolchain is not included, this makes the Swift SDK compatible with any host, \
+      but requires exactly the same version of the swift.org toolchain to be installed for it to work.
+      """
     )
-    var noHostToolchain: Bool = false
+    var includeHostToolchain: Bool = true
 
     @Option(
       help: """
@@ -232,7 +237,7 @@ extension GeneratorCLI {
         fromContainerImage: self.fromContainerImage,
         hostSwiftPackagePath: self.generatorOptions.hostSwiftPackagePath,
         targetSwiftPackagePath: self.generatorOptions.targetSwiftPackagePath,
-        noHostToolchain: self.generatorOptions.noHostToolchain
+        includeHostToolchain: self.generatorOptions.includeHostToolchain
       )
       try await GeneratorCLI.run(recipe: recipe, targetTriple: targetTriple, options: self.generatorOptions)
     }
