@@ -269,14 +269,18 @@ public struct LinuxRecipe: SwiftSDKRecipe {
         logGenerationStep("Fixing `swift-autolink-extract` symlink...")
         try await generator.createSymlink(at: autolinkExtractPath, pointingTo: "swift")
       }
-    } else {
-      // Add all triples that Swift currently supports
+    } else if self.versionsConfiguration.swiftVersion.hasPrefix("5.9")
+          || self.versionsConfiguration.swiftVersion.hasPrefix("5.10") {
+      // Swift 5.9 and 5.10 require `supportedTriples` to be set in info.json.
+      // FIXME: This can be removed once the SDK generator does not support 5.9/5.10 any more.
       hostTriples = [
         Triple("x86_64-unknown-linux-gnu"),
         Triple("aarch64-unknown-linux-gnu"),
         Triple("x86_64-apple-macos"),
         Triple("arm64-apple-macos"),
       ]
+    } else {
+      hostTriples = nil
     }
 
     return SwiftSDKProduct(sdkDirPath: sdkDirPath, hostTriples: hostTriples)
