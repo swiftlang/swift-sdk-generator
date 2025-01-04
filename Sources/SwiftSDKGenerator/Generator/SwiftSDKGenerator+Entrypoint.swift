@@ -41,11 +41,8 @@ public extension SwiftSDKGenerator {
       httpClientType = OfflineHTTPClient.self
       #endif
       try await httpClientType.with { client in
-        if self.includeHostToolchain {
-          if !self.isIncremental {
-            try await self.removeRecursively(at: pathsConfiguration.toolchainDirPath)
-          }
-          try await self.createDirectoryIfNeeded(at: pathsConfiguration.toolchainDirPath)
+        if !self.isIncremental {
+          try await self.removeRecursively(at: pathsConfiguration.toolchainDirPath)
         }
 
         try await self.createDirectoryIfNeeded(at: pathsConfiguration.artifactsCachePath)

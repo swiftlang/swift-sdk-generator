@@ -26,23 +26,16 @@ extension SwiftSDKGenerator {
 
     let toolsetJSONPath = pathsConfiguration.swiftSDKRootPath.appending("toolset.json")
 
-    var toolset: Toolset
-    if self.includeHostToolchain {
-      var relativeToolchainBinDir = pathsConfiguration.toolchainBinDirPath
-
-      guard
-        relativeToolchainBinDir.removePrefix(pathsConfiguration.swiftSDKRootPath)
-      else {
-        fatalError(
-          "`toolchainBinDirPath` is at an unexpected location that prevents computing a relative path"
-        )
-      }
-
-      toolset = Toolset(rootPath: relativeToolchainBinDir.string)
-    } else {
-      toolset = Toolset(rootPath: nil)
+    var relativeToolchainBinDir = pathsConfiguration.toolchainBinDirPath
+    guard
+      relativeToolchainBinDir.removePrefix(pathsConfiguration.swiftSDKRootPath)
+    else {
+      fatalError(
+        "`toolchainBinDirPath` is at an unexpected location that prevents computing a relative path"
+      )
     }
 
+    var toolset = Toolset(rootPath: relativeToolchainBinDir.string)
     recipe.applyPlatformOptions(toolset: &toolset, targetTriple: self.targetTriple)
     try writeFile(at: toolsetJSONPath, encoder.encode(toolset))
 

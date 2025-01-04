@@ -26,7 +26,7 @@ public struct Toolset: Encodable {
 
   /// Root path of the toolset, if present. When filling in ``Toolset.ToolProperties/path``, if a raw path string in
   /// ``DecodedToolset`` is inferred to be relative, it's resolved as absolute path relatively to `rootPath`.
-  let rootPath: String?
+  var rootPath: String?
 
   // MARK: Tools currently known and used by SwiftPM.
 

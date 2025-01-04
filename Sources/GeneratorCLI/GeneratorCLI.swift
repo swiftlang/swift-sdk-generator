@@ -36,7 +36,6 @@ struct GeneratorCLI: AsyncParsableCommand {
         artifactID: options.sdkName ?? recipe.defaultArtifactID,
         isIncremental: options.incremental,
         isVerbose: options.verbose,
-        includeHostToolchain: options.includeHostToolchain,
         logger: logger
       )
 

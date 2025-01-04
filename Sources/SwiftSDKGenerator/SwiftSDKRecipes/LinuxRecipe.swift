@@ -109,6 +109,10 @@ public struct LinuxRecipe: SwiftSDKRecipe {
   }
 
   public func applyPlatformOptions(toolset: inout Toolset, targetTriple: Triple) {
+    if self.hostSwiftSource == .preinstalled {
+      toolset.rootPath = nil
+    }
+
     var swiftCompilerOptions = ["-Xlinker", "-R/usr/lib/swift/linux/"]
 
     // Swift 5.9 does not handle the `-use-ld` option properly:
