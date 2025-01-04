@@ -109,8 +109,6 @@ extension SwiftSDKGenerator {
     }
 
     print("Downloading \(urls.count) Ubuntu packages...")
-    let pathsConfiguration = self.pathsConfiguration
-
     try await inTemporaryDirectory { fs, tmpDir in
       let downloadedFiles = try await self.downloadFiles(from: urls, to: tmpDir, client, engine)
       report(downloadedFiles: downloadedFiles)
@@ -119,8 +117,6 @@ extension SwiftSDKGenerator {
         try await fs.unpack(file: tmpDir.appending(fileName), into: sdkDirPath)
       }
     }
-
-    try createDirectoryIfNeeded(at: pathsConfiguration.toolchainBinDirPath)
   }
 
   func downloadFiles(

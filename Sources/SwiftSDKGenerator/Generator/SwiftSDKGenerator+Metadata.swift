@@ -27,7 +27,6 @@ extension SwiftSDKGenerator {
     let toolsetJSONPath = pathsConfiguration.swiftSDKRootPath.appending("toolset.json")
 
     var relativeToolchainBinDir = pathsConfiguration.toolchainBinDirPath
-
     guard
       relativeToolchainBinDir.removePrefix(pathsConfiguration.swiftSDKRootPath)
     else {
