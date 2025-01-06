@@ -51,16 +51,30 @@ struct DownloadableArtifacts: Sendable {
     self.versions = versions
     self.paths = paths
 
-    self.hostSwift = .init(
-      remoteURL: versions.swiftDownloadURL(
-        subdirectory: "xcode",
-        platform: "osx",
-        fileExtension: "pkg"
-      ),
-      localPath: paths.artifactsCachePath
-        .appending("host_swift_\(versions.swiftVersion)_\(hostTriple.triple).pkg"),
-      isPrebuilt: true
-    )
+    if hostTriple.os == .linux {
+      // Amazon Linux 2 is chosen for its best compatibility with all Swift-supported Linux hosts
+      self.hostSwift = .init(
+        remoteURL: versions.swiftDownloadURL(
+          subdirectory: "amazonlinux2",
+          platform: "amazonlinux2",
+          fileExtension: "tar.gz"
+        ),
+        localPath: paths.artifactsCachePath
+          .appending("host_swift_\(versions.swiftVersion)_\(hostTriple.triple).tar.gz"),
+        isPrebuilt: true
+      )
+    } else {
+      self.hostSwift = .init(
+        remoteURL: versions.swiftDownloadURL(
+          subdirectory: "xcode",
+          platform: "osx",
+          fileExtension: "pkg"
+        ),
+        localPath: paths.artifactsCachePath
+          .appending("host_swift_\(versions.swiftVersion)_\(hostTriple.triple).pkg"),
+        isPrebuilt: true
+      )
+    }
 
     self.hostLLVM = .init(
       remoteURL: URL(
