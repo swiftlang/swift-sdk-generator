@@ -46,6 +46,8 @@ extension SwiftSDKGenerator {
     logGenerationStep("Unpacking and copying Swift binaries for the host triple...")
     let pathsConfiguration = self.pathsConfiguration
 
+    try self.createDirectoryIfNeeded(at: pathsConfiguration.toolchainDirPath)
+
     let excludes =
       unusedDarwinPlatforms.map { "--exclude usr/lib/swift/\($0)" } +
       unusedDarwinPlatforms.map { "--exclude usr/lib/swift_static/\($0)" } +
