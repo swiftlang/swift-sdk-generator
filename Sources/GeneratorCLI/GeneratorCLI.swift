@@ -115,7 +115,7 @@ extension GeneratorCLI {
       but requires exactly the same version of the swift.org toolchain to be installed for it to work.
       """
     )
-    var includeHostToolchain: Bool = true
+    var hostToolchain: Bool = true
 
     @Option(
       help: """
@@ -236,7 +236,7 @@ extension GeneratorCLI {
         fromContainerImage: self.fromContainerImage,
         hostSwiftPackagePath: self.generatorOptions.hostSwiftPackagePath,
         targetSwiftPackagePath: self.generatorOptions.targetSwiftPackagePath,
-        includeHostToolchain: self.generatorOptions.includeHostToolchain
+        includeHostToolchain: self.generatorOptions.hostToolchain
       )
       try await GeneratorCLI.run(recipe: recipe, targetTriple: targetTriple, options: self.generatorOptions)
     }
