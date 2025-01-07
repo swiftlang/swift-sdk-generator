@@ -70,7 +70,7 @@ public actor SwiftSDKGenerator {
     let darwinTriple = Triple("\(cpu)-apple-darwin\(darwinVersion)")
     return Triple("\(cpu)-apple-macos\(darwinTriple._macOSVersion?.description ?? "")")
     #elseif os(Linux)
-    return Triple("\(cpu)-unknown-linux")
+    return Triple("\(cpu)-unknown-linux-gnu")
     #else
     fatalError("Triple detection not implemented for the platform that this generator was built on.")
     #endif

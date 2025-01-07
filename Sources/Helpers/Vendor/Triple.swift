@@ -32,7 +32,7 @@
 ///
 /// This is a port of https://github.com/apple/swift-llvm/blob/stable/include/llvm/ADT/Triple.h
 @dynamicMemberLookup
-public struct Triple: Sendable {
+public struct Triple: Sendable, Equatable {
   /// `Triple` proxies predicates from `Triple.OS`, returning `false` for an unknown OS.
   public subscript(dynamicMember predicate: KeyPath<OS, Bool>) -> Bool {
     os?[keyPath: predicate] ?? false

@@ -21,9 +21,10 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     case remoteTarball
   }
 
-  public enum HostSwiftSource: Sendable {
+  public enum HostSwiftSource: Sendable, Equatable {
     case localPackage(FilePath)
     case remoteTarball
+    case preinstalled
   }
 
   let mainTargetTriple: Triple
@@ -50,7 +51,8 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     withDocker: Bool,
     fromContainerImage: String?,
     hostSwiftPackagePath: String?,
-    targetSwiftPackagePath: String?
+    targetSwiftPackagePath: String?,
+    includeHostToolchain: Bool = false
   ) throws {
     let versionsConfiguration = try VersionsConfiguration(
       swiftVersion: swiftVersion,
@@ -72,7 +74,9 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       }
     }
     let hostSwiftSource: HostSwiftSource
-    if let hostSwiftPackagePath {
+    if includeHostToolchain == false {
+      hostSwiftSource = .preinstalled
+    } else if let hostSwiftPackagePath {
       hostSwiftSource = .localPackage(FilePath(hostSwiftPackagePath))
     } else {
       hostSwiftSource = .remoteTarball
@@ -105,6 +109,10 @@ public struct LinuxRecipe: SwiftSDKRecipe {
   }
 
   public func applyPlatformOptions(toolset: inout Toolset, targetTriple: Triple) {
+    if self.hostSwiftSource == .preinstalled {
+      toolset.rootPath = nil
+    }
+
     var swiftCompilerOptions = ["-Xlinker", "-R/usr/lib/swift/linux/"]
 
     // Swift 5.9 does not handle the `-use-ld` option properly:
@@ -113,7 +121,10 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       swiftCompilerOptions += ["-Xclang-linker", "--ld-path=ld.lld"]
     } else {
       swiftCompilerOptions.append("-use-ld=lld")
-      toolset.linker = Toolset.ToolProperties(path: "ld.lld")
+
+      if self.hostSwiftSource != .preinstalled {
+        toolset.linker = Toolset.ToolProperties(path: "ld.lld")
+      }
     }
 
     toolset.swiftCompiler = Toolset.ToolProperties(extraCLIOptions: swiftCompilerOptions)
@@ -151,6 +162,48 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       .appending("\(self.linuxDistribution.name.rawValue)-\(self.linuxDistribution.release).sdk")
   }
 
+  func itemsToDownload(from artifacts: DownloadableArtifacts) -> [DownloadableArtifacts.Item] {
+    var items: [DownloadableArtifacts.Item] = []
+    if self.hostSwiftSource != .preinstalled && !self.versionsConfiguration.swiftVersion.hasPrefix("6.0") {
+      items.append(artifacts.hostLLVM)
+    }
+
+    switch self.targetSwiftSource {
+    case .remoteTarball:
+      items.append(artifacts.targetSwift)
+    case .docker, .localPackage: break
+    }
+
+    switch self.hostSwiftSource {
+    case .remoteTarball:
+      items.append(artifacts.hostSwift)
+    case .localPackage: break
+    case .preinstalled: break
+    }
+    return items
+  }
+
+  var hostTriples: [Triple]? {
+    if self.hostSwiftSource == .preinstalled {
+      // Swift 5.9 and 5.10 require `supportedTriples` to be set in info.json.
+      // FIXME: This can be removed once the SDK generator does not support 5.9/5.10 any more.
+      if self.versionsConfiguration.swiftVersion.hasPrefix("5.9")
+          || self.versionsConfiguration.swiftVersion.hasPrefix("5.10") {
+        return [
+          Triple("x86_64-unknown-linux-gnu"),
+          Triple("aarch64-unknown-linux-gnu"),
+          Triple("x86_64-apple-macos"),
+          Triple("arm64-apple-macos"),
+        ]
+      }
+
+      // Swift 6.0 and later can set `supportedTriples` to nil
+      return nil
+    }
+
+    return [self.mainHostTriple]
+  }
+
   public func makeSwiftSDK(
     generator: SwiftSDKGenerator,
     engine: QueryEngine,
@@ -173,26 +226,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       client,
       engine,
       downloadableArtifacts: &downloadableArtifacts,
-      itemsToDownload: { artifacts in
-        var items: [DownloadableArtifacts.Item] = []
-
-        if !self.versionsConfiguration.swiftVersion.hasPrefix("6.0") {
-          items.append(artifacts.hostLLVM)
-        }
-
-        switch self.targetSwiftSource {
-        case .remoteTarball:
-          items.append(artifacts.targetSwift)
-        case .docker, .localPackage: break
-        }
-
-        switch self.hostSwiftSource {
-        case .remoteTarball:
-          items.append(artifacts.hostSwift)
-        case .localPackage: break
-        }
-        return items
-      }
+      itemsToDownload: { artifacts in itemsToDownload(from: artifacts) }
     )
 
     if !self.shouldUseDocker {
@@ -219,6 +253,8 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       try await generator.unpackHostSwift(
         hostSwiftPackagePath: downloadableArtifacts.hostSwift.localPath
       )
+    case .preinstalled:
+      break
     }
 
     switch self.targetSwiftSource {
@@ -240,24 +276,26 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       )
     }
 
-    if !self.versionsConfiguration.swiftVersion.hasPrefix("6.0") {
-      try await generator.prepareLLDLinker(engine, llvmArtifact: downloadableArtifacts.hostLLVM)
-    }
-
     try await generator.fixAbsoluteSymlinks(sdkDirPath: sdkDirPath)
 
-    if self.versionsConfiguration.swiftVersion.hasPrefix("5.9") ||
-        self.versionsConfiguration.swiftVersion .hasPrefix("5.10") {
-      try await generator.symlinkClangHeaders()
+    if self.hostSwiftSource != .preinstalled {
+      if !self.versionsConfiguration.swiftVersion.hasPrefix("6.0") {
+        try await generator.prepareLLDLinker(engine, llvmArtifact: downloadableArtifacts.hostLLVM)
+      }
+
+      if self.versionsConfiguration.swiftVersion.hasPrefix("5.9") ||
+          self.versionsConfiguration.swiftVersion .hasPrefix("5.10") {
+        try await generator.symlinkClangHeaders()
+      }
+
+      let autolinkExtractPath = generator.pathsConfiguration.toolchainBinDirPath.appending("swift-autolink-extract")
+
+      if await !generator.doesFileExist(at: autolinkExtractPath) {
+        logGenerationStep("Fixing `swift-autolink-extract` symlink...")
+        try await generator.createSymlink(at: autolinkExtractPath, pointingTo: "swift")
+      }
     }
 
-    let autolinkExtractPath = generator.pathsConfiguration.toolchainBinDirPath.appending("swift-autolink-extract")
-
-    if await !generator.doesFileExist(at: autolinkExtractPath) {
-      logGenerationStep("Fixing `swift-autolink-extract` symlink...")
-      try await generator.createSymlink(at: autolinkExtractPath, pointingTo: "swift")
-    }
-
-    return SwiftSDKProduct(sdkDirPath: sdkDirPath, hostTriples: [self.mainHostTriple])
+    return SwiftSDKProduct(sdkDirPath: sdkDirPath, hostTriples: self.hostTriples)
   }
 }
