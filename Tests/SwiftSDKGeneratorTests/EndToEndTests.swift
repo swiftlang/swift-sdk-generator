@@ -236,6 +236,10 @@ func buildTestcases(config: SDKConfiguration) async throws {
       try await buildTestcase(logger, testcase: testcase, bundleName: bundleName, tempDir: tempDir)
     }
   }
+
+  // Cleanup
+  logger.info("Removing SDK to cleanup...")
+  try await Shell.run("swift experimental-sdk remove \(bundleName)")
 }
 
 final class Swift59_UbuntuEndToEndTests: XCTestCase {
