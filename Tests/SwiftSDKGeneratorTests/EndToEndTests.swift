@@ -49,11 +49,8 @@ extension FileManager {
   }
 }
 
-// Building an SDK requires running the sdk-generator with `swift run swift-sdk-generator`.
-// This takes a lock on `.build`, but if the tests are being run by `swift test` the outer Swift Package Manager
-// instance will already hold this lock, causing the test to deadlock.   We can work around this by giving
-// the `swift run swift-sdk-generator` instance its own scratch directory.
-func buildSDK(_ logger: Logger, scratchPath: String, withArguments runArguments: String) async throws -> String {
+// This will build and run the generator in a separate .build directory from the main one
+func buildSDK(_ logger: Logger, scratchPath: String = ".build", withArguments runArguments: String) async throws -> String {
   var logger = logger
   logger[metadataKey: "runArguments"] = "\"\(runArguments)\""
   logger[metadataKey: "scratchPath"] = "\(scratchPath)"
@@ -230,9 +227,7 @@ func buildTestcases(config: SDKConfiguration) async throws {
     }
   }
 
-  let bundleName = try await FileManager.default.withTemporaryDirectory(logger: logger) { tempDir in
-    try await buildSDK(logger, scratchPath: tempDir.path, withArguments: config.sdkGeneratorArguments)
-  }
+  let bundleName = try await buildSDK(logger, withArguments: config.sdkGeneratorArguments)
 
   logger.info("Built SDK")
 
