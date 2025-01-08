@@ -165,11 +165,17 @@ struct SDKConfiguration {
     return res
   }
 
+  var hostArch: String? {
+    let triple = try? SwiftSDKGenerator.getCurrentTriple(isVerbose: false)
+    return triple?.arch?.rawValue
+  }
+
   var sdkGeneratorArguments: String {
     return [
       "--sdk-name \(bundleName)",
       withDocker ? "--with-docker" : nil,
       "--swift-version \(swiftVersion)-RELEASE",
+      testLinuxSwiftSdks ? "--host \(hostArch!)-unknown-linux-gnu" : nil,
       "--target \(architecture)-unknown-linux-gnu",
       "--linux-distribution-name \(linuxDistributionName)"
     ].compactMap{ $0 }.joined(separator: " ")
@@ -184,31 +190,81 @@ func skipSlow() throws {
   )
 }
 
+var testLinuxSwiftSdks: Bool {
+  ProcessInfo.processInfo.environment.keys.contains("SWIFT_SDK_GENERATOR_TEST_LINUX_SWIFT_SDKS")
+}
+
 func buildTestcase(_ logger: Logger, testcase: String, bundleName: String, tempDir: URL) async throws {
   let testPackageURL = tempDir.appendingPathComponent("swift-sdk-generator-test")
   let testPackageDir = FilePath(testPackageURL.path)
   try FileManager.default.createDirectory(atPath: testPackageDir.string, withIntermediateDirectories: true)
 
-  logger.info("Creating test project")
+  logger.info("Creating test project \(testPackageDir)")
   try await Shell.run("swift package --package-path \(testPackageDir) init --type executable")
   let main_swift = testPackageURL.appendingPathComponent("Sources/main.swift")
   try testcase.write(to: main_swift, atomically: true, encoding: .utf8)
 
-  logger.info("Building test project")
-  var buildOutput = try await Shell.readStdout(
-    "swift build --package-path \(testPackageDir) --experimental-swift-sdk \(bundleName)"
-  )
-  XCTAssertTrue(buildOutput.contains("Build complete!"))
-  logger.info("Test project built successfully")
+  // This is a workaround for if Swift 6.0 is used as the host toolchain to run the generator.
+  // We manually set the swift-tools-version to 5.9 to support building our test cases.
+  logger.info("Updating minimum swift-tools-version in test project...")
+  let package_swift = testPackageURL.appendingPathComponent("Package.swift")
+  let text = try String(contentsOf: package_swift, encoding: .utf8)
+  var lines = text.components(separatedBy: .newlines)
+  if lines.count > 0 {
+    lines[0] = "// swift-tools-version: 5.9"
+    let result = lines.joined(separator: "\r\n")
+    try result.write(to: package_swift, atomically: true, encoding: .utf8)
+  }
 
-  try await Shell.run("rm -rf \(testPackageDir.appending(".build"))")
+  var buildOutput = ""
 
-  logger.info("Building test project with static-swift-stdlib")
-  buildOutput = try await Shell.readStdout(
-    "swift build --package-path \(testPackageDir) --experimental-swift-sdk \(bundleName) --static-swift-stdlib"
-  )
-  XCTAssertTrue(buildOutput.contains("Build complete!"))
-  logger.info("Test project built successfully")
+  // If we are testing Linux Swift SDKs, we will run the test cases on a matrix of Docker containers
+  // that contains each Swift-supported Linux distribution. This way we can validate that each
+  // distribution is capable of building using the Linux Swift SDK.
+  if testLinuxSwiftSdks {
+    let swiftContainerVersions = ["focal", "jammy", "noble", "fedora39", "rhel-ubi9", "amazonlinux2", "bookworm"]
+    for containerVersion in swiftContainerVersions {
+      logger.info("Building test project in 6.0-\(containerVersion) container")
+      buildOutput = try await Shell.readStdout(
+        """
+        docker run --rm -v \(testPackageDir):/src \
+          -v $HOME/.swiftpm/swift-sdks:/root/.swiftpm/swift-sdks \
+          --workdir /src swift:6.0-\(containerVersion) \
+          /bin/bash -c "swift build --scratch-path /root/.build --experimental-swift-sdk \(bundleName)"
+        """
+      )
+      XCTAssertTrue(buildOutput.contains("Build complete!"))
+      logger.info("Test project built successfully")
+
+      logger.info("Building test project in 6.0-\(containerVersion) container with static-swift-stdlib")
+      buildOutput = try await Shell.readStdout(
+        """
+        docker run --rm -v \(testPackageDir):/src \
+          -v $HOME/.swiftpm/swift-sdks:/root/.swiftpm/swift-sdks \
+          --workdir /src swift:6.0-\(containerVersion) \
+          /bin/bash -c "swift build --scratch-path /root/.build --experimental-swift-sdk \(bundleName) --static-swift-stdlib"
+        """
+      )
+      XCTAssertTrue(buildOutput.contains("Build complete!"))
+      logger.info("Test project built successfully")
+    }
+  } else {
+    logger.info("Building test project")
+    buildOutput = try await Shell.readStdout(
+      "swift build --package-path \(testPackageDir) --experimental-swift-sdk \(bundleName)"
+    )
+    XCTAssertTrue(buildOutput.contains("Build complete!"))
+    logger.info("Test project built successfully")
+
+    try await Shell.run("rm -rf \(testPackageDir.appending(".build"))")
+
+    logger.info("Building test project with static-swift-stdlib")
+    buildOutput = try await Shell.readStdout(
+      "swift build --package-path \(testPackageDir) --experimental-swift-sdk \(bundleName) --static-swift-stdlib"
+    )
+    XCTAssertTrue(buildOutput.contains("Build complete!"))
+    logger.info("Test project built successfully")
+  }
 }
 
 func buildTestcases(config: SDKConfiguration) async throws {
