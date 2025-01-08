@@ -114,6 +114,7 @@ extension SwiftSDKGenerator {
       report(downloadedFiles: downloadedFiles)
 
       for fileName in urls.map(\.lastPathComponent) {
+        print("Extracting \(fileName)...")
         try await fs.unpack(file: tmpDir.appending(fileName), into: sdkDirPath)
       }
     }
