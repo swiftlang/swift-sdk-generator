@@ -53,10 +53,11 @@ struct DownloadableArtifacts: Sendable {
 
     if hostTriple.os == .linux {
       // Amazon Linux 2 is chosen for its best compatibility with all Swift-supported Linux hosts
+      let linuxArchSuffix = hostTriple.arch == .aarch64 ? "-\(Triple.Arch.aarch64.linuxConventionName)" : ""
       self.hostSwift = .init(
         remoteURL: versions.swiftDownloadURL(
-          subdirectory: "amazonlinux2",
-          platform: "amazonlinux2",
+          subdirectory: "amazonlinux2\(linuxArchSuffix)",
+          platform: "amazonlinux2\(linuxArchSuffix)",
           fileExtension: "tar.gz"
         ),
         localPath: paths.artifactsCachePath
