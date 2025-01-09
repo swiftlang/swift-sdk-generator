@@ -175,7 +175,7 @@ struct SDKConfiguration {
       "--sdk-name \(bundleName)",
       withDocker ? "--with-docker" : nil,
       "--swift-version \(swiftVersion)-RELEASE",
-      testLinuxSwiftSdks ? "--host \(hostArch!)-unknown-linux-gnu" : nil,
+      testLinuxSwiftSDKs ? "--host \(hostArch!)-unknown-linux-gnu" : nil,
       "--target \(architecture)-unknown-linux-gnu",
       "--linux-distribution-name \(linuxDistributionName)"
     ].compactMap{ $0 }.joined(separator: " ")
@@ -190,7 +190,7 @@ func skipSlow() throws {
   )
 }
 
-var testLinuxSwiftSdks: Bool {
+var testLinuxSwiftSDKs: Bool {
   ProcessInfo.processInfo.environment.keys.contains("SWIFT_SDK_GENERATOR_TEST_LINUX_SWIFT_SDKS")
 }
 
@@ -221,7 +221,7 @@ func buildTestcase(_ logger: Logger, testcase: String, bundleName: String, tempD
   // If we are testing Linux Swift SDKs, we will run the test cases on a matrix of Docker containers
   // that contains each Swift-supported Linux distribution. This way we can validate that each
   // distribution is capable of building using the Linux Swift SDK.
-  if testLinuxSwiftSdks {
+  if testLinuxSwiftSDKs {
     let swiftContainerVersions = ["focal", "jammy", "noble", "fedora39", "rhel-ubi9", "amazonlinux2", "bookworm"]
     for containerVersion in swiftContainerVersions {
       logger.info("Building test project in 6.0-\(containerVersion) container")
