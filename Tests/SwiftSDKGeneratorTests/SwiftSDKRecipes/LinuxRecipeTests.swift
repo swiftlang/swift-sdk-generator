@@ -1,0 +1,180 @@
+//===----------------------------------------------------------------------===//
+//
+// This source file is part of the Swift open source project
+//
+// Copyright (c) 2022-2024 Apple Inc. and the Swift project authors
+// Licensed under Apache License v2.0 with Runtime Library Exception
+//
+// See https://swift.org/LICENSE.txt for license information
+// See https://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
+//
+//===----------------------------------------------------------------------===//
+
+import XCTest
+
+@testable import SwiftSDKGenerator
+
+final class LinuxRecipeTests: XCTestCase {
+  func createRecipe(
+    swiftVersion: String = "6.0",
+    withDocker: Bool = false,
+    fromContainerImage: String? = nil,
+    hostSwiftPackagePath: String? = nil,
+    targetSwiftPackagePath: String? = nil,
+    includeHostToolchain: Bool = true
+  ) throws -> LinuxRecipe {
+   try LinuxRecipe(
+      targetTriple: Triple("aarch64-unknown-linux-gnu"),
+      hostTriple: Triple("x86_64-unknown-linux-gnu"),
+      linuxDistribution: .init(name: .ubuntu, version: "22.04"),
+      swiftVersion: swiftVersion,
+      swiftBranch: nil, lldVersion: "",
+      withDocker: withDocker, fromContainerImage: fromContainerImage,
+      hostSwiftPackagePath: hostSwiftPackagePath,
+      targetSwiftPackagePath: targetSwiftPackagePath,
+      includeHostToolchain: includeHostToolchain
+    )
+  }
+
+  func testToolOptionsForSwiftVersions() throws {
+    let testCases = [
+      (
+        swiftVersion: "5.9.2",
+        expectedSwiftCompilerOptions: [
+          "-Xlinker", "-R/usr/lib/swift/linux/",
+          "-Xclang-linker", "--ld-path=ld.lld"
+        ],
+        expectedLinkerPath: nil
+      ),
+      (
+        swiftVersion: "6.0.2",
+        expectedSwiftCompilerOptions: [
+          "-Xlinker", "-R/usr/lib/swift/linux/",
+          "-use-ld=lld"
+        ],
+        expectedLinkerPath: "ld.lld"
+      )
+    ]
+
+    for testCase in testCases {
+      let recipe = try self.createRecipe(swiftVersion: testCase.swiftVersion)
+      var toolset = Toolset(rootPath: nil)
+      recipe.applyPlatformOptions(
+        toolset: &toolset, targetTriple: Triple("aarch64-unknown-linux-gnu")
+      )
+      XCTAssertEqual(toolset.swiftCompiler?.extraCLIOptions, testCase.expectedSwiftCompilerOptions)
+      XCTAssertEqual(toolset.linker?.path, testCase.expectedLinkerPath)
+      XCTAssertEqual(toolset.cxxCompiler?.extraCLIOptions, ["-lstdc++"])
+      XCTAssertEqual(toolset.librarian?.path, "llvm-ar")
+    }
+  }
+
+  func testToolOptionsForPreinstalledSdk() throws {
+    let recipe = try self.createRecipe(includeHostToolchain: false)
+    var toolset = Toolset(rootPath: "swift.xctoolchain")
+    recipe.applyPlatformOptions(
+      toolset: &toolset, targetTriple: Triple("x86_64-unknown-linux-gnu")
+    )
+    XCTAssertEqual(toolset.rootPath, nil)
+    XCTAssertEqual(toolset.swiftCompiler?.extraCLIOptions, [
+      "-Xlinker", "-R/usr/lib/swift/linux/",
+      "-use-ld=lld"
+    ])
+    XCTAssertEqual(toolset.cxxCompiler?.extraCLIOptions, ["-lstdc++"])
+    XCTAssertEqual(toolset.librarian?.path, "llvm-ar")
+    XCTAssert(toolset.linker == nil)
+  }
+
+  func testItemsToDownload() throws {
+    let testCases = [
+      (
+        // Remote tarballs on Swift < 6.0
+        recipe: try createRecipe(swiftVersion: "5.10"),
+        includesHostLLVM: true,
+        includesTargetSwift: true,
+        includesHostSwift: true
+      ),
+      (
+        // Remote tarballs on Swift >= 6.0
+        recipe: try createRecipe(swiftVersion: "6.0"),
+        includesHostLLVM: false,
+        includesTargetSwift: true,
+        includesHostSwift: true
+      ),
+      (
+        // Remote target tarball with preinstalled toolchain
+        recipe: try createRecipe(swiftVersion: "5.9", includeHostToolchain: false),
+        includesHostLLVM: false,
+        includesTargetSwift: true,
+        includesHostSwift: false
+      ),
+      (
+        // Local packages with Swift < 6.0
+        recipe: try createRecipe(
+          swiftVersion: "5.10",
+          hostSwiftPackagePath: "/path/to/host/swift",
+          targetSwiftPackagePath: "/path/to/target/swift"
+        ),
+        includesHostLLVM: true,
+        includesTargetSwift: false,
+        includesHostSwift: false
+      ),
+      (
+        // Local packages with Swift >= 6.0
+        recipe: try createRecipe(
+          swiftVersion: "6.0",
+          hostSwiftPackagePath: "/path/to/host/swift",
+          targetSwiftPackagePath: "/path/to/target/swift"
+        ),
+        includesHostLLVM: false,
+        includesTargetSwift: false,
+        includesHostSwift: false
+      )
+    ]
+
+    for testCase in testCases {
+      let pathsConfiguration = PathsConfiguration(
+        sourceRoot: ".",
+        artifactID: "my-sdk",
+        targetTriple: testCase.recipe.mainTargetTriple
+      )
+      let downloadableArtifacts = try DownloadableArtifacts(
+        hostTriple: testCase.recipe.mainHostTriple,
+        targetTriple: testCase.recipe.mainTargetTriple,
+        testCase.recipe.versionsConfiguration,
+        pathsConfiguration
+      )
+      let itemsToDownload = testCase.recipe.itemsToDownload(from: downloadableArtifacts)
+      let foundHostLLVM = itemsToDownload.contains(where: { $0.remoteURL == downloadableArtifacts.hostLLVM.remoteURL })
+      let foundTargetSwift = itemsToDownload.contains(where: { $0.remoteURL == downloadableArtifacts.targetSwift.remoteURL })
+      let foundHostSwift = itemsToDownload.contains(where: { $0.remoteURL == downloadableArtifacts.hostSwift.remoteURL })
+
+      XCTAssertEqual(foundHostLLVM, testCase.includesHostLLVM)
+      XCTAssertEqual(foundTargetSwift, testCase.includesTargetSwift)
+      XCTAssertEqual(foundHostSwift, testCase.includesHostSwift)
+    }
+  }
+
+  func testHostTriples() throws {
+    let allHostTriples = [
+      Triple("x86_64-unknown-linux-gnu"),
+      Triple("aarch64-unknown-linux-gnu"),
+      Triple("x86_64-apple-macos"),
+      Triple("arm64-apple-macos"),
+    ]
+    let testCases = [
+      (swiftVersion: "5.9", includeHostToolchain: false, expectedHostTriples: allHostTriples),
+      (swiftVersion: "5.10", includeHostToolchain: false, expectedHostTriples: allHostTriples),
+      (swiftVersion: "6.0", includeHostToolchain: false, expectedHostTriples: nil),
+      (swiftVersion: "6.0", includeHostToolchain: true, expectedHostTriples: [Triple("x86_64-unknown-linux-gnu")])
+    ]
+
+    for testCase in testCases {
+      let recipe = try createRecipe(
+        swiftVersion: testCase.swiftVersion,
+        includeHostToolchain: testCase.includeHostToolchain
+      )
+      XCTAssertEqual(recipe.hostTriples, testCase.expectedHostTriples)
+    }
+  }
+}

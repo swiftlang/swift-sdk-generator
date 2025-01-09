@@ -11,15 +11,19 @@
 //===----------------------------------------------------------------------===//
 
 import Helpers
+
 import struct SystemPackage.FilePath
 
 let unusedDarwinPlatforms = [
-  "watchsimulator",
-  "iphonesimulator",
-  "appletvsimulator",
-  "iphoneos",
-  "watchos",
   "appletvos",
+  "appletvsimulator",
+  "embedded",
+  "iphoneos",
+  "iphonesimulator",
+  "watchos",
+  "watchsimulator",
+  "xros",
+  "xrsimulator",
 ]
 
 let unusedHostBinaries = [
@@ -27,6 +31,7 @@ let unusedHostBinaries = [
   "docc",
   "dsymutil",
   "sourcekit-lsp",
+  "swift-format",
   "swift-package",
   "swift-package-collection",
 ]
@@ -41,11 +46,21 @@ extension SwiftSDKGenerator {
     logGenerationStep("Unpacking and copying Swift binaries for the host triple...")
     let pathsConfiguration = self.pathsConfiguration
 
-    try await inTemporaryDirectory { fileSystem, tmpDir in
-      try await fileSystem.unpack(file: hostSwiftPackagePath, into: tmpDir)
-      try await self.removeToolchainComponents(tmpDir)
-      try await fileSystem.rsync(from: tmpDir.appending("usr"), to: pathsConfiguration.toolchainDirPath)
-    }
+    try self.createDirectoryIfNeeded(at: pathsConfiguration.toolchainDirPath)
+
+    let excludes =
+      unusedDarwinPlatforms.map { "--exclude usr/lib/swift/\($0)" } +
+      unusedDarwinPlatforms.map { "--exclude usr/lib/swift_static/\($0)" } +
+      unusedHostBinaries.map { "--exclude usr/bin/\($0)" } +
+      unusedHostLibraries.map { "--exclude usr/lib/\($0)" }
+
+    try await Shell.run(
+      #"""
+      tar -x --to-stdout -f \#(hostSwiftPackagePath) \*.pkg/Payload |
+      tar -C "\#(pathsConfiguration.toolchainDirPath)" -x \#(excludes.joined(separator: " ")) --include usr
+      """#,
+      shouldLogCommands: isVerbose
+    )
   }
 
   func removeToolchainComponents(
@@ -77,7 +92,7 @@ extension SwiftSDKGenerator {
     try await inTemporaryDirectory { fs, tmpDir in
       try await fs.unpack(file: targetSwiftPackagePath, into: tmpDir)
       try await fs.copyTargetSwift(
-        from: tmpDir.appending(relativePathToRoot).appending("usr/lib"), sdkDirPath: sdkDirPath
+        from: tmpDir.appending(relativePathToRoot).appending("usr"), sdkDirPath: sdkDirPath
       )
     }
   }
@@ -91,16 +106,21 @@ extension SwiftSDKGenerator {
       FilePath.Component(llvmArtifact.localPath.stem!)!.stem
     )
     try self.createDirectoryIfNeeded(at: untarDestination)
-    try await self.untar(
-      file: llvmArtifact.localPath,
-      into: untarDestination,
-      stripComponents: 1
-    )
 
     let unpackedLLDPath: FilePath
     if llvmArtifact.isPrebuilt {
-      unpackedLLDPath = untarDestination.appending("bin/lld")
+      unpackedLLDPath = try await engine[TarExtractQuery(
+        file: llvmArtifact.localPath,
+        into: untarDestination,
+        outputBinarySubpath: ["bin", "lld"],
+        stripComponents: 1
+      )].path
     } else {
+      try await self.untar(
+        file: llvmArtifact.localPath,
+        into: untarDestination,
+        stripComponents: 1
+      )
       unpackedLLDPath = try await engine[CMakeBuildQuery(
         sourcesDirectory: untarDestination,
         outputBinarySubpath: ["bin", "lld"],

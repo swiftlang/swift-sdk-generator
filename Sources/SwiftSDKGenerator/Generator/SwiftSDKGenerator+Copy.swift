@@ -85,11 +85,18 @@ extension SwiftSDKGenerator {
         }
         try await generator.createSymlink(at: sdkDirPath.appending("lib"), pointingTo: "usr/lib")
 
+        // Copy the ELF interpreter
+        try await generator.copyFromDockerContainer(
+            id: containerID,
+            from: FilePath(targetTriple.interpreterPath),
+            to: sdkDirPath.appending(targetTriple.interpreterPath),
+            failIfNotExists: true
+        )
+
         // Python artifacts are redundant.
         try await generator.removeRecursively(at: sdkUsrLibPath.appending("python3.10"))
 
         try await generator.removeRecursively(at: sdkUsrLibPath.appending("ssl"))
-        try await generator.copyTargetSwift(from: sdkUsrLibPath, sdkDirPath: sdkDirPath)
       }
     }
   }
@@ -98,14 +105,22 @@ extension SwiftSDKGenerator {
     logGenerationStep("Copying Swift core libraries for the target triple into Swift SDK bundle...")
 
     for (pathWithinPackage, pathWithinSwiftSDK) in [
-      ("swift/linux", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift")),
-      ("swift_static/linux", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static")),
-      ("swift_static/shims", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static")),
-      ("swift/dispatch", sdkDirPath.appending("usr/include")),
-      ("swift/os", sdkDirPath.appending("usr/include")),
-      ("swift/CoreFoundation", sdkDirPath.appending("usr/include")),
+      ("lib/swift", sdkDirPath.appending("usr/lib")),
+      ("lib/swift_static", sdkDirPath.appending("usr/lib")),
+      ("lib/clang", sdkDirPath.appending("usr/lib")),
+      ("include", sdkDirPath.appending("usr")),
     ] {
       try await rsync(from: distributionPath.appending(pathWithinPackage), to: pathWithinSwiftSDK)
+    }
+  }
+}
+
+extension Triple {
+  var interpreterPath: String {
+    switch self.archName {
+      case "x86_64": return "/lib64/ld-linux-x86-64.so.2"
+      case "aarch64": return "/lib/ld-linux-aarch64.so.1"
+      default: fatalError("unsupported architecture \(self.archName)")
     }
   }
 }

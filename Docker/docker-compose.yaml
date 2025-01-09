@@ -25,7 +25,9 @@ services:
 
   test:
     <<: *common
-    command: /bin/bash -xcl "./Utilities/test.sh $${WARN_AS_ERROR_ARG-} $${SANITIZER_ARG-} $${IMPORT_CHECK_ARG-}"
+    environment:
+      - JENKINS_URL
+    command: /bin/bash -xcl "swift test $${WARN_AS_ERROR_ARG-} $${SANITIZER_ARG-} $${IMPORT_CHECK_ARG-}"
 
   # util
 

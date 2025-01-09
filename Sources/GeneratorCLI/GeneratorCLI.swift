@@ -61,8 +61,8 @@ struct GeneratorCLI: AsyncParsableCommand {
   }
 }
 
-extension Triple.Arch: ExpressibleByArgument {}
-extension Triple: ExpressibleByArgument {
+extension Triple.Arch: ArgumentParser.ExpressibleByArgument {}
+extension Triple: ArgumentParser.ExpressibleByArgument {
   public init?(argument: String) {
     self.init(argument, normalizing: false)
   }
@@ -98,7 +98,7 @@ extension GeneratorCLI {
     var swiftBranch: String? = nil
 
     @Option(help: "Version of Swift to supply in the bundle.")
-    var swiftVersion = "5.10.1-RELEASE"
+    var swiftVersion = "6.0.2-RELEASE"
 
     @Option(
       help: """
@@ -106,6 +106,16 @@ extension GeneratorCLI {
       """
     )
     var hostSwiftPackagePath: String? = nil
+
+    @Flag(
+      inversion: .prefixedNo,
+      help: """
+      Whether or not to include the host toolchain in the Swift SDK.
+      If the host toolchain is not included, this makes the Swift SDK compatible with any host, \
+      but requires exactly the same version of the swift.org toolchain to be installed for it to work.
+      """
+    )
+    var hostToolchain: Bool = true
 
     @Option(
       help: """
@@ -225,7 +235,8 @@ extension GeneratorCLI {
         withDocker: self.withDocker,
         fromContainerImage: self.fromContainerImage,
         hostSwiftPackagePath: self.generatorOptions.hostSwiftPackagePath,
-        targetSwiftPackagePath: self.generatorOptions.targetSwiftPackagePath
+        targetSwiftPackagePath: self.generatorOptions.targetSwiftPackagePath,
+        includeHostToolchain: self.generatorOptions.hostToolchain
       )
       try await GeneratorCLI.run(recipe: recipe, targetTriple: targetTriple, options: self.generatorOptions)
     }
