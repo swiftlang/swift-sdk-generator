@@ -109,13 +109,16 @@ extension SwiftSDKGenerator {
   func copyTargetSwift(from distributionPath: FilePath, sdkDirPath: FilePath) async throws {
     logGenerationStep("Copying Swift core libraries for the target triple into Swift SDK bundle...")
 
-    for (pathWithinPackage, pathWithinSwiftSDK) in [
-      ("lib/swift", sdkDirPath.appending("usr/lib")),
-      ("lib/swift_static", sdkDirPath.appending("usr/lib")),
-      ("lib/clang", sdkDirPath.appending("usr/lib")),
-      ("include", sdkDirPath.appending("usr")),
+    for (pathWithinPackage, pathWithinSwiftSDK, ignoreIfMissing) in [
+      ("lib/swift", sdkDirPath.appending("usr/lib"), false),
+      ("lib/swift_static", sdkDirPath.appending("usr/lib"), false),
+      ("lib/clang", sdkDirPath.appending("usr/lib"), true),
+      ("include", sdkDirPath.appending("usr"), false),
     ] {
-      try await rsync(from: distributionPath.appending(pathWithinPackage), to: pathWithinSwiftSDK)
+      try await rsync(
+        from: distributionPath.appending(pathWithinPackage),
+        to: pathWithinSwiftSDK, ignoreIfMissing: ignoreIfMissing
+      )
     }
   }
 }
