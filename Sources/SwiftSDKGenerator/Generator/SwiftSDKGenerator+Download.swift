@@ -57,9 +57,9 @@ extension SwiftSDKGenerator {
       return result
     }
 
-    print("Using downloaded artifacts in these locations:")
+    logger.info("Using downloaded artifacts in these locations:")
     for path in results.map(\.path) {
-      print(path)
+      logger.info("\(path)")
     }
   }
 
@@ -108,12 +108,13 @@ extension SwiftSDKGenerator {
       )
     }
 
-    print("Downloading \(urls.count) Ubuntu packages...")
+    logger.info("Downloading \(urls.count) Ubuntu packages...")
     try await inTemporaryDirectory { fs, tmpDir in
       let downloadedFiles = try await self.downloadFiles(from: urls, to: tmpDir, client, engine)
-      report(downloadedFiles: downloadedFiles)
+      await report(downloadedFiles: downloadedFiles)
 
       for fileName in urls.map(\.lastPathComponent) {
+        logger.info("Extracting \(fileName)...")
         try await fs.unpack(file: tmpDir.appending(fileName), into: sdkDirPath)
       }
     }
@@ -148,13 +149,13 @@ extension SwiftSDKGenerator {
       return result
     }
   }
-}
 
-private func report(downloadedFiles: [(URL, UInt64)]) {
-  let byteCountFormatter = ByteCountFormatter()
+  private func report(downloadedFiles: [(URL, UInt64)]) {
+    let byteCountFormatter = ByteCountFormatter()
 
-  for (url, bytes) in downloadedFiles {
-    print("\(url) – \(byteCountFormatter.string(fromByteCount: Int64(bytes)))")
+    for (url, bytes) in downloadedFiles {
+      logger.info("\(url) – \(byteCountFormatter.string(fromByteCount: Int64(bytes)))")
+    }
   }
 }
 

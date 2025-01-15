@@ -253,7 +253,10 @@ public actor SwiftSDKGenerator {
     let isVerbose = self.isVerbose
     try await self.inTemporaryDirectory { _, tmp in
       try await Shell.run(#"cd "\#(tmp)" && ar -x "\#(debFile)""#, shouldLogCommands: isVerbose)
-      try await print(Shell.readStdout("ls \(tmp)"))
+      if isVerbose {
+        let lsOutput = try await Shell.readStdout("ls \(tmp)")
+        logger.info("\(lsOutput)")
+      }
 
       try await Shell.run(
         #"tar -C "\#(directoryPath)" -xf "\#(tmp)"/data.tar.*"#,
