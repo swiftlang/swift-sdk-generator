@@ -49,9 +49,13 @@ extension SwiftSDKGenerator {
   }
 
   func symlinkClangHeaders() throws {
-    try self.createSymlink(
-      at: self.pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static/clang"),
-      pointingTo: "../swift/clang"
-    )
+    let swiftStaticClangPath = self.pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static/clang")
+    if !doesFileExist(at: swiftStaticClangPath) {
+      logGenerationStep("Symlinking clang headers...")
+      try self.createSymlink(
+        at: self.pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static/clang"),
+        pointingTo: "../swift/clang"
+      )
+    }
   }
 }

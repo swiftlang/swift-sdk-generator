@@ -164,7 +164,9 @@ public struct LinuxRecipe: SwiftSDKRecipe {
 
   func itemsToDownload(from artifacts: DownloadableArtifacts) -> [DownloadableArtifacts.Item] {
     var items: [DownloadableArtifacts.Item] = []
-    if self.hostSwiftSource != .preinstalled && !self.versionsConfiguration.swiftVersion.hasPrefix("6.0") {
+    if self.hostSwiftSource != .preinstalled
+      && self.mainHostTriple.os != .linux
+      && !self.versionsConfiguration.swiftVersion.hasPrefix("6.0") {
       items.append(artifacts.hostLLVM)
     }
 
@@ -279,12 +281,12 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     try await generator.fixAbsoluteSymlinks(sdkDirPath: sdkDirPath)
 
     if self.hostSwiftSource != .preinstalled {
-      if !self.versionsConfiguration.swiftVersion.hasPrefix("6.0") {
+      if self.mainHostTriple.os != .linux && !self.versionsConfiguration.swiftVersion.hasPrefix("6.0") {
         try await generator.prepareLLDLinker(engine, llvmArtifact: downloadableArtifacts.hostLLVM)
       }
 
       if self.versionsConfiguration.swiftVersion.hasPrefix("5.9") ||
-          self.versionsConfiguration.swiftVersion .hasPrefix("5.10") {
+          self.versionsConfiguration.swiftVersion.hasPrefix("5.10") {
         try await generator.symlinkClangHeaders()
       }
 

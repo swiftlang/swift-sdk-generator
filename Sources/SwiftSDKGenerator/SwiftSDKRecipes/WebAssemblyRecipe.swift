@@ -115,7 +115,7 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
       }()
       try await generator.removeToolchainComponents(
         pathsConfiguration.toolchainDirPath,
-        platforms: unusedDarwinPlatforms + ["embedded"],
+        platforms: unusedTargetPlatforms,
         libraries: unusedHostLibraries + liblldbNames,
         binaries: unusedHostBinaries + ["lldb", "lldb-argdumper", "lldb-server"]
       )
