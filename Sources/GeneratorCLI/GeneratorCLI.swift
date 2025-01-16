@@ -59,7 +59,7 @@ struct GeneratorCLI: AsyncParsableCommand {
     }
 
     logger.info("")
-    logger.info("Time taken for this generator run: \(elapsed.intervalString).")
+    logger.info("Generator run finished successfully.", metadata: ["elapsedTime": .string(elapsed.intervalString)])
   }
 }
 
