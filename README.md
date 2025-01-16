@@ -37,13 +37,16 @@ Linux distributions officially supported by the Swift project.
 | -:             | :-                        | :-                          |
 | macOS (arm64)  | ✅ macOS 13.0+            | ❌                         |
 | macOS (x86_64) | ✅ macOS 13.0+[^1]        | ❌                         |
-| Ubuntu         | ⚠️ (WIP)                  | ✅ 20.04 / 22.04           |
-| RHEL           | ⚠️ (WIP)                  | ✅ UBI 9                   |
-
+| Ubuntu         | ✅ 20.04+                 | ✅ 20.04 / 22.04           |
+| RHEL           | ✅ Fedora 39[^2], UBI 9   | ✅ UBI 9                   |
+| Amazon Linux 2 | ✅ Supported              | ✅ Supported[^3]           |
+| Debian 12      | ✅ Supported[^2]          | ✅ Supported[^2][^3]       |
 
 [^1]: Since LLVM project doesn't provide pre-built binaries of `lld` for macOS on x86_64, it will be automatically built
 from sources by the generator, which will increase its run by at least 15 minutes on recent hardware. You will also
 need CMake and Ninja preinstalled (e.g. via `brew install cmake ninja`).
+[^2]: These distributions are only supported by Swift 5.10.1 and later as both host and target platforms.
+[^3]: These versions are technically supported but require custom commands and a Docker container to build the Swift SDK, as the generator will not download dependencies for these distributions automatically. See [issue #138](https://github.com/swiftlang/swift-sdk-generator/issues/138).
 
 ## How to use it
 

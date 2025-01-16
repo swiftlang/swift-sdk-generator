@@ -14,7 +14,7 @@ import Helpers
 
 import struct SystemPackage.FilePath
 
-let unusedDarwinPlatforms = [
+let unusedTargetPlatforms = [
   "appletvos",
   "appletvsimulator",
   "embedded",
@@ -34,11 +34,13 @@ let unusedHostBinaries = [
   "swift-format",
   "swift-package",
   "swift-package-collection",
+  "lldb*",
 ]
 
 let unusedHostLibraries = [
   "sourcekitd.framework",
   "libsourcekitdInProc.so",
+  "liblldb.so*",
 ]
 
 extension SwiftSDKGenerator {
@@ -49,23 +51,32 @@ extension SwiftSDKGenerator {
     try self.createDirectoryIfNeeded(at: pathsConfiguration.toolchainDirPath)
 
     let excludes =
-      unusedDarwinPlatforms.map { "--exclude usr/lib/swift/\($0)" } +
-      unusedDarwinPlatforms.map { "--exclude usr/lib/swift_static/\($0)" } +
+      unusedTargetPlatforms.map { "--exclude usr/lib/swift/\($0)" } +
+      unusedTargetPlatforms.map { "--exclude usr/lib/swift_static/\($0)" } +
       unusedHostBinaries.map { "--exclude usr/bin/\($0)" } +
       unusedHostLibraries.map { "--exclude usr/lib/\($0)" }
 
-    try await Shell.run(
-      #"""
-      tar -x --to-stdout -f \#(hostSwiftPackagePath) \*.pkg/Payload |
-      tar -C "\#(pathsConfiguration.toolchainDirPath)" -x \#(excludes.joined(separator: " ")) --include usr
-      """#,
-      shouldLogCommands: isVerbose
-    )
+    if hostSwiftPackagePath.string.contains("tar.gz") {
+      try await Shell.run(
+        #"""
+        tar -xzf \#(hostSwiftPackagePath) -C "\#(pathsConfiguration.toolchainDirPath)" -x \#(excludes.joined(separator: " ")) --strip-components=1
+        """#,
+        shouldLogCommands: isVerbose
+      )
+    } else {
+      try await Shell.run(
+        #"""
+        tar -x --to-stdout -f \#(hostSwiftPackagePath) \*.pkg/Payload |
+        tar -C "\#(pathsConfiguration.toolchainDirPath)" -x \#(excludes.joined(separator: " ")) --include usr
+        """#,
+        shouldLogCommands: isVerbose
+      )
+    }
   }
 
   func removeToolchainComponents(
     _ packagePath: FilePath,
-    platforms: [String] = unusedDarwinPlatforms,
+    platforms: [String] = unusedTargetPlatforms,
     libraries: [String] = unusedHostLibraries,
     binaries: [String] = unusedHostBinaries
   ) async throws {
