@@ -22,7 +22,7 @@ private let encoder: JSONEncoder = {
 
 extension SwiftSDKGenerator {
   func generateToolsetJSON(recipe: SwiftSDKRecipe) throws -> FilePath {
-    logGenerationStep("Generating toolset JSON file...")
+    logger.logGenerationStep("Generating toolset JSON file...")
 
     let toolsetJSONPath = pathsConfiguration.swiftSDKRootPath.appending("toolset.json")
 
@@ -44,7 +44,7 @@ extension SwiftSDKGenerator {
   }
 
   func generateDestinationJSON(toolsetPath: FilePath, sdkDirPath: FilePath, recipe: SwiftSDKRecipe) throws {
-    logGenerationStep("Generating destination JSON file...")
+    logger.logGenerationStep("Generating destination JSON file...")
 
     let destinationJSONPath = pathsConfiguration.swiftSDKRootPath.appending("swift-sdk.json")
 
@@ -87,7 +87,7 @@ extension SwiftSDKGenerator {
   }
 
   func generateArtifactBundleManifest(hostTriples: [Triple]?) throws {
-    logGenerationStep("Generating .artifactbundle manifest file...")
+    logger.logGenerationStep("Generating .artifactbundle manifest file...")
 
     let artifactBundleManifestPath = pathsConfiguration.artifactBundlePath.appending("info.json")
 

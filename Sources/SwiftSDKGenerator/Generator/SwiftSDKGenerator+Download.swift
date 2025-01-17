@@ -29,7 +29,7 @@ extension SwiftSDKGenerator {
     downloadableArtifacts: inout DownloadableArtifacts,
     itemsToDownload: @Sendable (DownloadableArtifacts) -> [DownloadableArtifacts.Item]
   ) async throws {
-    logGenerationStep("Downloading required toolchain packages...")
+    logger.logGenerationStep("Downloading required toolchain packages...")
     let hostLLVMURL = downloadableArtifacts.hostLLVM.remoteURL
     // Workaround an issue with github.com returning 400 instead of 404 status to HEAD requests from AHC.
     let isLLVMBinaryArtifactAvailable = try await type(of: client).with(http1Only: true) {
@@ -70,7 +70,7 @@ extension SwiftSDKGenerator {
     versionsConfiguration: VersionsConfiguration,
     sdkDirPath: FilePath
   ) async throws {
-    logGenerationStep("Parsing Ubuntu packages list...")
+    logger.logGenerationStep("Parsing Ubuntu packages list...")
 
     async let mainPackages = try await client.parseUbuntuPackagesList(
       ubuntuRelease: versionsConfiguration.linuxDistribution.release,

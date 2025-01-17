@@ -58,8 +58,7 @@ struct GeneratorCLI: AsyncParsableCommand {
       try await generatorTask.value
     }
 
-    logger.info("")
-    logger.info("Generator run finished successfully.", metadata: ["elapsedTime": .string(elapsed.intervalString)])
+    logger.info("\nGenerator run finished successfully.", metadata: ["elapsedTime": .string(elapsed.intervalString)])
   }
 }
 
@@ -238,7 +237,8 @@ extension GeneratorCLI {
         fromContainerImage: self.fromContainerImage,
         hostSwiftPackagePath: self.generatorOptions.hostSwiftPackagePath,
         targetSwiftPackagePath: self.generatorOptions.targetSwiftPackagePath,
-        includeHostToolchain: self.generatorOptions.hostToolchain
+        includeHostToolchain: self.generatorOptions.hostToolchain,
+        logger: logger
       )
       try await GeneratorCLI.run(recipe: recipe, targetTriple: targetTriple, options: self.generatorOptions)
     }
@@ -292,7 +292,8 @@ extension GeneratorCLI {
         },
         targetSwiftPackagePath: FilePath(targetSwiftPackagePath),
         wasiSysroot: FilePath(self.wasiSysroot),
-        swiftVersion: self.generatorOptions.swiftVersion
+        swiftVersion: self.generatorOptions.swiftVersion,
+        logger: logger
       )
       let targetTriple = self.deriveTargetTriple()
       try await GeneratorCLI.run(recipe: recipe, targetTriple: targetTriple, options: self.generatorOptions)

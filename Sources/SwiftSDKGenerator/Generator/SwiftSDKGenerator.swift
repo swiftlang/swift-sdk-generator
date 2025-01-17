@@ -34,8 +34,6 @@ public actor SwiftSDKGenerator {
     isVerbose: Bool,
     logger: Logger
   ) async throws {
-    logGenerationStep("Looking up configuration values...")
-
     let sourceRoot = FilePath(#filePath)
       .removingLastComponent()
       .removingLastComponent()

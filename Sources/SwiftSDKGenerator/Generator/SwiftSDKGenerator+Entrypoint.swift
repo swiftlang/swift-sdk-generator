@@ -59,7 +59,7 @@ public extension SwiftSDKGenerator {
 
         try await generateArtifactBundleManifest(hostTriples: swiftSDKProduct.hostTriples)
 
-        logGenerationStep(
+        logger.logGenerationStep(
           """
           All done! Install the newly generated SDK with this command:
           swift experimental-sdk install \(pathsConfiguration.artifactBundlePath)
@@ -71,8 +71,4 @@ public extension SwiftSDKGenerator {
       }
     }
   }
-}
-
-func logGenerationStep(_ message: String) {
-  print("\n\(message)")
 }
