@@ -58,7 +58,7 @@ struct GeneratorCLI: AsyncParsableCommand {
       try await generatorTask.value
     }
 
-    logger.info("\nGenerator run finished successfully.", metadata: ["elapsedTime": .string(elapsed.intervalString)])
+    logger.info("Generator run finished successfully.", metadata: ["elapsedTime": .string(elapsed.intervalString)])
   }
 }
 

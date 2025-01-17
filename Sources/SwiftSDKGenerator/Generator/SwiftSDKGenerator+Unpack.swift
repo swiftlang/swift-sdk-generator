@@ -45,7 +45,7 @@ let unusedHostLibraries = [
 
 extension SwiftSDKGenerator {
   func unpackHostSwift(hostSwiftPackagePath: FilePath) async throws {
-    logger.logGenerationStep("Unpacking and copying Swift binaries for the host triple...")
+    logger.info("Unpacking and copying Swift binaries for the host triple...")
     let pathsConfiguration = self.pathsConfiguration
 
     try self.createDirectoryIfNeeded(at: pathsConfiguration.toolchainDirPath)
@@ -98,7 +98,7 @@ extension SwiftSDKGenerator {
     relativePathToRoot: [FilePath.Component],
     sdkDirPath: FilePath
   ) async throws {
-    logger.logGenerationStep("Unpacking Swift distribution for the target triple...")
+    logger.info("Unpacking Swift distribution for the target triple...")
 
     try await inTemporaryDirectory { fs, tmpDir in
       try await fs.unpack(file: targetSwiftPackagePath, into: tmpDir)
@@ -109,7 +109,7 @@ extension SwiftSDKGenerator {
   }
 
   func prepareLLDLinker(_ engine: QueryEngine, llvmArtifact: DownloadableArtifacts.Item) async throws {
-    logger.logGenerationStep("Unpacking and copying `lld` linker...")
+    logger.info("Unpacking and copying `lld` linker...")
     let pathsConfiguration = self.pathsConfiguration
     let targetOS = self.targetTriple.os
 

@@ -299,7 +299,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       let autolinkExtractPath = generator.pathsConfiguration.toolchainBinDirPath.appending("swift-autolink-extract")
 
       if await !generator.doesFileExist(at: autolinkExtractPath) {
-        logger.logGenerationStep("Fixing `swift-autolink-extract` symlink...")
+        logger.info("Fixing `swift-autolink-extract` symlink...")
         try await generator.createSymlink(at: autolinkExtractPath, pointingTo: "swift")
       }
     }

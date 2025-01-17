@@ -17,7 +17,7 @@ import struct Foundation.Data
 
 extension SwiftSDKGenerator {
   func fixAbsoluteSymlinks(sdkDirPath: FilePath) throws {
-    logger.logGenerationStep("Fixing up absolute symlinks...")
+    logger.info("Fixing up absolute symlinks...")
 
     for (source, absoluteDestination) in try findSymlinks(at: sdkDirPath).filter({
       $1.string.hasPrefix("/")
@@ -51,7 +51,7 @@ extension SwiftSDKGenerator {
   func symlinkClangHeaders() throws {
     let swiftStaticClangPath = self.pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static/clang")
     if !doesFileExist(at: swiftStaticClangPath) {
-      logger.logGenerationStep("Symlinking clang headers...")
+      logger.info("Symlinking clang headers...")
       try self.createSymlink(
         at: self.pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static/clang"),
         pointingTo: "../swift/clang"

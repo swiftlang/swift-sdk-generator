@@ -254,7 +254,7 @@ public actor SwiftSDKGenerator {
       if isVerbose {
         let cmd = "ls \(tmp)"
         let lsOutput = try await Shell.readStdout(cmd)
-        logger.info("\(lsOutput)", metadata: ["cmd": .string(cmd)])
+        logger.debug("\(lsOutput)", metadata: ["cmd": .string(cmd)])
       }
 
       try await Shell.run(

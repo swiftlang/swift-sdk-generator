@@ -29,7 +29,7 @@ extension SwiftSDKGenerator {
     downloadableArtifacts: inout DownloadableArtifacts,
     itemsToDownload: @Sendable (DownloadableArtifacts) -> [DownloadableArtifacts.Item]
   ) async throws {
-    logger.logGenerationStep("Downloading required toolchain packages...")
+    logger.info("Downloading required toolchain packages...")
     let hostLLVMURL = downloadableArtifacts.hostLLVM.remoteURL
     // Workaround an issue with github.com returning 400 instead of 404 status to HEAD requests from AHC.
     let isLLVMBinaryArtifactAvailable = try await type(of: client).with(http1Only: true) {
@@ -57,9 +57,13 @@ extension SwiftSDKGenerator {
       return result
     }
 
-    logger.info("Using downloaded artifacts in these locations:")
-    for path in results.map(\.path) {
-      logger.info("-", metadata: ["path": .string(path.string)])
+    if isVerbose {
+      logger.debug("Using downloaded artifacts in these locations:")
+      for path in results.map(\.path) {
+        logger.debug("-", metadata: ["path": .string(path.string)])
+      }
+    } else {
+      logger.info("Using downloaded artifacts from cache")
     }
   }
 
@@ -70,7 +74,7 @@ extension SwiftSDKGenerator {
     versionsConfiguration: VersionsConfiguration,
     sdkDirPath: FilePath
   ) async throws {
-    logger.logGenerationStep("Parsing Ubuntu packages list...")
+    logger.debug("Parsing Ubuntu packages list...")
 
     async let mainPackages = try await client.parseUbuntuPackagesList(
       ubuntuRelease: versionsConfiguration.linuxDistribution.release,
@@ -114,7 +118,7 @@ extension SwiftSDKGenerator {
       await report(downloadedFiles: downloadedFiles)
 
       for fileName in urls.map(\.lastPathComponent) {
-        logger.info("Extracting deb package...", metadata: ["fileName": .string(fileName)])
+        logger.debug("Extracting deb package...", metadata: ["fileName": .string(fileName)])
         try await fs.unpack(file: tmpDir.appending(fileName), into: sdkDirPath)
       }
     }
@@ -154,7 +158,7 @@ extension SwiftSDKGenerator {
     let byteCountFormatter = ByteCountFormatter()
 
     for (url, bytes) in downloadedFiles {
-      logger.info("Downloaded", metadata: [
+      logger.debug("Downloaded package", metadata: [
         "url": .string(url.absoluteString),
         "size": .string(byteCountFormatter.string(fromByteCount: Int64(bytes)))
       ])
