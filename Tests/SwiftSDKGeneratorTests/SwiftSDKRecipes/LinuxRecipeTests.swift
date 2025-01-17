@@ -10,11 +10,14 @@
 //
 //===----------------------------------------------------------------------===//
 
+import Logging
 import XCTest
 
 @testable import SwiftSDKGenerator
 
 final class LinuxRecipeTests: XCTestCase {
+  let logger = Logger(label: "LinuxRecipeTests")
+
   func createRecipe(
     hostTriple: Triple = Triple("x86_64-unknown-linux-gnu"),
     swiftVersion: String = "6.0",
@@ -33,7 +36,8 @@ final class LinuxRecipeTests: XCTestCase {
       withDocker: withDocker, fromContainerImage: fromContainerImage,
       hostSwiftPackagePath: hostSwiftPackagePath,
       targetSwiftPackagePath: targetSwiftPackagePath,
-      includeHostToolchain: includeHostToolchain
+      includeHostToolchain: includeHostToolchain,
+      logger: logger
     )
   }
 

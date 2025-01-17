@@ -29,7 +29,7 @@ extension SwiftSDKGenerator {
     downloadableArtifacts: inout DownloadableArtifacts,
     itemsToDownload: @Sendable (DownloadableArtifacts) -> [DownloadableArtifacts.Item]
   ) async throws {
-    logGenerationStep("Downloading required toolchain packages...")
+    logger.info("Downloading required toolchain packages...")
     let hostLLVMURL = downloadableArtifacts.hostLLVM.remoteURL
     // Workaround an issue with github.com returning 400 instead of 404 status to HEAD requests from AHC.
     let isLLVMBinaryArtifactAvailable = try await type(of: client).with(http1Only: true) {
@@ -57,9 +57,13 @@ extension SwiftSDKGenerator {
       return result
     }
 
-    print("Using downloaded artifacts in these locations:")
-    for path in results.map(\.path) {
-      print(path)
+    if isVerbose {
+      logger.debug("Using downloaded artifacts in these locations:")
+      for path in results.map(\.path) {
+        logger.debug("-", metadata: ["path": .string(path.string)])
+      }
+    } else {
+      logger.info("Using downloaded artifacts from cache")
     }
   }
 
@@ -70,7 +74,7 @@ extension SwiftSDKGenerator {
     versionsConfiguration: VersionsConfiguration,
     sdkDirPath: FilePath
   ) async throws {
-    logGenerationStep("Parsing Ubuntu packages list...")
+    logger.debug("Parsing Ubuntu packages list...")
 
     async let mainPackages = try await client.parseUbuntuPackagesList(
       ubuntuRelease: versionsConfiguration.linuxDistribution.release,
@@ -108,12 +112,13 @@ extension SwiftSDKGenerator {
       )
     }
 
-    print("Downloading \(urls.count) Ubuntu packages...")
+    logger.info("Downloading Ubuntu packages...", metadata: ["packageCount": .stringConvertible(urls.count)])
     try await inTemporaryDirectory { fs, tmpDir in
       let downloadedFiles = try await self.downloadFiles(from: urls, to: tmpDir, client, engine)
-      report(downloadedFiles: downloadedFiles)
+      await report(downloadedFiles: downloadedFiles)
 
       for fileName in urls.map(\.lastPathComponent) {
+        logger.debug("Extracting deb package...", metadata: ["fileName": .string(fileName)])
         try await fs.unpack(file: tmpDir.appending(fileName), into: sdkDirPath)
       }
     }
@@ -148,13 +153,16 @@ extension SwiftSDKGenerator {
       return result
     }
   }
-}
 
-private func report(downloadedFiles: [(URL, UInt64)]) {
-  let byteCountFormatter = ByteCountFormatter()
+  private func report(downloadedFiles: [(URL, UInt64)]) {
+    let byteCountFormatter = ByteCountFormatter()
 
-  for (url, bytes) in downloadedFiles {
-    print("\(url) – \(byteCountFormatter.string(fromByteCount: Int64(bytes)))")
+    for (url, bytes) in downloadedFiles {
+      logger.debug("Downloaded package", metadata: [
+        "url": .string(url.absoluteString),
+        "size": .string(byteCountFormatter.string(fromByteCount: Int64(bytes)))
+      ])
+    }
   }
 }
 
