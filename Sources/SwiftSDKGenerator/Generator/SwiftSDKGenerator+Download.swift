@@ -46,7 +46,7 @@ extension SwiftSDKGenerator {
     let results = try await withThrowingTaskGroup(of: FileCacheRecord.self) { group in
       for item in itemsToDownload(downloadableArtifacts) {
         group.addTask {
-          try await engine[DownloadArtifactQuery(artifact: item, httpClient: client)]
+          try await engine[DownloadArtifactQuery(artifact: item, httpClient: client, logger: self.logger)]
         }
       }
 
