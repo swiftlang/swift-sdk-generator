@@ -363,7 +363,7 @@ final class Swift510_UbuntuEndToEndTests: XCTestCase {
 
 final class Swift60_UbuntuEndToEndTests: XCTestCase {
   let config = SDKConfiguration(
-    swiftVersion: "6.0.2",
+    swiftVersion: "6.0.3",
     linuxDistributionName: "ubuntu",
     architecture: "aarch64",
     withDocker: false
@@ -430,7 +430,7 @@ final class Swift510_RHELEndToEndTests: XCTestCase {
 
 final class Swift60_RHELEndToEndTests: XCTestCase {
   let config = SDKConfiguration(
-    swiftVersion: "6.0.2",
+    swiftVersion: "6.0.3",
     linuxDistributionName: "rhel",
     architecture: "aarch64",
     withDocker: true  // RHEL-based SDKs can only be built from containers
