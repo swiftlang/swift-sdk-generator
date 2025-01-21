@@ -57,13 +57,10 @@ extension SwiftSDKGenerator {
       return result
     }
 
-    if isVerbose {
-      logger.debug("Using downloaded artifacts in these locations:")
-      for path in results.map(\.path) {
-        logger.debug("-", metadata: ["path": .string(path.string)])
-      }
-    } else {
-      logger.info("Using downloaded artifacts from cache")
+    logger.info("Using downloaded artifacts from cache")
+    logger.debug("Using downloaded artifacts in these locations:")
+    for path in results.map(\.path) {
+      logger.debug("-", metadata: ["path": .string(path.string)])
     }
   }
 
