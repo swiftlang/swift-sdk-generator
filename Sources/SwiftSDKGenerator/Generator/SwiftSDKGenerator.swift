@@ -254,7 +254,7 @@ public actor SwiftSDKGenerator {
       if isVerbose {
         let cmd = "ls \(tmp)"
         let lsOutput = try await Shell.readStdout(cmd)
-        logger.debug("", metadata: ["cmd": .string(cmd), "output": .string(lsOutput)])
+        logger.debug("Files unpacked from deb file", metadata: ["cmd": .string(cmd), "output": .string(lsOutput)])
       }
 
       try await Shell.run(
