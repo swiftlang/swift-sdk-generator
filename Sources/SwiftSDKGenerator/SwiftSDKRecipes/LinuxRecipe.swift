@@ -152,7 +152,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       self.linuxDistribution
         .release
     )_\(
-      self.mainTargetTriple.arch!.linuxConventionName
+      self.mainTargetTriple.archName
     )
     """
   }
