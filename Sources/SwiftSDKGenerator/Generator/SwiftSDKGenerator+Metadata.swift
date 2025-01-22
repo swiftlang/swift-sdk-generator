@@ -16,7 +16,7 @@ import class Foundation.JSONEncoder
 
 private let encoder: JSONEncoder = {
   let encoder = JSONEncoder()
-  encoder.outputFormatting = [.prettyPrinted, .withoutEscapingSlashes]
+  encoder.outputFormatting = [.prettyPrinted, .withoutEscapingSlashes, .sortedKeys]
   return encoder
 }()
 
