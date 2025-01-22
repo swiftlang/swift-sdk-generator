@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 import AsyncAlgorithms
+import Logging
 import Helpers
 import RegexBuilder
 
@@ -22,6 +23,12 @@ import struct SystemPackage.FilePath
 
 private let ubuntuAMD64Mirror = "http://gb.archive.ubuntu.com/ubuntu"
 private let ubuntuARM64Mirror = "http://ports.ubuntu.com/ubuntu-ports"
+
+extension FilePath {
+  var metadataValue: Logger.MetadataValue {
+    .string(self.string)
+  }
+}
 
 extension SwiftSDKGenerator {
   func downloadArtifacts(
@@ -58,10 +65,9 @@ extension SwiftSDKGenerator {
     }
 
     logger.info("Using downloaded artifacts from cache")
-    logger.debug("Using downloaded artifacts in these locations:")
-    for path in results.map(\.path) {
-      logger.debug("-", metadata: ["path": .string(path.string)])
-    }
+    logger.debug("Using downloaded artifacts in these locations.", metadata: [
+      "paths": .array(results.map(\.path.metadataValue))
+    ])
   }
 
   func downloadUbuntuPackages(
