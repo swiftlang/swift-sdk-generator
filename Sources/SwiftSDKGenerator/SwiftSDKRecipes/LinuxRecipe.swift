@@ -66,7 +66,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     if let targetSwiftPackagePath {
       targetSwiftSource = .localPackage(FilePath(targetSwiftPackagePath))
     } else {
-      if withDocker {
+      if withDocker || fromContainerImage != nil {
         let imageName = fromContainerImage ?? versionsConfiguration.swiftBaseDockerImage
         targetSwiftSource = .docker(baseSwiftDockerImage: imageName)
       } else {
