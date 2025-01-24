@@ -125,7 +125,7 @@ swift run swift-sdk-generator make-linux-sdk --with-docker --linux-distribution-
 You can also specify the base container image by name:
 
 ```
-swift run swift-sdk-generator make-linux-sdk --with-docker --from-container-image swift:5.9-jammy
+swift run swift-sdk-generator make-linux-sdk --from-container-image swift:5.9-jammy
 ```
 
 ```
