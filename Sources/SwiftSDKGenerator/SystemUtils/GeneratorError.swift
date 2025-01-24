@@ -22,6 +22,7 @@ enum GeneratorError: Error {
   case unknownCPUArchitecture(String)
   case unknownLLDVersion(String)
   case distributionSupportsOnlyDockerGenerator(LinuxDistribution)
+  case distributionDoesNotSupportArchitecture(LinuxDistribution, targetArchName: String)
   case fileDoesNotExist(FilePath)
   case fileDownloadFailed(URL, String)
   case ubuntuPackagesDecompressionFailure
@@ -49,6 +50,10 @@ extension GeneratorError: CustomStringConvertible {
       return """
       Target Linux distribution \(linuxDistribution) supports Swift SDK generation only when `--with-docker` flag is \
       passed.
+      """
+    case let .distributionDoesNotSupportArchitecture(linuxDistribution, targetArchName):
+      return """
+      Target Linux distribution \(linuxDistribution) does not support the target architecture: \(targetArchName)
       """
     case let .fileDoesNotExist(filePath):
       return "Expected to find a file at path `\(filePath)`."
