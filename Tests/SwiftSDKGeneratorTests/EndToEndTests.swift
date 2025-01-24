@@ -124,7 +124,7 @@ final class RepeatedBuildTests: XCTestCase {
 
     // Test that an existing SDK can be rebuilt without cleaning up.
     // Test with no arguments by default:
-    var possibleArguments = [""]
+    var possibleArguments = ["--host-toolchain"]
     do {
       try await Shell.run("docker ps")
       possibleArguments.append("--with-docker --linux-distribution-name rhel --linux-distribution-version ubi9")
@@ -176,6 +176,7 @@ struct SDKConfiguration {
   var sdkGeneratorArguments: String {
     return [
       "--sdk-name \(bundleName)",
+      "--host-toolchain",
       withDocker ? "--with-docker" : nil,
       "--swift-version \(swiftVersion)-RELEASE",
       testLinuxSwiftSDKs ? "--host \(hostArch!)-unknown-linux-gnu" : nil,
