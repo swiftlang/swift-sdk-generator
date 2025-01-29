@@ -224,12 +224,14 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       generator.pathsConfiguration
     )
 
-    try await generator.downloadArtifacts(
-      client,
-      engine,
-      downloadableArtifacts: &downloadableArtifacts,
-      itemsToDownload: { artifacts in itemsToDownload(from: artifacts) }
-    )
+    if hostSwiftSource != .preinstalled {
+        try await generator.downloadArtifacts(
+          client,
+          engine,
+          downloadableArtifacts: &downloadableArtifacts,
+          itemsToDownload: { artifacts in itemsToDownload(from: artifacts) }
+        )
+    }
 
     if !self.shouldUseDocker {
       guard case let .ubuntu(version) = linuxDistribution else {
