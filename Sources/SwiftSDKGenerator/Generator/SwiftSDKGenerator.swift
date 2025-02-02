@@ -58,7 +58,7 @@ public actor SwiftSDKGenerator {
   }
 
   private let fileManager = FileManager.default
-  private static let dockerCommand = "docker"
+  private static let dockerCommand = ProcessInfo.processInfo.environment["SWIFT_SDK_GENERATOR_CONTAINER_RUNTIME"] ?? "docker"
 
   public static func getCurrentTriple(isVerbose: Bool) throws -> Triple {
     let current = UnixName.current!

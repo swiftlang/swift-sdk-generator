@@ -18,7 +18,7 @@ extension SwiftSDKGenerator {
     baseDockerImage: String,
     sdkDirPath: FilePath
   ) async throws {
-    logger.info("Launching a Docker container to copy Swift SDK for the target triple from it...")
+    logger.info("Launching a container to extract the Swift SDK for the target triple...")
     try await withDockerContainer(fromImage: baseDockerImage) { containerID in
       try await inTemporaryDirectory { generator, _ in
         let sdkUsrPath = sdkDirPath.appending("usr")

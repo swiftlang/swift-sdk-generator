@@ -125,7 +125,7 @@ extension GeneratorCLI {
       but requires exactly the same version of the swift.org toolchain to be installed for it to work.
       """
     )
-    var hostToolchain: Bool = true
+    var hostToolchain: Bool = false
 
     @Option(
       help: """

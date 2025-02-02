@@ -69,7 +69,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     if let targetSwiftPackagePath {
       targetSwiftSource = .localPackage(FilePath(targetSwiftPackagePath))
     } else {
-      if withDocker {
+      if withDocker || fromContainerImage != nil {
         let imageName = fromContainerImage ?? versionsConfiguration.swiftBaseDockerImage
         targetSwiftSource = .docker(baseSwiftDockerImage: imageName)
       } else {
@@ -230,12 +230,14 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       generator.pathsConfiguration
     )
 
-    try await generator.downloadArtifacts(
-      client,
-      engine,
-      downloadableArtifacts: &downloadableArtifacts,
-      itemsToDownload: { artifacts in itemsToDownload(from: artifacts) }
-    )
+    if hostSwiftSource != .preinstalled {
+        try await generator.downloadArtifacts(
+          client,
+          engine,
+          downloadableArtifacts: &downloadableArtifacts,
+          itemsToDownload: { artifacts in itemsToDownload(from: artifacts) }
+        )
+    }
 
     if !self.shouldUseDocker {
       guard case let .ubuntu(version) = linuxDistribution else {
