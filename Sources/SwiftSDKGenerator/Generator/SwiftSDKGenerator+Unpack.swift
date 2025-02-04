@@ -59,14 +59,14 @@ extension SwiftSDKGenerator {
     if hostSwiftPackagePath.string.contains("tar.gz") {
       try await Shell.run(
         #"""
-        tar -xzf \#(hostSwiftPackagePath) -C "\#(pathsConfiguration.toolchainDirPath)" -x \#(excludes.joined(separator: " ")) --strip-components=1
+        tar -xzf "\#(hostSwiftPackagePath)" -C "\#(pathsConfiguration.toolchainDirPath)" -x \#(excludes.joined(separator: " ")) --strip-components=1
         """#,
         shouldLogCommands: isVerbose
       )
     } else {
       try await Shell.run(
         #"""
-        tar -x --to-stdout -f \#(hostSwiftPackagePath) \*.pkg/Payload |
+        tar -x --to-stdout -f "\#(hostSwiftPackagePath)" \*.pkg/Payload |
         tar -C "\#(pathsConfiguration.toolchainDirPath)" -x \#(excludes.joined(separator: " ")) --include usr
         """#,
         shouldLogCommands: isVerbose
