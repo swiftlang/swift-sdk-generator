@@ -34,8 +34,6 @@ public actor SwiftSDKGenerator {
     isVerbose: Bool,
     logger: Logger
   ) async throws {
-    logGenerationStep("Looking up configuration values...")
-
     let sourceRoot = FilePath(#filePath)
       .removingLastComponent()
       .removingLastComponent()
@@ -60,7 +58,7 @@ public actor SwiftSDKGenerator {
   }
 
   private let fileManager = FileManager.default
-  private static let dockerCommand = "docker"
+  private static let dockerCommand = ProcessInfo.processInfo.environment["SWIFT_SDK_GENERATOR_CONTAINER_RUNTIME"] ?? "docker"
 
   public static func getCurrentTriple(isVerbose: Bool) throws -> Triple {
     let current = UnixName.current!
@@ -118,7 +116,7 @@ public actor SwiftSDKGenerator {
       else { return }
     }
     try await Shell.run(
-      "\(Self.dockerCommand) cp \(id):\(containerPath) - | tar x -C \(localPath.removingLastComponent())",
+      #"\#(Self.dockerCommand) cp \#(id):\#(containerPath) - | tar x -C "\#(localPath.removingLastComponent())""#,
       shouldLogCommands: self.isVerbose
     )
   }
@@ -254,7 +252,11 @@ public actor SwiftSDKGenerator {
     let isVerbose = self.isVerbose
     try await self.inTemporaryDirectory { _, tmp in
       try await Shell.run(#"cd "\#(tmp)" && ar -x "\#(debFile)""#, shouldLogCommands: isVerbose)
-      try await print(Shell.readStdout("ls \(tmp)"))
+      if isVerbose {
+        let cmd = "ls \(tmp)"
+        let lsOutput = try await Shell.readStdout(cmd)
+        logger.debug("Files unpacked from deb file", metadata: ["cmd": .string(cmd), "output": .string(lsOutput)])
+      }
 
       try await Shell.run(
         #"tar -C "\#(directoryPath)" -xf "\#(tmp)"/data.tar.*"#,

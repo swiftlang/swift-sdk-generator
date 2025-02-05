@@ -10,17 +10,21 @@
 //
 //===----------------------------------------------------------------------===//
 
+import Logging
 import XCTest
 
 @testable import SwiftSDKGenerator
 
 final class WebAssemblyRecipeTests: XCTestCase {
+  let logger = Logger(label: "WebAssemblyRecipeTests")
+  
   func createRecipe() -> WebAssemblyRecipe {
     WebAssemblyRecipe(
       hostSwiftPackage: nil,
       targetSwiftPackagePath: "./target-toolchain",
       wasiSysroot: "./wasi-sysroot",
-      swiftVersion: "5.10"
+      swiftVersion: "5.10",
+      logger: logger
     )
   }
 

@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 import Foundation
+import Logging
 import Helpers
 import struct SystemPackage.FilePath
 
@@ -33,6 +34,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
   let targetSwiftSource: TargetSwiftSource
   let hostSwiftSource: HostSwiftSource
   let versionsConfiguration: VersionsConfiguration
+  public let logger: Logger
 
   var shouldUseDocker: Bool {
     if case .docker = self.targetSwiftSource {
@@ -52,7 +54,8 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     fromContainerImage: String?,
     hostSwiftPackagePath: String?,
     targetSwiftPackagePath: String?,
-    includeHostToolchain: Bool = false
+    includeHostToolchain: Bool = false,
+    logger: Logger
   ) throws {
     let versionsConfiguration = try VersionsConfiguration(
       swiftVersion: swiftVersion,
@@ -66,7 +69,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     if let targetSwiftPackagePath {
       targetSwiftSource = .localPackage(FilePath(targetSwiftPackagePath))
     } else {
-      if withDocker {
+      if withDocker || fromContainerImage != nil {
         let imageName = fromContainerImage ?? versionsConfiguration.swiftBaseDockerImage
         targetSwiftSource = .docker(baseSwiftDockerImage: imageName)
       } else {
@@ -88,7 +91,8 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       linuxDistribution: linuxDistribution,
       targetSwiftSource: targetSwiftSource,
       hostSwiftSource: hostSwiftSource,
-      versionsConfiguration: versionsConfiguration
+      versionsConfiguration: versionsConfiguration,
+      logger: logger
     )
   }
 
@@ -98,7 +102,8 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     linuxDistribution: LinuxDistribution,
     targetSwiftSource: TargetSwiftSource,
     hostSwiftSource: HostSwiftSource,
-    versionsConfiguration: VersionsConfiguration
+    versionsConfiguration: VersionsConfiguration,
+    logger: Logger
   ) {
     self.mainTargetTriple = mainTargetTriple
     self.mainHostTriple = mainHostTriple
@@ -106,6 +111,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     self.targetSwiftSource = targetSwiftSource
     self.hostSwiftSource = hostSwiftSource
     self.versionsConfiguration = versionsConfiguration
+    self.logger = logger
   }
 
   public func applyPlatformOptions(toolset: inout Toolset, targetTriple: Triple) {
@@ -230,12 +236,14 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       generator.pathsConfiguration
     )
 
-    try await generator.downloadArtifacts(
-      client,
-      engine,
-      downloadableArtifacts: &downloadableArtifacts,
-      itemsToDownload: { artifacts in itemsToDownload(from: artifacts) }
-    )
+    if hostSwiftSource != .preinstalled {
+        try await generator.downloadArtifacts(
+          client,
+          engine,
+          downloadableArtifacts: &downloadableArtifacts,
+          itemsToDownload: { artifacts in itemsToDownload(from: artifacts) }
+        )
+    }
 
     if !self.shouldUseDocker {
       guard case let .ubuntu(version) = linuxDistribution else {
@@ -299,7 +307,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       let autolinkExtractPath = generator.pathsConfiguration.toolchainBinDirPath.appending("swift-autolink-extract")
 
       if await !generator.doesFileExist(at: autolinkExtractPath) {
-        logGenerationStep("Fixing `swift-autolink-extract` symlink...")
+        logger.info("Fixing `swift-autolink-extract` symlink...")
         try await generator.createSymlink(at: autolinkExtractPath, pointingTo: "swift")
       }
     }

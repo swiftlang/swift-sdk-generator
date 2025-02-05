@@ -15,6 +15,8 @@ import Logging
 import XCTest
 
 final class ArchitectureMappingTests: XCTestCase {
+  let logger = Logger(label: "ArchitectureMappingTests")
+
   /// Swift on macOS, Swift on Linux and Debian packages all use
   /// different names for the x86 and Arm architectures:
   ///
@@ -54,7 +56,8 @@ final class ArchitectureMappingTests: XCTestCase {
       withDocker: false,
       fromContainerImage: nil,
       hostSwiftPackagePath: nil,
-      targetSwiftPackagePath: nil
+      targetSwiftPackagePath: nil,
+      logger: logger
     )
     // LocalSwiftSDKGenerator constructs URLs and paths which depend on architectures
     let sdk = try await SwiftSDKGenerator(

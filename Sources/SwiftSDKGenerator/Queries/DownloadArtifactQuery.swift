@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 import class Foundation.ByteCountFormatter
+import Logging
 import Helpers
 import struct SystemPackage.FilePath
 
@@ -18,9 +19,10 @@ struct DownloadArtifactQuery: Query {
   var cacheKey: some CacheKey { self.artifact }
   let artifact: DownloadableArtifacts.Item
   let httpClient: any HTTPClientProtocol
+  let logger: Logger
 
   func run(engine: QueryEngine) async throws -> FilePath {
-    print("Downloading remote artifact not available in local cache: \(self.artifact.remoteURL)")
+    logger.info("Downloading remote artifact not available in local cache", metadata: ["remoteUrl": .string(self.artifact.remoteURL.absoluteString)])
     let stream = self.httpClient.streamDownloadProgress(
       from: self.artifact.remoteURL, to: self.artifact.localPath
     )
@@ -31,6 +33,26 @@ struct DownloadArtifactQuery: Query {
       report(progress: progress, for: self.artifact)
     }
     return self.artifact.localPath
+  }
+
+  private func report(progress: DownloadProgress, for artifact: DownloadableArtifacts.Item) {
+    let byteCountFormatter = ByteCountFormatter()
+
+    if let total = progress.totalBytes {
+      logger.debug("""
+      \(artifact.remoteURL.lastPathComponent) \(
+        byteCountFormatter
+          .string(fromByteCount: Int64(progress.receivedBytes))
+      )/\(
+        byteCountFormatter
+          .string(fromByteCount: Int64(total))
+      )
+      """)
+    } else {
+      logger.debug(
+        "\(artifact.remoteURL.lastPathComponent) \(byteCountFormatter.string(fromByteCount: Int64(progress.receivedBytes)))"
+      )
+    }
   }
 }
 
@@ -51,24 +73,4 @@ private func didProgressChangeSignificantly(
   }
 
   return current.receivedBytes - previous.receivedBytes > 1024 * 1024 * 1024
-}
-
-private func report(progress: DownloadProgress, for artifact: DownloadableArtifacts.Item) {
-  let byteCountFormatter = ByteCountFormatter()
-
-  if let total = progress.totalBytes {
-    print("""
-    \(artifact.remoteURL.lastPathComponent) \(
-      byteCountFormatter
-        .string(fromByteCount: Int64(progress.receivedBytes))
-    )/\(
-      byteCountFormatter
-        .string(fromByteCount: Int64(total))
-    )
-    """)
-  } else {
-    print(
-      "\(artifact.remoteURL.lastPathComponent) \(byteCountFormatter.string(fromByteCount: Int64(progress.receivedBytes)))"
-    )
-  }
 }

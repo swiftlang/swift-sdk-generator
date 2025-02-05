@@ -17,19 +17,29 @@ import struct SystemPackage.FilePath
 
 @main
 struct GeneratorCLI: AsyncParsableCommand {
+  static let appLogger = Logger(label: "org.swift.swift-sdk-generator")
+
   static let configuration = CommandConfiguration(
     commandName: "swift-sdk-generator",
     subcommands: [MakeLinuxSDK.self, MakeWasmSDK.self],
     defaultSubcommand: MakeLinuxSDK.self
   )
 
+  static func loggerWithLevel(from options: GeneratorOptions) -> Logger {
+    var logger = self.appLogger
+    if options.verbose {
+      logger.logLevel = .debug
+    }
+    return logger
+  }
+
   static func run(
     recipe: some SwiftSDKRecipe,
     targetTriple: Triple,
     options: GeneratorOptions
   ) async throws {
+    let logger = loggerWithLevel(from: options)
     let elapsed = try await ContinuousClock().measure {
-      let logger = Logger(label: "org.swift.swift-sdk-generator")
       let generator = try await SwiftSDKGenerator(
         bundleVersion: options.bundleVersion,
         targetTriple: targetTriple,
@@ -57,7 +67,7 @@ struct GeneratorCLI: AsyncParsableCommand {
       try await generatorTask.value
     }
 
-    print("\nTime taken for this generator run: \(elapsed.intervalString).")
+    logger.info("Generator run finished successfully.", metadata: ["elapsedTime": .string(elapsed.intervalString)])
   }
 }
 
@@ -115,7 +125,7 @@ extension GeneratorCLI {
       but requires exactly the same version of the swift.org toolchain to be installed for it to work.
       """
     )
-    var hostToolchain: Bool = true
+    var hostToolchain: Bool = false
 
     @Option(
       help: """
@@ -151,7 +161,7 @@ extension GeneratorCLI {
       let current = try SwiftSDKGenerator.getCurrentTriple(isVerbose: self.verbose)
       if let arch = hostArch {
         let target = Triple(arch: arch, vendor: current.vendor!, os: current.os!)
-        print("deprecated: Please use `--host \(target.triple)` instead of `--host-arch \(arch)`")
+        appLogger.warning("deprecated: Please use `--host \(target.triple)` instead of `--host-arch \(arch)`")
         return target
       }
       return current
@@ -202,14 +212,14 @@ extension GeneratorCLI {
       }
       if let arch = generatorOptions.targetArch {
         let target = Triple(arch: arch, vendor: nil, os: .linux, environment: .gnu)
-        print("deprecated: Please use `--target \(target.triple)` instead of `--target-arch \(arch)`")
+        appLogger.warning("deprecated: Please use `--target \(target.triple)` instead of `--target-arch \(arch)`")
       }
       return Triple(arch: hostTriple.arch!, vendor: nil, os: .linux, environment: .gnu)
     }
 
     func run() async throws {
       if self.isInvokedAsDefaultSubcommand() {
-        print(
+        appLogger.warning(
           "deprecated: Please explicitly specify the subcommand to run. For example: $ swift-sdk-generator make-linux-sdk"
         )
       }
@@ -236,7 +246,8 @@ extension GeneratorCLI {
         fromContainerImage: self.fromContainerImage,
         hostSwiftPackagePath: self.generatorOptions.hostSwiftPackagePath,
         targetSwiftPackagePath: self.generatorOptions.targetSwiftPackagePath,
-        includeHostToolchain: self.generatorOptions.hostToolchain
+        includeHostToolchain: self.generatorOptions.hostToolchain,
+        logger: loggerWithLevel(from: self.generatorOptions)
       )
       try await GeneratorCLI.run(recipe: recipe, targetTriple: targetTriple, options: self.generatorOptions)
     }
@@ -290,7 +301,8 @@ extension GeneratorCLI {
         },
         targetSwiftPackagePath: FilePath(targetSwiftPackagePath),
         wasiSysroot: FilePath(self.wasiSysroot),
-        swiftVersion: self.generatorOptions.swiftVersion
+        swiftVersion: self.generatorOptions.swiftVersion,
+        logger: loggerWithLevel(from: self.generatorOptions)
       )
       let targetTriple = self.deriveTargetTriple()
       try await GeneratorCLI.run(recipe: recipe, targetTriple: targetTriple, options: self.generatorOptions)
