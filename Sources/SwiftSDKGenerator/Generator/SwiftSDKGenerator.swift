@@ -34,8 +34,6 @@ public actor SwiftSDKGenerator {
     isVerbose: Bool,
     logger: Logger
   ) async throws {
-    logGenerationStep("Looking up configuration values...")
-
     let sourceRoot = FilePath(#filePath)
       .removingLastComponent()
       .removingLastComponent()
@@ -253,7 +251,11 @@ public actor SwiftSDKGenerator {
     let isVerbose = self.isVerbose
     try await self.inTemporaryDirectory { _, tmp in
       try await Shell.run(#"cd "\#(tmp)" && ar -x "\#(debFile)""#, shouldLogCommands: isVerbose)
-      try await print(Shell.readStdout("ls \(tmp)"))
+      if isVerbose {
+        let cmd = "ls \(tmp)"
+        let lsOutput = try await Shell.readStdout(cmd)
+        logger.debug("Files unpacked from deb file", metadata: ["cmd": .string(cmd), "output": .string(lsOutput)])
+      }
 
       try await Shell.run(
         #"tar -C "\#(directoryPath)" -xf "\#(tmp)"/data.tar.*"#,

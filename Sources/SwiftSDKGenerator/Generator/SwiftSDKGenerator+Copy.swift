@@ -18,7 +18,7 @@ extension SwiftSDKGenerator {
     baseDockerImage: String,
     sdkDirPath: FilePath
   ) async throws {
-    logGenerationStep("Launching a container to extract the Swift SDK for the target triple...")
+    logger.info("Launching a container to extract the Swift SDK for the target triple...")
     try await withDockerContainer(fromImage: baseDockerImage) { containerID in
       try await inTemporaryDirectory { generator, _ in
         let sdkUsrPath = sdkDirPath.appending("usr")
@@ -102,7 +102,7 @@ extension SwiftSDKGenerator {
   }
 
   func copyTargetSwift(from distributionPath: FilePath, sdkDirPath: FilePath) async throws {
-    logGenerationStep("Copying Swift core libraries for the target triple into Swift SDK bundle...")
+    logger.info("Copying Swift core libraries for the target triple into Swift SDK bundle...")
 
     for (pathWithinPackage, pathWithinSwiftSDK) in [
       ("lib/swift", sdkDirPath.appending("usr/lib")),

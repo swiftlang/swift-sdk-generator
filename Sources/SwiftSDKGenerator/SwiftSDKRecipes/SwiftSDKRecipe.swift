@@ -10,6 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+import Logging
 import Helpers
 import struct SystemPackage.FilePath
 
@@ -33,6 +34,9 @@ public protocol SwiftSDKRecipe: Sendable {
 
   /// The default identifier of the Swift SDK
   var defaultArtifactID: String { get }
+
+  /// The logger to use for recipe generators.
+  var logger: Logger { get }
 
   /// The main entrypoint of the recipe to make a Swift SDK
   func makeSwiftSDK(generator: SwiftSDKGenerator, engine: QueryEngine, httpClient: some HTTPClientProtocol) async throws
