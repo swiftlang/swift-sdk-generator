@@ -116,7 +116,7 @@ public actor SwiftSDKGenerator {
       else { return }
     }
     try await Shell.run(
-      "\(Self.dockerCommand) cp \(id):\(containerPath) - | tar x -C \(localPath.removingLastComponent())",
+      #"\#(Self.dockerCommand) cp \#(id):\#(containerPath) - | tar x -C "\#(localPath.removingLastComponent())""#,
       shouldLogCommands: self.isVerbose
     )
   }
