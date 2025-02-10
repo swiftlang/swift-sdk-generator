@@ -19,7 +19,8 @@ import NIO
 // - Known issues:
 //   - no tests
 //   - most configurations have never run
-struct FileContentStream: AsyncSequence {
+typealias FileContentStream = _FileContentStream
+public struct _FileContentStream: AsyncSequence & Sendable {
   public typealias Element = ByteBuffer
   typealias Underlying = AsyncThrowingChannel<Element, Error>
 
@@ -47,7 +48,17 @@ struct FileContentStream: AsyncSequence {
 
   private let asyncChannel: AsyncThrowingChannel<ByteBuffer, Error>
 
-  public init(
+  public static func makeReader(
+    fileDescriptor: CInt,
+    eventLoop: EventLoop = MultiThreadedEventLoopGroup.singleton.any(),
+    blockingPool: NIOThreadPool = .singleton
+  ) async throws -> _FileContentStream {
+    try await eventLoop.submit {
+      try FileContentStream(fileDescriptor: fileDescriptor, eventLoop: eventLoop, blockingPool: blockingPool)
+    }.get()
+  }
+
+  init(
     fileDescriptor: CInt,
     eventLoop: EventLoop,
     blockingPool: NIOThreadPool? = nil
