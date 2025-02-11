@@ -26,6 +26,7 @@ public extension Triple.Arch {
     case .aarch64: return "arm64"
     case .x86_64: return "amd64"
     case .wasm32: return "wasm32"
+    case .arm: return "armhf"
     default: fatalError("\(self) is not supported yet")
     }
   }

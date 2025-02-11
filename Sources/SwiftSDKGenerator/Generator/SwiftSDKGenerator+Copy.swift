@@ -73,6 +73,11 @@ extension SwiftSDKGenerator {
         // But not in all containers, so don't fail if it does not exist.
         if case .ubuntu = targetDistribution {
           subpaths += [("\(targetTriple.archName)-linux-gnu", false)]
+
+          // Custom subpath for armv7
+          if targetTriple.archName == "armv7" {
+            subpaths += [("arm-linux-gnueabihf", false)]
+          }
         }
 
         for (subpath, failIfNotExists) in subpaths {
@@ -104,13 +109,16 @@ extension SwiftSDKGenerator {
   func copyTargetSwift(from distributionPath: FilePath, sdkDirPath: FilePath) async throws {
     logger.info("Copying Swift core libraries for the target triple into Swift SDK bundle...")
 
-    for (pathWithinPackage, pathWithinSwiftSDK) in [
-      ("lib/swift", sdkDirPath.appending("usr/lib")),
-      ("lib/swift_static", sdkDirPath.appending("usr/lib")),
-      ("lib/clang", sdkDirPath.appending("usr/lib")),
-      ("include", sdkDirPath.appending("usr")),
+    for (pathWithinPackage, pathWithinSwiftSDK, ignoreIfMissing) in [
+      ("lib/swift", sdkDirPath.appending("usr/lib"), false),
+      ("lib/swift_static", sdkDirPath.appending("usr/lib"), false),
+      ("lib/clang", sdkDirPath.appending("usr/lib"), true),
+      ("include", sdkDirPath.appending("usr"), false),
     ] {
-      try await rsync(from: distributionPath.appending(pathWithinPackage), to: pathWithinSwiftSDK)
+      try await rsync(
+        from: distributionPath.appending(pathWithinPackage),
+        to: pathWithinSwiftSDK, ignoreIfMissing: ignoreIfMissing
+      )
     }
   }
 }
@@ -120,6 +128,7 @@ extension Triple {
     switch self.archName {
       case "x86_64": return "/lib64/ld-linux-x86-64.so.2"
       case "aarch64": return "/lib/ld-linux-aarch64.so.1"
+      case "armv7": return "/lib/ld-linux-armhf.so.3"
       default: fatalError("unsupported architecture \(self.archName)")
     }
   }

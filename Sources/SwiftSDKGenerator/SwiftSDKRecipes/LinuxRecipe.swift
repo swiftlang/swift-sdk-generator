@@ -158,7 +158,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       self.linuxDistribution
         .release
     )_\(
-      self.mainTargetTriple.arch!.linuxConventionName
+      self.mainTargetTriple.archName
     )
     """
   }
@@ -217,6 +217,12 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     engine: QueryEngine,
     httpClient client: some HTTPClientProtocol
   ) async throws -> SwiftSDKProduct {
+    if self.linuxDistribution.name == .rhel && self.mainTargetTriple.archName == "armv7" {
+      throw GeneratorError.distributionDoesNotSupportArchitecture(
+        self.linuxDistribution, targetArchName: self.mainTargetTriple.archName
+      )
+    }
+  
     let sdkDirPath = self.sdkDirPath(paths: generator.pathsConfiguration)
     if !generator.isIncremental {
       try await generator.removeRecursively(at: sdkDirPath)
