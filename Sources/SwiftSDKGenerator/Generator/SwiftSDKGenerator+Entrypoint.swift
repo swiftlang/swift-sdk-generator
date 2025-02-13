@@ -61,9 +61,8 @@ public extension SwiftSDKGenerator {
         try await generateArtifactBundleManifest(hostTriples: swiftSDKProduct.hostTriples)
 
         // Extra spaces added for readability for the user
-        logger.info(
+        print(
           """
-
 
           All done! Install the newly generated SDK with this command:
           swift experimental-sdk install \(pathsConfiguration.artifactBundlePath)
