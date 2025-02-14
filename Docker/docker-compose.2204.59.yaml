@@ -10,6 +10,7 @@ services:
 
   test:
     image: swift-sdk-generator:22.04-5.9
+    privileged: true
     environment:
       # - WARN_AS_ERROR_ARG=-Xswiftc -warnings-as-errors # need to fix S-CL-F sendability first
       - IMPORT_CHECK_ARG=--explicit-target-dependency-import-check error
