@@ -158,10 +158,9 @@ public actor SwiftSDKGenerator {
     try Data(contentsOf: URL(fileURLWithPath: path.string))
   }
 
-  func rsync(from source: FilePath, to destination: FilePath, ignoreIfMissing: Bool = false) async throws {
+  func rsync(from source: FilePath, to destination: FilePath) async throws {
     try self.createDirectoryIfNeeded(at: destination)
-    let ignoreMissingArgs = ignoreIfMissing ? "--ignore-missing-args" : ""
-    try await Shell.run("rsync -a \(ignoreMissingArgs) \(source) \(destination)", shouldLogCommands: self.isVerbose)
+    try await Shell.run("rsync -a \(source) \(destination)", shouldLogCommands: self.isVerbose)
   }
 
   func rsyncContents(from source: FilePath, to destination: FilePath) async throws {
