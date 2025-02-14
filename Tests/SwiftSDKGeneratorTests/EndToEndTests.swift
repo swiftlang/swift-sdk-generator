@@ -275,9 +275,9 @@ func buildTestcases(config: SDKConfiguration) async throws {
   var logger = Logger(label: "EndToEndTests")
   logger[metadataKey: "testcase"] = "testPackageInitExecutable"
 
-  if ProcessInfo.processInfo.environment.keys.contains("JENKINS_URL") {
-    throw XCTSkip("EndToEnd tests cannot currently run in CI: https://github.com/swiftlang/swift-sdk-generator/issues/145")
-  }
+//  if ProcessInfo.processInfo.environment.keys.contains("JENKINS_URL") {
+//    throw XCTSkip("EndToEnd tests cannot currently run in CI: https://github.com/swiftlang/swift-sdk-generator/issues/145")
+//  }
 
   if config.withDocker {
     do {
