@@ -25,6 +25,7 @@ services:
 
   test:
     <<: *common
+    privileged: true
     environment:
       - JENKINS_URL
       - SWIFT_SDK_GENERATOR_CONTAINER_RUNTIME=podman
