@@ -110,7 +110,7 @@ extension SwiftSDKGenerator {
   func copyTargetSwift(from distributionPath: FilePath, sdkDirPath: FilePath) async throws {
     logger.info("Copying Swift core libraries for the target triple into Swift SDK bundle...")
 
-    for (pathWithinPackage, pathWithinSwiftSDK, optional) in [
+    for (pathWithinPackage, pathWithinSwiftSDK, isOptional) in [
       ("lib/swift", sdkDirPath.appending("usr/lib"), false),
       ("lib/swift_static", sdkDirPath.appending("usr/lib"), false),
       ("lib/clang", sdkDirPath.appending("usr/lib"), true),
@@ -118,7 +118,7 @@ extension SwiftSDKGenerator {
     ] {
       let fromPath = distributionPath.appending(pathWithinPackage)
 
-      if optional && !FileManager.default.fileExists(atPath: fromPath.string) {
+      if isOptional && !FileManager.default.fileExists(atPath: fromPath.string) {
         logger.debug("Optional package path ignored since it does not exist", metadata: ["packagePath": .string(fromPath.string)])
         continue
       }
