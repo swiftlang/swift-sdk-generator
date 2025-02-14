@@ -115,9 +115,9 @@ final class RepeatedBuildTests: XCTestCase {
   private let logger = Logger(label: "swift-sdk-generator")
 
   func testRepeatedSDKBuilds() async throws {
-    if ProcessInfo.processInfo.environment.keys.contains("JENKINS_URL") {
-      throw XCTSkip("EndToEnd tests cannot currently run in CI: https://github.com/swiftlang/swift-sdk-generator/issues/145")
-    }
+//    if ProcessInfo.processInfo.environment.keys.contains("JENKINS_URL") {
+//      throw XCTSkip("EndToEnd tests cannot currently run in CI: https://github.com/swiftlang/swift-sdk-generator/issues/145")
+//    }
 
     var logger = logger
     logger[metadataKey: "testcase"] = "testRepeatedSDKBuilds"
