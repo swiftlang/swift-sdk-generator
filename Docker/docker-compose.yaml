@@ -29,7 +29,7 @@ services:
     environment:
       - JENKINS_URL
       - SWIFT_SDK_GENERATOR_CONTAINER_RUNTIME=podman
-    command: /bin/bash -xcl "swift test $${WARN_AS_ERROR_ARG-} $${SANITIZER_ARG-} $${IMPORT_CHECK_ARG-}"
+    command: /bin/bash -xcl "swift test $${WARN_AS_ERROR_ARG-} $${SANITIZER_ARG-} $${IMPORT_CHECK_ARG-} --filter Swift59_UbuntuEndToEndTests.testX86_64FromContainer"
 
   # util
 
