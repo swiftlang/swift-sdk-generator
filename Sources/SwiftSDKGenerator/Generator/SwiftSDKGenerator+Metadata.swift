@@ -115,7 +115,7 @@ extension SwiftSDKGenerator {
 
   struct SDKSettings: Codable {
     var DisplayName: String
-    var Version: String = "0.0.1"
+    var Version: String
     var VersionMap: [String: String] = [:]
     var CanonicalName: String
   }
@@ -137,6 +137,7 @@ extension SwiftSDKGenerator {
 
     let sdkSettings = SDKSettings(
       DisplayName: "Swift SDK for \(distribution) (\(targetTriple.archName))",
+      Version: bundleVersion,
       CanonicalName: targetTriple.triple.replacingOccurrences(of: "unknown", with: "swift")
     )
 
