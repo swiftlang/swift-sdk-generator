@@ -381,12 +381,10 @@ final class Swift60_UbuntuEndToEndTests: XCTestCase {
   }
 
   func testAarch64FromContainer() async throws {
-    try skipSlow()
     try await buildTestcases(config: config.withArchitecture("aarch64").withDocker())
   }
 
   func testX86_64FromContainer() async throws {
-    try skipSlow()
     try await buildTestcases(config: config.withArchitecture("x86_64").withDocker())
   }
 }
