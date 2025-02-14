@@ -126,7 +126,7 @@ final class RepeatedBuildTests: XCTestCase {
     // Test with no arguments by default:
     var possibleArguments = ["--host-toolchain"]
     do {
-      try await Shell.run("docker ps")
+      try await Shell.run("podman ps")
       possibleArguments.append("--with-docker --linux-distribution-name rhel --linux-distribution-version ubi9")
     } catch {
       self.logger.warning("Docker CLI does not seem to be working, skipping tests that involve Docker.")
@@ -231,7 +231,7 @@ func buildTestcase(_ logger: Logger, testcase: String, bundleName: String, tempD
       logger.info("Building test project in 6.0-\(containerVersion) container")
       buildOutput = try await Shell.readStdout(
         """
-        docker run --rm -v \(testPackageDir):/src \
+        podman run --rm -v \(testPackageDir):/src \
           -v $HOME/.swiftpm/swift-sdks:/root/.swiftpm/swift-sdks \
           --workdir /src swift:6.0-\(containerVersion) \
           /bin/bash -c "swift build --scratch-path /root/.build --experimental-swift-sdk \(bundleName)"
@@ -243,7 +243,7 @@ func buildTestcase(_ logger: Logger, testcase: String, bundleName: String, tempD
       logger.info("Building test project in 6.0-\(containerVersion) container with static-swift-stdlib")
       buildOutput = try await Shell.readStdout(
         """
-        docker run --rm -v \(testPackageDir):/src \
+        podman run --rm -v \(testPackageDir):/src \
           -v $HOME/.swiftpm/swift-sdks:/root/.swiftpm/swift-sdks \
           --workdir /src swift:6.0-\(containerVersion) \
           /bin/bash -c "swift build --scratch-path /root/.build --experimental-swift-sdk \(bundleName) --static-swift-stdlib"
@@ -281,7 +281,7 @@ func buildTestcases(config: SDKConfiguration) async throws {
 
   if config.withDocker {
     do {
-      try await Shell.run("docker ps")
+      try await Shell.run("podman ps")
     } catch {
       throw XCTSkip("Container runtime is not available - skipping tests which require it")
     }
