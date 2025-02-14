@@ -39,15 +39,18 @@ extension SwiftSDKGenerator {
     logger.info("Downloading required toolchain packages...")
     let hostLLVMURL = downloadableArtifacts.hostLLVM.remoteURL
     // Workaround an issue with github.com returning 400 instead of 404 status to HEAD requests from AHC.
-    let isLLVMBinaryArtifactAvailable = try await type(of: client).with(http1Only: true) {
-      try await $0.head(
-        url: hostLLVMURL.absoluteString,
-        headers: ["Accept": "*/*", "User-Agent": "Swift SDK Generator"]
-      )
-    }
 
-    if !isLLVMBinaryArtifactAvailable {
-      downloadableArtifacts.useLLVMSources()
+    if itemsToDownload(downloadableArtifacts).contains(where: { $0.remoteURL == downloadableArtifacts.hostLLVM.remoteURL } ) {
+      let isLLVMBinaryArtifactAvailable = try await type(of: client).with(http1Only: true) {
+        try await $0.head(
+          url: hostLLVMURL.absoluteString,
+          headers: ["Accept": "*/*", "User-Agent": "Swift SDK Generator"]
+        )
+      }
+
+      if !isLLVMBinaryArtifactAvailable {
+        downloadableArtifacts.useLLVMSources()
+      }
     }
 
     let results = try await withThrowingTaskGroup(of: FileCacheRecord.self) { group in
