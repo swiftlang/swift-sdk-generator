@@ -291,6 +291,12 @@ public struct LinuxRecipe: SwiftSDKRecipe {
 
     try await generator.fixAbsoluteSymlinks(sdkDirPath: sdkDirPath)
 
+    // Swift 6.1 and later do not throw warnings about the SDKSettings.json file missing,
+    // so they don't need this file.
+    if self.versionsConfiguration.swiftVersion.hasPrefix(in: ["5.9", "5.10", "6.0"]) {
+      try await generator.generateSDKSettingsFile(sdkDirPath: sdkDirPath, distribution: linuxDistribution)
+    }
+
     if self.hostSwiftSource != .preinstalled {
       if self.mainHostTriple.os != .linux && !self.versionsConfiguration.swiftVersion.hasPrefix("6.0") {
         try await generator.prepareLLDLinker(engine, llvmArtifact: downloadableArtifacts.hostLLVM)

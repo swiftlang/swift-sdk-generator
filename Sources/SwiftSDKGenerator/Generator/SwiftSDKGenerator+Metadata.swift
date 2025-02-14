@@ -112,4 +112,35 @@ extension SwiftSDKGenerator {
       )
     )
   }
+
+  struct SDKSettings: Codable {
+    var DisplayName: String
+    var Version: String = "0.0.1"
+    var VersionMap: [String: String] = [:]
+    var CanonicalName: String
+  }
+
+  /// Generates an `SDKSettings.json` file that looks like this:
+  /// 
+  /// ```json
+  /// {
+  ///   "CanonicalName" : "<arch>-swift-linux-[gnu|gnueabihf]",
+  ///   "DisplayName" : "Swift SDK for <distribution> (<arch>)",
+  ///   "Version" : "0.0.1",
+  ///   "VersionMap" : {
+  ///
+  ///   }
+  /// }
+  /// ```
+  func generateSDKSettingsFile(sdkDirPath: FilePath, distribution: LinuxDistribution) throws {
+    logger.info("Generating SDKSettings.json file to silence cross-compilation warnings...")
+
+    let sdkSettings = SDKSettings(
+      DisplayName: "Swift SDK for \(distribution) (\(targetTriple.archName))",
+      CanonicalName: targetTriple.triple.replacingOccurrences(of: "unknown", with: "swift")
+    )
+
+    let sdkSettingsFilePath = sdkDirPath.appending("SDKSettings.json")
+    try writeFile(at: sdkSettingsFilePath, encoder.encode(sdkSettings))
+  }
 }
