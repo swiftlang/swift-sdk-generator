@@ -200,7 +200,7 @@ extension GeneratorCLI {
     @Option(
       help: """
       Version of the Linux distribution used as a target platform. Available options for Ubuntu: `20.04`, \
-      `22.04` (default when `--linux-distribution-name` is `ubuntu`). Available options for RHEL: `ubi9` (default when \
+      `22.04` (default when `--linux-distribution-name` is `ubuntu`), `24.04`. Available options for RHEL: `ubi9` (default when \
       `--linux-distribution-name` is `rhel`).
       """
     )
