@@ -195,8 +195,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     if self.hostSwiftSource == .preinstalled {
       // Swift 5.9 and 5.10 require `supportedTriples` to be set in info.json.
       // FIXME: This can be removed once the SDK generator does not support 5.9/5.10 any more.
-      if self.versionsConfiguration.swiftVersion.hasPrefix("5.9")
-          || self.versionsConfiguration.swiftVersion.hasPrefix("5.10") {
+      if self.versionsConfiguration.swiftVersion.hasAnyPrefix(from: ["5.9", "5.10"]) {
         return [
           Triple("x86_64-unknown-linux-gnu"),
           Triple("aarch64-unknown-linux-gnu"),
@@ -292,13 +291,18 @@ public struct LinuxRecipe: SwiftSDKRecipe {
 
     try await generator.fixAbsoluteSymlinks(sdkDirPath: sdkDirPath)
 
+    // Swift 6.1 and later do not throw warnings about the SDKSettings.json file missing,
+    // so they don't need this file.
+    if self.versionsConfiguration.swiftVersion.hasAnyPrefix(from: ["5.9", "5.10", "6.0"]) {
+      try await generator.generateSDKSettingsFile(sdkDirPath: sdkDirPath, distribution: linuxDistribution)
+    }
+
     if self.hostSwiftSource != .preinstalled {
       if self.mainHostTriple.os != .linux && !self.versionsConfiguration.swiftVersion.hasPrefix("6.0") {
         try await generator.prepareLLDLinker(engine, llvmArtifact: downloadableArtifacts.hostLLVM)
       }
 
-      if self.versionsConfiguration.swiftVersion.hasPrefix("5.9") ||
-          self.versionsConfiguration.swiftVersion.hasPrefix("5.10") {
+      if self.versionsConfiguration.swiftVersion.hasAnyPrefix(from: ["5.9", "5.10"]) {
         try await generator.symlinkClangHeaders()
       }
 
