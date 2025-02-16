@@ -60,7 +60,6 @@ public enum LinuxDistribution: Hashable, Sendable {
           "linux-libc-dev",
           "zlib1g",
           "zlib1g-dev",
-          "libc6",
         ]
       case .jammy: return [
           "libc6",
