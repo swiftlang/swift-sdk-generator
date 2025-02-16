@@ -36,7 +36,7 @@ The generator also allows cross-compiling between any Linux distributions offici
 | -:             | :-                        | :-                          |
 | macOS (arm64)  | ✅ macOS 13.0+            | ❌                         |
 | macOS (x86_64) | ✅ macOS 13.0+[^1]        | ❌                         |
-| Ubuntu         | ✅ 20.04+                 | ✅ 20.04 / 22.04           |
+| Ubuntu         | ✅ 20.04+                 | ✅ 20.04+                  |
 | RHEL           | ✅ Fedora 39[^2], UBI 9   | ✅ UBI 9                   |
 | Amazon Linux 2 | ✅ Supported              | ✅ Supported[^3]           |
 | Debian 12      | ✅ Supported[^2]          | ✅ Supported[^2][^3]       |

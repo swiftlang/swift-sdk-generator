@@ -202,7 +202,7 @@ extension HTTPClientProtocol {
     \(mirrorURL)/dists/\(ubuntuRelease)\(releaseSuffix)/\(repository)/binary-\(
       targetTriple.arch!
         .debianConventionName
-    )/Packages.gz
+    )/Packages.xz
     """
 
     guard let packages = try await downloadUbuntuPackagesList(
