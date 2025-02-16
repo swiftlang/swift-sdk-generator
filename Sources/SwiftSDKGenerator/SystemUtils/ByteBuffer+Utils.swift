@@ -17,7 +17,7 @@ import NIOCore
 public extension ByteBuffer {
   func unzip(isVerbose: Bool) async throws -> ByteBuffer? {
     let result = try await ProcessExecutor.runCollectingOutput(
-      executable: "/usr/bin/gzip", ["-cd"],
+      executable: "/usr/bin/xz", ["-cd"],
       standardInput: [self].async,
       collectStandardOutput: true,
       collectStandardError: false,
