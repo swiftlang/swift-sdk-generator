@@ -191,7 +191,8 @@ extension GeneratorCLI {
 
     @Option(
       help: """
-      Linux distribution to use if the target platform is Linux. Available options: `ubuntu`, `rhel`. Default is `ubuntu`.
+      Linux distribution to use if the target platform is Linux.
+      - Available options: `ubuntu`, `debian`, `rhel`. Default is `ubuntu`.
       """,
       transform: LinuxDistribution.Name.init(nameString:)
     )
@@ -200,8 +201,9 @@ extension GeneratorCLI {
     @Option(
       help: """
       Version of the Linux distribution used as a target platform.
-      Available options for Ubuntu: `20.04`, `22.04` (default when `--linux-distribution-name` is `ubuntu`), `24.04`.
-      Available options for RHEL: `ubi9` (default when `--linux-distribution-name` is `rhel`).
+      - Available options for Ubuntu: `20.04`, `22.04` (default when `--linux-distribution-name` is `ubuntu`), `24.04`.
+      - Available options for Debian: `11`, `12` (default when `--linux-distribution-name` is `debian`).
+      - Available options for RHEL: `ubi9` (default when `--linux-distribution-name` is `rhel`).
       """
     )
     var linuxDistributionVersion: String?
@@ -229,6 +231,8 @@ extension GeneratorCLI {
         linuxDistributionDefaultVersion = "ubi9"
       case .ubuntu:
         linuxDistributionDefaultVersion = "22.04"
+      case .debian:
+        linuxDistributionDefaultVersion = "12"
       }
       let linuxDistributionVersion = self.linuxDistributionVersion ?? linuxDistributionDefaultVersion
       let linuxDistribution = try LinuxDistribution(name: linuxDistributionName, version: linuxDistributionVersion)

@@ -37,6 +37,8 @@ public struct VersionsConfiguration: Sendable {
     switch self.linuxDistribution {
     case let .ubuntu(ubuntu):
       return "ubuntu\(ubuntu.version)\(self.linuxArchSuffix)"
+    case let .debian(debian):
+      return "debian\(debian.version)\(self.linuxArchSuffix)"
     case let .rhel(rhel):
       return "\(rhel.rawValue)\(self.linuxArchSuffix)"
     }
@@ -55,6 +57,8 @@ public struct VersionsConfiguration: Sendable {
     switch self.linuxDistribution {
     case let .ubuntu(ubuntu):
       computedSubdirectory = "ubuntu\(ubuntu.version.replacingOccurrences(of: ".", with: ""))\(self.linuxArchSuffix)"
+    case let .debian(debian):
+      computedSubdirectory = "debian\(debian.version.replacingOccurrences(of: ".", with: ""))\(self.linuxArchSuffix)"
     case let .rhel(rhel):
       computedSubdirectory = rhel.rawValue
     }
