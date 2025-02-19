@@ -73,6 +73,20 @@ extension SwiftSDKGenerator {
     ])
   }
 
+  private func getXzPath() -> String? {
+    #if os(macOS)
+      let xzPath = "/opt/homebrew/bin/xz"
+    #else
+      let xzPath = "/usr/bin/xz"
+    #endif
+
+    if doesFileExist(at: FilePath(xzPath)) {
+      return xzPath
+    }
+
+    return nil
+  }
+
   func downloadUbuntuPackages(
     _ client: some HTTPClientProtocol,
     _ engine: QueryEngine,
@@ -83,7 +97,7 @@ extension SwiftSDKGenerator {
     logger.debug("Parsing Ubuntu packages list...")
 
     // Find xz path
-    let xzPath = try await which("xz")
+    let xzPath = getXzPath()
     if xzPath == nil {
       logger.warning("""
       The 'xz' utility was not found in path. \
