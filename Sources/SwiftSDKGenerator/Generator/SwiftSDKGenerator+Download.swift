@@ -175,13 +175,22 @@ extension SwiftSDKGenerator {
 extension HTTPClientProtocol {
   private func downloadUbuntuPackagesList(
     from url: String,
+    unzipWith zipPath: String,
     isVerbose: Bool
   ) async throws -> String? {
-    guard let packages = try await get(url: url).body?.unzip(isVerbose: isVerbose) else {
+    guard let packages = try await get(url: url).body?.unzip(zipPath: zipPath, isVerbose: isVerbose) else {
       throw FileOperationError.downloadFailed(url)
     }
 
     return String(buffer: packages)
+  }
+
+  func packagesFileName(isXzAvailable: Bool) -> String {
+    if isXzAvailable {
+      return "Packages.xz"
+    }
+    // Use .gz if xz is not available
+    return "Packages.gz"
   }
 
   func parseUbuntuPackagesList(
@@ -198,15 +207,16 @@ extension HTTPClientProtocol {
       mirrorURL = ubuntuARM64Mirror
     }
 
+    let xzPath = try await which("xz")
     let packagesListURL = """
     \(mirrorURL)/dists/\(ubuntuRelease)\(releaseSuffix)/\(repository)/binary-\(
-      targetTriple.arch!
-        .debianConventionName
-    )/Packages.xz
+      targetTriple.arch!.debianConventionName
+    )/\(packagesFileName(isXzAvailable: xzPath != nil))
     """
 
     guard let packages = try await downloadUbuntuPackagesList(
       from: packagesListURL,
+      unzipWith: xzPath ?? "/usr/bin/gzip", // fallback on gzip if xz not available
       isVerbose: isVerbose
     ) else {
       throw GeneratorError.ubuntuPackagesDecompressionFailure
