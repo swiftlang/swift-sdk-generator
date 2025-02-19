@@ -27,6 +27,16 @@ swift experimental-sdk list
 The output will either state that no Swift SDKs are available, or produce a list of those you previously had 
 installed, in case you've used the `swift experimental-sdk install` command before.
 
+### macOS Requirements
+
+The generator depends on the `xz` utility for more efficient downloading of package lists for Ubuntu. This is optional, but can be installed via the included `Brewfile`:
+
+```bash
+brew bundle install
+```
+
+If `xz` is not found, the generator will fallback on `gzip`.
+
 ## Supported platforms and minimum versions
 
 macOS as a host platform and Linux as both host and target platforms are supported by the generator.
