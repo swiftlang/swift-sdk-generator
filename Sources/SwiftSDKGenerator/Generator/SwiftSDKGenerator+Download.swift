@@ -82,11 +82,21 @@ extension SwiftSDKGenerator {
   ) async throws {
     logger.debug("Parsing Ubuntu packages list...")
 
+    // Find xz path
+    let xzPath = try await which("xz")
+    if xzPath == nil {
+      logger.warning("""
+      The 'xz' utility was not found in path. \
+      Consider installing it for more efficient downloading of package lists.
+      """)
+    }
+
     async let mainPackages = try await client.parseUbuntuPackagesList(
       ubuntuRelease: versionsConfiguration.linuxDistribution.release,
       repository: "main",
       targetTriple: self.targetTriple,
-      isVerbose: self.isVerbose
+      isVerbose: self.isVerbose,
+      xzPath: xzPath
     )
 
     async let updatesPackages = try await client.parseUbuntuPackagesList(
@@ -94,7 +104,8 @@ extension SwiftSDKGenerator {
       releaseSuffix: "-updates",
       repository: "main",
       targetTriple: self.targetTriple,
-      isVerbose: self.isVerbose
+      isVerbose: self.isVerbose,
+      xzPath: xzPath
     )
 
     async let universePackages = try await client.parseUbuntuPackagesList(
@@ -102,7 +113,8 @@ extension SwiftSDKGenerator {
       releaseSuffix: "-updates",
       repository: "universe",
       targetTriple: self.targetTriple,
-      isVerbose: self.isVerbose
+      isVerbose: self.isVerbose,
+      xzPath: xzPath
     )
 
     let allPackages = try await mainPackages
@@ -198,7 +210,8 @@ extension HTTPClientProtocol {
     releaseSuffix: String = "",
     repository: String,
     targetTriple: Triple,
-    isVerbose: Bool
+    isVerbose: Bool,
+    xzPath: String?
   ) async throws -> [String: URL] {
     let mirrorURL: String
     if targetTriple.arch == .x86_64 {
@@ -207,7 +220,6 @@ extension HTTPClientProtocol {
       mirrorURL = ubuntuARM64Mirror
     }
 
-    let xzPath = try await which("xz")
     let packagesListURL = """
     \(mirrorURL)/dists/\(ubuntuRelease)\(releaseSuffix)/\(repository)/binary-\(
       targetTriple.arch!.debianConventionName
