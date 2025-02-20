@@ -24,7 +24,9 @@ func which(_ executableName: String) async throws -> String? {
     environment: ProcessInfo.processInfo.environment
   )
 
-  try result.exitReason.throwIfNonZero()
+  guard result.exitReason == .exit(0) else {
+    return nil
+  }
 
   if let output = result.standardOutput {
     let path = String(buffer: output).trimmingCharacters(in: .whitespacesAndNewlines)
