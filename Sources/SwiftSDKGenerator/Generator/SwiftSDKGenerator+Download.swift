@@ -82,11 +82,21 @@ extension SwiftSDKGenerator {
   ) async throws {
     logger.debug("Parsing Ubuntu packages list...")
 
+    // Find xz path
+    let xzPath = try await which("xz")
+    if xzPath == nil {
+      logger.warning("""
+      The `xz` utility was not found in `PATH`. \
+      Consider installing it for more efficient downloading of package lists.
+      """)
+    }
+
     async let mainPackages = try await client.parseUbuntuPackagesList(
       ubuntuRelease: versionsConfiguration.linuxDistribution.release,
       repository: "main",
       targetTriple: self.targetTriple,
-      isVerbose: self.isVerbose
+      isVerbose: self.isVerbose,
+      xzPath: xzPath
     )
 
     async let updatesPackages = try await client.parseUbuntuPackagesList(
@@ -94,7 +104,8 @@ extension SwiftSDKGenerator {
       releaseSuffix: "-updates",
       repository: "main",
       targetTriple: self.targetTriple,
-      isVerbose: self.isVerbose
+      isVerbose: self.isVerbose,
+      xzPath: xzPath
     )
 
     async let universePackages = try await client.parseUbuntuPackagesList(
@@ -102,7 +113,8 @@ extension SwiftSDKGenerator {
       releaseSuffix: "-updates",
       repository: "universe",
       targetTriple: self.targetTriple,
-      isVerbose: self.isVerbose
+      isVerbose: self.isVerbose,
+      xzPath: xzPath
     )
 
     let allPackages = try await mainPackages
@@ -175,13 +187,22 @@ extension SwiftSDKGenerator {
 extension HTTPClientProtocol {
   private func downloadUbuntuPackagesList(
     from url: String,
+    unzipWith zipPath: String,
     isVerbose: Bool
   ) async throws -> String? {
-    guard let packages = try await get(url: url).body?.unzip(isVerbose: isVerbose) else {
+    guard let packages = try await get(url: url).body?.unzip(zipPath: zipPath, isVerbose: isVerbose) else {
       throw FileOperationError.downloadFailed(url)
     }
 
     return String(buffer: packages)
+  }
+
+  func packagesFileName(isXzAvailable: Bool) -> String {
+    if isXzAvailable {
+      return "Packages.xz"
+    }
+    // Use .gz if xz is not available
+    return "Packages.gz"
   }
 
   func parseUbuntuPackagesList(
@@ -189,7 +210,8 @@ extension HTTPClientProtocol {
     releaseSuffix: String = "",
     repository: String,
     targetTriple: Triple,
-    isVerbose: Bool
+    isVerbose: Bool,
+    xzPath: String?
   ) async throws -> [String: URL] {
     let mirrorURL: String
     if targetTriple.arch == .x86_64 {
@@ -200,13 +222,13 @@ extension HTTPClientProtocol {
 
     let packagesListURL = """
     \(mirrorURL)/dists/\(ubuntuRelease)\(releaseSuffix)/\(repository)/binary-\(
-      targetTriple.arch!
-        .debianConventionName
-    )/Packages.gz
+      targetTriple.arch!.debianConventionName
+    )/\(packagesFileName(isXzAvailable: xzPath != nil))
     """
 
     guard let packages = try await downloadUbuntuPackagesList(
       from: packagesListURL,
+      unzipWith: xzPath ?? "/usr/bin/gzip", // fallback on gzip if xz not available
       isVerbose: isVerbose
     ) else {
       throw GeneratorError.ubuntuPackagesDecompressionFailure
