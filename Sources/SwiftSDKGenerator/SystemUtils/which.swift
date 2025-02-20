@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 import AsyncProcess
+import Foundation
 
 /// Look for an executable using the `which` utility.
 /// 
@@ -19,8 +20,11 @@ import AsyncProcess
 /// - Returns: The path to the executable if found, otherwise nil.
 func which(_ executableName: String) async throws -> String? {
   let result = try await ProcessExecutor.runCollectingOutput(
-    executable: "/usr/bin/which", [executableName], collectStandardOutput: true, collectStandardError: false
+    executable: "/usr/bin/which", [executableName], collectStandardOutput: true, collectStandardError: false,
+    environment: ProcessInfo.processInfo.environment
   )
+
+  try result.exitReason.throwIfNonZero()
 
   if let output = result.standardOutput {
     let path = String(buffer: output).trimmingCharacters(in: .whitespacesAndNewlines)

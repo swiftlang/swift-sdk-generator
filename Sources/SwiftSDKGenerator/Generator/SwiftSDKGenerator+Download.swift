@@ -86,7 +86,7 @@ extension SwiftSDKGenerator {
     let xzPath = try await which("xz")
     if xzPath == nil {
       logger.warning("""
-      The 'xz' utility was not found in path. \
+      The `xz` utility was not found in `PATH`. \
       Consider installing it for more efficient downloading of package lists.
       """)
     }
