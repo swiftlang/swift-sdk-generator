@@ -10,10 +10,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-private let ubuntuReleases = [
-  "22.04": "jammy",
-]
-
 public enum LinuxDistribution: Hashable, Sendable {
   public enum Name: String {
     case rhel
@@ -27,6 +23,7 @@ public enum LinuxDistribution: Hashable, Sendable {
   public enum Ubuntu: String, Sendable {
     case focal
     case jammy
+    case noble
 
     init(version: String) throws {
       switch version {
@@ -34,6 +31,8 @@ public enum LinuxDistribution: Hashable, Sendable {
         self = .focal
       case "22.04":
         self = .jammy
+      case "24.04":
+        self = .noble
       default:
         throw GeneratorError.unknownLinuxDistribution(name: LinuxDistribution.Name.ubuntu.rawValue, version: version)
       }
@@ -43,6 +42,7 @@ public enum LinuxDistribution: Hashable, Sendable {
       switch self {
       case .focal: return "20.04"
       case .jammy: return "22.04"
+      case .noble: return "24.04"
       }
     }
 
@@ -60,7 +60,6 @@ public enum LinuxDistribution: Hashable, Sendable {
           "linux-libc-dev",
           "zlib1g",
           "zlib1g-dev",
-          "libc6",
         ]
       case .jammy: return [
           "libc6",
@@ -70,6 +69,19 @@ public enum LinuxDistribution: Hashable, Sendable {
           "libicu70",
           "libicu-dev",
           "libstdc++-12-dev",
+          "libstdc++6",
+          "linux-libc-dev",
+          "zlib1g",
+          "zlib1g-dev",
+        ]
+      case .noble: return [
+          "libc6",
+          "libc6-dev",
+          "libgcc-s1",
+          "libgcc-13-dev",
+          "libicu74",
+          "libicu-dev",
+          "libstdc++-13-dev",
           "libstdc++6",
           "linux-libc-dev",
           "zlib1g",
