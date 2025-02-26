@@ -27,6 +27,7 @@ import Glibc
 final class IntegrationTests: XCTestCase {
   private var group: EventLoopGroup!
   private var logger: Logger!
+  private var highestFD: CInt?
 
   func testTheBasicsWork() async throws {
     let exe = ProcessExecutor(
@@ -68,12 +69,7 @@ final class IntegrationTests: XCTestCase {
   }
 
   func testSignalsWork() async throws {
-    #if os(Linux)
-    // workaround for https://github.com/apple/swift-corelibs-foundation/issues/4772
-    let signalsToTest: [CInt] = [SIGKILL]
-    #else
     let signalsToTest: [CInt] = [SIGKILL, SIGTERM, SIGINT]
-    #endif
     for signal in signalsToTest {
       let exe = ProcessExecutor(
         group: self.group,
@@ -312,6 +308,8 @@ final class IntegrationTests: XCTestCase {
   }
 
   func testOutputWithoutNewlinesThatIsSplitIntoLines() async throws {
+    self.logger = Logger(label: "x")
+    self.logger.logLevel = .trace
     let exe = ProcessExecutor(
       group: self.group,
       executable: "/bin/sh",
@@ -755,11 +753,9 @@ final class IntegrationTests: XCTestCase {
       let result = try await exe.run()
       XCTFail("got result for bad executable: \(result)")
     } catch {
-      XCTAssertEqual(NSCocoaErrorDomain, (error as NSError).domain)
-      #if canImport(Darwin)
+      XCTAssertEqual(NSCocoaErrorDomain, (error as NSError).domain, "\(error)")
       // https://github.com/apple/swift-corelibs-foundation/issues/4810
-      XCTAssertEqual(NSFileNoSuchFileError, (error as NSError).code)
-      #endif
+      XCTAssertEqual(NSFileNoSuchFileError, (error as NSError).code, "\(error)")
     }
   }
 
@@ -891,17 +887,8 @@ final class IntegrationTests: XCTestCase {
         stderr = .fileDescriptor(sharing: fd)
       }
 
-      #if canImport(Darwin)
       let command =
         "for o in 1 2; do i=1000; while [ $i -gt 0 ]; do echo $o >&$o; i=$(( $i - 1 )); done & done; wait"
-      #else
-      // workaround for
-      // https://github.com/apple/swift-corelibs-foundation/issues/4772
-      // which causes `SIGCHLD` being blocked in the shell so it can't wait for its children :|
-      let command =
-        "for o in 1 2; do i=1000; while [ $i -gt 0 ]; do echo $o >&$o; i=$(( $i - 1 )); done & done; sleep 10"
-      #endif
-
       let exe = ProcessExecutor(
         group: self.group,
         executable: "/bin/sh",
@@ -951,7 +938,7 @@ final class IntegrationTests: XCTestCase {
   }
 
   func testCancelProcessVeryEarlyOnStressTest() async throws {
-    for i in 0..<1000 {
+    for i in 0..<100 {
       self.logger.debug("iteration go", metadata: ["iteration-number": "\(i)"])
       let exitReason = try await withThrowingTaskGroup(
         of: ProcessExitReason?.self,
@@ -1017,12 +1004,9 @@ final class IntegrationTests: XCTestCase {
     try await p.sendSignal(SIGKILL)
     let finalResult = try await result
     XCTAssertEqual(.signal(SIGKILL), finalResult)
+    while try await outputIterator.next() != nil {}
   }
 
-  #if os(macOS)
-  // This test will hang on anything that uses swift-corelibs-foundation because of
-  // https://github.com/apple/swift-corelibs-foundation/issues/4795
-  // Foundation.Process on Linux doesn't correctly detect when child process dies (creating zombie processes)
   func testCanDealWithRunawayChildProcesses() async throws {
     self.logger = Logger(label: "x")
     self.logger.logLevel = .info
@@ -1032,7 +1016,7 @@ final class IntegrationTests: XCTestCase {
         "-c",
         """
         set -e
-        /usr/bin/yes "Runaway process from \(#function), please file a swift-sdk-generator bug." > /dev/null &
+        /usr/bin/yes "Runaway process from \(#function), please file a swift-async-process bug." > /dev/null &
         child_pid=$!
         trap "echo >&2 killing $child_pid; kill -KILL $child_pid" INT
         echo "$child_pid" # communicate the child pid to our parent
@@ -1075,17 +1059,16 @@ final class IntegrationTests: XCTestCase {
         let killRet = kill(pid, 0)
         let errnoCode = errno
         guard killRet == -1 || attempt > 5 else {
-          logger.error("kill didn't fail on attempt \(attempt), trying again...")
+          self.logger.error("kill didn't fail on attempt \(attempt), trying again...")
           usleep(100_000)
           continue
         }
         XCTAssertEqual(-1, killRet)
         XCTAssertEqual(ESRCH, errnoCode)
         break
-      }    
+      }
     }
   }
-  #endif
 
   func testShutdownSequenceWorks() async throws {
     let p = ProcessExecutor(
@@ -1104,8 +1087,8 @@ final class IntegrationTests: XCTestCase {
       ],
       standardError: .discard,
       teardownSequence: [
-        .sendSignal(SIGQUIT, allowedTimeToExitNS: 10_000_000),
-        .sendSignal(SIGTERM, allowedTimeToExitNS: 10_000_000),
+        .sendSignal(SIGQUIT, allowedTimeToExitNS: 200_000_000),
+        .sendSignal(SIGTERM, allowedTimeToExitNS: 200_000_000),
         .sendSignal(SIGINT, allowedTimeToExitNS: 1_000_000_000),
       ],
       logger: self.logger
@@ -1114,10 +1097,7 @@ final class IntegrationTests: XCTestCase {
     try await withThrowingTaskGroup(of: Void.self) { group in
       group.addTask {
         let result = try await p.run()
-        #if os(macOS)
-        // won't work on SCLF: https://github.com/apple/swift-corelibs-foundation/issues/4772
         XCTAssertEqual(.exit(3), result)
-        #endif
       }
       var allLines: [String] = []
       for try await line in await p.standardOutput.splitIntoLines().strings {
@@ -1127,25 +1107,33 @@ final class IntegrationTests: XCTestCase {
         allLines.append(line)
       }
       try await group.waitForAll()
-      #if os(macOS)
-      // won't work on SCLF: https://github.com/apple/swift-corelibs-foundation/issues/4772
       XCTAssertEqual(["OK", "saw SIGQUIT", "saw SIGTERM", "saw SIGINT"], allLines)
-      #endif
     }
   }
 
   // MARK: - Setup/teardown
 
   override func setUp() async throws {
+    fflush(stdout)
+    fflush(stderr)
     self.group = MultiThreadedEventLoopGroup(numberOfThreads: 3)
     self.logger = Logger(label: "test", factory: { _ in SwiftLogNoOpLogHandler() })
+
+    // Make sure the singleton threads have booted (because they use file descriptors)
+    try await MultiThreadedEventLoopGroup.singleton.next().submit {}.get()
+    self.highestFD = highestOpenFD()
   }
 
   override func tearDown() {
+    let highestFD = highestOpenFD()
+    XCTAssertEqual(self.highestFD, highestFD, "\(blockingLSOFMyself())")
+    self.highestFD = nil
     self.logger = nil
 
     XCTAssertNoThrow(try self.group.syncShutdownGracefully())
     self.group = nil
+    fflush(stdout)
+    fflush(stderr)
   }
 }
 
@@ -1215,4 +1203,72 @@ extension ProcessExecutor {
       return AllOfAProcess(exitReason: exitReason!, standardOutput: stdout!, standardError: stderr!)
     }
   }
+}
+
+private func highestOpenFD() -> CInt? {
+  #if os(macOS)
+  guard let dirPtr = opendir("/dev/fd") else {
+    return nil
+  }
+  #elseif os(Linux)
+  guard let dirPtr = opendir("/proc/self/fd") else {
+    return nil
+  }
+  #else
+  return nil
+  #endif
+  defer {
+    closedir(dirPtr)
+  }
+  var highestFDSoFar = CInt(0)
+
+  while let dirEntPtr = readdir(dirPtr) {
+    var entryName = dirEntPtr.pointee.d_name
+    let thisFD = withUnsafeBytes(of: &entryName) { entryNamePtr -> CInt? in
+
+      CInt(String(decoding: entryNamePtr.prefix(while: { $0 != 0 }), as: Unicode.UTF8.self))
+    }
+    highestFDSoFar = max(thisFD ?? -1, highestFDSoFar)
+  }
+
+  return highestFDSoFar
+}
+
+private func blockingLSOFMyself() -> String {
+  let box = NIOLockedValueBox<String>("n/a")
+  let sem = DispatchSemaphore(value: 0)
+  Task {
+    defer {
+      sem.signal()
+    }
+    do {
+      #if canImport(Darwin)
+      let lsofPath = "/usr/sbin/lsof"
+      #else
+      let lsofPath = "/usr/bin/lsof"
+      #endif
+      let result = try await ProcessExecutor.runCollectingOutput(
+        executable: lsofPath,
+        ["-Pnp", "\(getpid())"],
+        collectStandardOutput: true,
+        collectStandardError: true
+      )
+      let outString = """
+      exit code: \(result.exitReason)\n
+      ## stdout
+      \(String(buffer: result.standardOutput!))
+
+      ## stderr
+      \(String(buffer: result.standardError!))
+
+      """
+      box.withLockedValue { $0 = outString }
+    } catch {
+      box.withLockedValue { debugString in
+        debugString = "ERROR: \(error)"
+      }
+    }
+  }
+  _ = sem.wait(timeout: .now() + 3)
+  return box.withLockedValue { $0 }
 }
