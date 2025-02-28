@@ -10,6 +10,22 @@
 //
 //===----------------------------------------------------------------------===//
 
+#if canImport(Darwin)
+import Darwin
+#elseif canImport(Musl)
+@preconcurrency import Musl
+#elseif canImport(Glibc)
+@preconcurrency import Glibc
+#elseif canImport(WASILibc)
+@preconcurrency import WASILibc
+#elseif canImport(Bionic)
+@preconcurrency import Bionic
+#elseif canImport(Android)
+@preconcurrency import Android
+#else
+#error("unknown libc, please fix")
+#endif
+
 import AsyncAlgorithms
 import AsyncProcess
 import Atomics
@@ -17,12 +33,6 @@ import Logging
 import NIO
 import NIOConcurrencyHelpers
 import XCTest
-
-#if canImport(Darwin)
-import Darwin
-#else
-import Glibc
-#endif
 
 final class IntegrationTests: XCTestCase {
   private var group: EventLoopGroup!
