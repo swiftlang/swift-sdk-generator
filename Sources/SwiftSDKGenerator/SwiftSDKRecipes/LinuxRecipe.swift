@@ -289,6 +289,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       )
     }
 
+    try await generator.createLibSymlink(sdkDirPath: sdkDirPath)
     try await generator.fixAbsoluteSymlinks(sdkDirPath: sdkDirPath)
 
     // Swift 6.1 and later do not throw warnings about the SDKSettings.json file missing,
