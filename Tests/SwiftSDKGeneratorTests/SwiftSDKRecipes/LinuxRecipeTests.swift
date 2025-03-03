@@ -45,6 +45,7 @@ final class LinuxRecipeTests: XCTestCase {
     let testCases = [
       (
         swiftVersion: "5.9.2",
+        targetTriple: Triple("x86_64-unknown-linux-gnu"),
         expectedSwiftCompilerOptions: [
           "-Xlinker", "-R/usr/lib/swift/linux/",
           "-Xclang-linker", "--ld-path=ld.lld"
@@ -53,9 +54,20 @@ final class LinuxRecipeTests: XCTestCase {
       ),
       (
         swiftVersion: "6.0.2",
+        targetTriple: Triple("aarch64-unknown-linux-gnu"),
         expectedSwiftCompilerOptions: [
           "-Xlinker", "-R/usr/lib/swift/linux/",
           "-use-ld=lld"
+        ],
+        expectedLinkerPath: "ld.lld"
+      ),
+      (
+        swiftVersion: "6.0.3",
+        targetTriple: Triple("armv7-unknown-linux-gnueabihf"),
+        expectedSwiftCompilerOptions: [
+          "-Xlinker", "-R/usr/lib/swift/linux/",
+          "-use-ld=lld",
+          "-latomic"
         ],
         expectedLinkerPath: "ld.lld"
       )
@@ -65,7 +77,7 @@ final class LinuxRecipeTests: XCTestCase {
       let recipe = try self.createRecipe(swiftVersion: testCase.swiftVersion)
       var toolset = Toolset(rootPath: nil)
       recipe.applyPlatformOptions(
-        toolset: &toolset, targetTriple: Triple("aarch64-unknown-linux-gnu")
+        toolset: &toolset, targetTriple: testCase.targetTriple
       )
       XCTAssertEqual(toolset.swiftCompiler?.extraCLIOptions, testCase.expectedSwiftCompilerOptions)
       XCTAssertEqual(toolset.linker?.path, testCase.expectedLinkerPath)

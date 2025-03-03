@@ -128,6 +128,11 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     } else {
       swiftCompilerOptions.append("-use-ld=lld")
 
+      // 32-bit architectures require libatomic
+      if let arch = targetTriple.arch, arch.is32Bit {
+        swiftCompilerOptions.append("-latomic")
+      }
+
       if self.hostSwiftSource != .preinstalled {
         toolset.linker = Toolset.ToolProperties(path: "ld.lld")
       }
