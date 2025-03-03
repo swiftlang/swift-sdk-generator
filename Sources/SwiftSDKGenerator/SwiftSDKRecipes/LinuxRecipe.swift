@@ -294,6 +294,15 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       )
     }
 
+    logger.info("Removing unused toolchain components from target SDK...")
+    try await generator.removeToolchainComponents(
+      sdkDirPath,
+      platforms: unusedTargetPlatforms,
+      libraries: unusedHostLibraries,
+      binaries: unusedHostBinaries
+    )
+
+    try await generator.createLibSymlink(sdkDirPath: sdkDirPath)
     try await generator.fixAbsoluteSymlinks(sdkDirPath: sdkDirPath)
 
     // Swift 6.1 and later do not throw warnings about the SDKSettings.json file missing,
