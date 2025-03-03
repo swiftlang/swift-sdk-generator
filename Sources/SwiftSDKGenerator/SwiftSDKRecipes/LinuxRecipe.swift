@@ -129,7 +129,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       swiftCompilerOptions.append("-use-ld=lld")
 
       // 32-bit architectures require libatomic
-      if targetTriple.archName == "armv7" {
+      if let arch = targetTriple.arch, arch.is32Bit {
         swiftCompilerOptions.append("-latomic")
       }
 
