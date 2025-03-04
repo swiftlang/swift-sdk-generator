@@ -128,6 +128,11 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     } else {
       swiftCompilerOptions.append("-use-ld=lld")
 
+      // 32-bit architectures require libatomic
+      if let arch = targetTriple.arch, arch.is32Bit {
+        swiftCompilerOptions.append("-latomic")
+      }
+
       if self.hostSwiftSource != .preinstalled {
         toolset.linker = Toolset.ToolProperties(path: "ld.lld")
       }
@@ -289,6 +294,15 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       )
     }
 
+    logger.info("Removing unused toolchain components from target SDK...")
+    try await generator.removeToolchainComponents(
+      sdkDirPath,
+      platforms: unusedTargetPlatforms,
+      libraries: unusedHostLibraries,
+      binaries: unusedHostBinaries
+    )
+
+    try await generator.createLibSymlink(sdkDirPath: sdkDirPath)
     try await generator.fixAbsoluteSymlinks(sdkDirPath: sdkDirPath)
 
     // Swift 6.1 and later do not throw warnings about the SDKSettings.json file missing,
