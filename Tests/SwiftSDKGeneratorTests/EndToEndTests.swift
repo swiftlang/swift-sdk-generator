@@ -182,7 +182,8 @@ struct SDKConfiguration {
       "--swift-version \(swiftVersion)-RELEASE",
       testLinuxSwiftSDKs ? "--host \(hostArch!)-unknown-linux-gnu" : nil,
       "--target \(architecture)-unknown-linux-gnu",
-      "--linux-distribution-name \(linuxDistributionName)"
+      "--linux-distribution-name \(linuxDistributionName)",
+      "--linux-distribution-version \(linuxDistributionVersion)"
     ].compactMap{ $0 }.joined(separator: " ")
   }
 }
