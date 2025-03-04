@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 public enum LinuxDistribution: Hashable, Sendable {
-  public enum Name: String {
+  public enum Name: String, Sendable {
     case rhel
     case ubuntu
     case debian
