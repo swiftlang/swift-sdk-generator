@@ -115,18 +115,18 @@ final class RepeatedBuildTests: XCTestCase {
   private let logger = Logger(label: "swift-sdk-generator")
 
   func testRepeatedSDKBuilds() async throws {
-    if ProcessInfo.processInfo.environment.keys.contains("JENKINS_URL") {
-      throw XCTSkip("EndToEnd tests cannot currently run in CI: https://github.com/swiftlang/swift-sdk-generator/issues/145")
-    }
+//    if ProcessInfo.processInfo.environment.keys.contains("JENKINS_URL") {
+//      throw XCTSkip("EndToEnd tests cannot currently run in CI: https://github.com/swiftlang/swift-sdk-generator/issues/145")
+//    }
 
     var logger = logger
     logger[metadataKey: "testcase"] = "testRepeatedSDKBuilds"
 
     // Test that an existing SDK can be rebuilt without cleaning up.
     // Test with no arguments by default:
-    var possibleArguments = ["--host-toolchain"]
+    var possibleArguments = ["--no-host-toolchain"]
     do {
-      try await Shell.run("docker ps")
+      try await Shell.run("podman ps")
       possibleArguments.append("--with-docker --linux-distribution-name rhel --linux-distribution-version ubi9")
     } catch {
       self.logger.warning("Docker CLI does not seem to be working, skipping tests that involve Docker.")
@@ -177,7 +177,7 @@ struct SDKConfiguration {
   var sdkGeneratorArguments: String {
     return [
       "--sdk-name \(bundleName)",
-      "--host-toolchain",
+      "--no-host-toolchain",
       withDocker ? "--with-docker" : nil,
       "--swift-version \(swiftVersion)-RELEASE",
       testLinuxSwiftSDKs ? "--host \(hostArch!)-unknown-linux-gnu" : nil,
@@ -232,7 +232,7 @@ func buildTestcase(_ logger: Logger, testcase: String, bundleName: String, tempD
       logger.info("Building test project in 6.0-\(containerVersion) container")
       buildOutput = try await Shell.readStdout(
         """
-        docker run --rm -v \(testPackageDir):/src \
+        podman run --rm -v \(testPackageDir):/src \
           -v $HOME/.swiftpm/swift-sdks:/root/.swiftpm/swift-sdks \
           --workdir /src swift:6.0-\(containerVersion) \
           /bin/bash -c "swift build --scratch-path /root/.build --experimental-swift-sdk \(bundleName)"
@@ -244,7 +244,7 @@ func buildTestcase(_ logger: Logger, testcase: String, bundleName: String, tempD
       logger.info("Building test project in 6.0-\(containerVersion) container with static-swift-stdlib")
       buildOutput = try await Shell.readStdout(
         """
-        docker run --rm -v \(testPackageDir):/src \
+        podman run --rm -v \(testPackageDir):/src \
           -v $HOME/.swiftpm/swift-sdks:/root/.swiftpm/swift-sdks \
           --workdir /src swift:6.0-\(containerVersion) \
           /bin/bash -c "swift build --scratch-path /root/.build --experimental-swift-sdk \(bundleName) --static-swift-stdlib"
@@ -276,13 +276,13 @@ func buildTestcases(config: SDKConfiguration) async throws {
   var logger = Logger(label: "EndToEndTests")
   logger[metadataKey: "testcase"] = "testPackageInitExecutable"
 
-  if ProcessInfo.processInfo.environment.keys.contains("JENKINS_URL") {
-    throw XCTSkip("EndToEnd tests cannot currently run in CI: https://github.com/swiftlang/swift-sdk-generator/issues/145")
-  }
+//  if ProcessInfo.processInfo.environment.keys.contains("JENKINS_URL") {
+//    throw XCTSkip("EndToEnd tests cannot currently run in CI: https://github.com/swiftlang/swift-sdk-generator/issues/145")
+//  }
 
   if config.withDocker {
     do {
-      try await Shell.run("docker ps")
+      try await Shell.run("podman ps")
     } catch {
       throw XCTSkip("Container runtime is not available - skipping tests which require it")
     }
@@ -325,12 +325,10 @@ final class Swift59_UbuntuEndToEndTests: XCTestCase {
   }
 
   func testAarch64FromContainer() async throws {
-    try skipSlow()
     try await buildTestcases(config: config.withArchitecture("aarch64").withDocker())
   }
 
   func testX86_64FromContainer() async throws {
-    try skipSlow()
     try await buildTestcases(config: config.withArchitecture("x86_64").withDocker())
   }
 }
