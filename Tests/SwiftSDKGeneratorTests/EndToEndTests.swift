@@ -289,8 +289,6 @@ func buildTestcase(_ logger: Logger, testcase: String, bundleName: String, tempD
 }
 
 func buildTestcases(config: SDKConfiguration) async throws {
-  try skipSlow()
-
   var logger = Logger(label: "EndToEndTests")
   logger[metadataKey: "testcase"] = "testPackageInitExecutable"
 
@@ -342,18 +340,22 @@ final class Swift59_UbuntuEndToEndTests: XCTestCase {
   )
 
   func testAarch64Direct() async throws {
+    try skipSlow()
     try await buildTestcases(config: config.withArchitecture("aarch64"))
   }
 
   func testX86_64Direct() async throws {
+    try skipSlow()
     try await buildTestcases(config: config.withArchitecture("x86_64"))
   }
 
   func testAarch64FromContainer() async throws {
+    try skipSlow()
     try await buildTestcases(config: config.withArchitecture("aarch64").withDocker())
   }
 
   func testX86_64FromContainer() async throws {
+    try skipSlow()
     try await buildTestcases(config: config.withArchitecture("x86_64").withDocker())
   }
 }
@@ -368,18 +370,22 @@ final class Swift510_UbuntuEndToEndTests: XCTestCase {
   )
 
   func testAarch64Direct() async throws {
+    try skipSlow()
     try await buildTestcases(config: config.withArchitecture("aarch64"))
   }
 
   func testX86_64Direct() async throws {
+    try skipSlow()
     try await buildTestcases(config: config.withArchitecture("x86_64"))
   }
 
   func testAarch64FromContainer() async throws {
+    try skipSlow()
     try await buildTestcases(config: config.withArchitecture("aarch64").withDocker())
   }
 
   func testX86_64FromContainer() async throws {
+    try skipSlow()
     try await buildTestcases(config: config.withArchitecture("x86_64").withDocker())
   }
 }
@@ -394,18 +400,22 @@ final class Swift60_UbuntuEndToEndTests: XCTestCase {
   )
 
   func testAarch64Direct() async throws {
+    try skipSlow()
     try await buildTestcases(config: config.withArchitecture("aarch64"))
   }
 
   func testX86_64Direct() async throws {
+    try skipSlow()
     try await buildTestcases(config: config.withArchitecture("x86_64"))
   }
 
   func testAarch64FromContainer() async throws {
+    try skipSlow()
     try await buildTestcases(config: config.withArchitecture("aarch64").withDocker())
   }
 
   func testX86_64FromContainer() async throws {
+    try skipSlow()
     try await buildTestcases(config: config.withArchitecture("x86_64").withDocker())
   }
 }
@@ -420,18 +430,22 @@ final class Swift59_RHELEndToEndTests: XCTestCase {
   )
 
   func testAarch64FromContainer() async throws {
+    try skipSlow()
     try await buildTestcases(config: config.withArchitecture("aarch64"))
   }
 
   func testX86_64FromContainer() async throws {
+    try skipSlow()
     try await buildTestcases(config: config.withArchitecture("x86_64"))
   }
 
   func testAmazonLinux2Aarch64FromContainer() async throws {
+    try skipSlow()
     try await buildTestcases(config: config.withArchitecture("aarch64").withContainerImageSuffix("amazonlinux2"))
   }
 
   func testAmazonLinux2X86_64FromContainer() async throws {
+    try skipSlow()
     try await buildTestcases(config: config.withArchitecture("x86_64").withContainerImageSuffix("amazonlinux2"))
   }
 }
@@ -446,26 +460,32 @@ final class Swift510_RHELEndToEndTests: XCTestCase {
   )
 
   func testAarch64FromContainer() async throws {
+    try skipSlow()
     try await buildTestcases(config: config.withArchitecture("aarch64"))
   }
 
   func testX86_64FromContainer() async throws {
+    try skipSlow()
     try await buildTestcases(config: config.withArchitecture("x86_64"))
   }
 
   func testAmazonLinux2Aarch64FromContainer() async throws {
+    try skipSlow()
     try await buildTestcases(config: config.withArchitecture("aarch64").withContainerImageSuffix("amazonlinux2"))
   }
 
   func testAmazonLinux2X86_64FromContainer() async throws {
+    try skipSlow()
     try await buildTestcases(config: config.withArchitecture("x86_64").withContainerImageSuffix("amazonlinux2"))
   }
 
   func testFedora39Aarch64FromContainer() async throws {
+    try skipSlow()
     try await buildTestcases(config: config.withArchitecture("aarch64").withContainerImageSuffix("fedora39"))
   }
 
   func testFedora39X86_64FromContainer() async throws {
+    try skipSlow()
     try await buildTestcases(config: config.withArchitecture("x86_64").withContainerImageSuffix("fedora39"))
   }
 }
@@ -480,26 +500,32 @@ final class Swift60_RHELEndToEndTests: XCTestCase {
   )
 
   func testAarch64FromContainer() async throws {
+    try skipSlow()
     try await buildTestcases(config: config.withArchitecture("aarch64"))
   }
 
   func testX86_64FromContainer() async throws {
+    try skipSlow()
     try await buildTestcases(config: config.withArchitecture("x86_64"))
   }
 
   func testAmazonLinux2Aarch64FromContainer() async throws {
+    try skipSlow()
     try await buildTestcases(config: config.withArchitecture("aarch64").withContainerImageSuffix("amazonlinux2"))
   }
 
   func testAmazonLinux2X86_64FromContainer() async throws {
+    try skipSlow()
     try await buildTestcases(config: config.withArchitecture("x86_64").withContainerImageSuffix("amazonlinux2"))
   }
 
   func testFedora39Aarch64FromContainer() async throws {
+    try skipSlow()
     try await buildTestcases(config: config.withArchitecture("aarch64").withContainerImageSuffix("fedora39"))
   }
 
   func testFedora39X86_64FromContainer() async throws {
+    try skipSlow()
     try await buildTestcases(config: config.withArchitecture("x86_64").withContainerImageSuffix("fedora39"))
   }
 }
