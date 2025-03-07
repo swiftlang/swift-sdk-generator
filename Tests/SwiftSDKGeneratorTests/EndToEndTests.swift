@@ -163,6 +163,12 @@ struct SDKConfiguration {
     return res
   }
 
+  func withLinuxDistributionVersion(_ version: String) -> SDKConfiguration {
+    var res = self
+    res.linuxDistributionVersion = version
+    return res
+  }
+
   func withArchitecture(_ arch: String) -> SDKConfiguration {
     var res = self
     res.architecture = arch
@@ -394,6 +400,112 @@ final class Swift60_UbuntuEndToEndTests: XCTestCase {
     try skipSlow()
     try await buildTestcases(config: config.withArchitecture("x86_64").withDocker())
   }
+}
+
+final class Swift59_DebianEndToEndTests: XCTestCase {
+  let config = SDKConfiguration(
+    swiftVersion: "5.9.2",
+    linuxDistributionName: "debian",
+    linuxDistributionVersion: "11", // we use ubuntu2004 toolchain here
+    architecture: "aarch64",
+    withDocker: false
+  )
+
+  func testAarch64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(config: config.withArchitecture("aarch64"))
+  }
+
+  func testX86_64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(config: config.withArchitecture("x86_64"))
+  }
+
+  // NOTE: we do support building a Swift SDK from a pre-built Debian 11 Bullseye container
+}
+
+final class Swift510_DebianEndToEndTests: XCTestCase {
+  let config = SDKConfiguration(
+    swiftVersion: "5.10.1",
+    linuxDistributionName: "debian",
+    linuxDistributionVersion: "12",
+    architecture: "aarch64",
+    withDocker: false
+  )
+
+  func testBookwormAarch64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(config: config.withArchitecture("aarch64"))
+  }
+
+  func testBookwormX86_64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(config: config.withArchitecture("x86_64"))
+  }
+
+  func testBookwormAarch64FromContainer() async throws {
+    try skipSlow()
+    try await buildTestcases(config: config.withArchitecture("aarch64").withDocker())
+  }
+
+  func testBookwormX86_64FromContainer() async throws {
+    try skipSlow()
+    try await buildTestcases(config: config.withArchitecture("x86_64").withDocker())
+  }
+
+  func testBullseyeAarch64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(config: config.withLinuxDistributionVersion("11").withArchitecture("aarch64"))
+  }
+
+  func testBullseyeX86_64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(config: config.withLinuxDistributionVersion("11").withArchitecture("x86_64"))
+  }
+
+  // NOTE: we do support building a Swift SDK from a pre-built Debian 11 Bullseye container
+}
+
+final class Swift60_DebianEndToEndTests: XCTestCase {
+  let config = SDKConfiguration(
+    swiftVersion: "6.0.3",
+    linuxDistributionName: "debian",
+    linuxDistributionVersion: "12",
+    architecture: "aarch64",
+    withDocker: false
+  )
+
+  func testBookwormAarch64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(config: config.withArchitecture("aarch64"))
+  }
+
+  func testBookwormX86_64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(config: config.withArchitecture("x86_64"))
+  }
+
+  func testBookwormAarch64FromContainer() async throws {
+    try skipSlow()
+    try await buildTestcases(config: config.withArchitecture("aarch64").withDocker())
+  }
+
+  func testBookwormX86_64FromContainer() async throws {
+    try skipSlow()
+    try await buildTestcases(config: config.withArchitecture("x86_64").withDocker())
+  }
+
+  func testBullseyeAarch64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(config: config.withLinuxDistributionVersion("11").withArchitecture("aarch64"))
+  }
+
+  func testBullseyeX86_64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(config: config.withLinuxDistributionVersion("11").withArchitecture("x86_64"))
+  }
+
+  // NOTE: we do support building a Swift SDK from a pre-built Debian 11 Bullseye container
 }
 
 final class Swift59_RHELEndToEndTests: XCTestCase {
