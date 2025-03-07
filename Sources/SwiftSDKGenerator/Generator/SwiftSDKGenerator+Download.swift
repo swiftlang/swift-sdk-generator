@@ -124,42 +124,50 @@ extension SwiftSDKGenerator {
     logger.info("Downloading and parsing packages lists...", metadata: [
       "distributionName": .stringConvertible(distributionName), "distributionRelease": .string(distributionRelease)
     ])
-    async let mainPackages = try await parseDebianPackageList(
-      using: client,
-      mirrorURL: mirrorURL,
-      release: distributionRelease,
-      releaseSuffix: "",
-      repository: "main",
-      targetTriple: self.targetTriple,
-      isVerbose: self.isVerbose,
-      xzPath: xzPath
-    )
 
-    async let updatesPackages = try await parseDebianPackageList(
-      using: client,
-      mirrorURL: mirrorURL,
-      release: distributionRelease,
-      releaseSuffix: "-updates",
-      repository: "main",
-      targetTriple: self.targetTriple,
-      isVerbose: self.isVerbose,
-      xzPath: xzPath
-    )
+    let allPackages = try await withThrowingTaskGroup(of: [String: URL].self) { group in
+      group.addTask {
+        return try await self.parseDebianPackageList(
+          using: client,
+          mirrorURL: mirrorURL,
+          release: distributionRelease,
+          releaseSuffix: "",
+          repository: "main",
+          targetTriple: self.targetTriple,
+          xzPath: xzPath
+        )
+      }
+      group.addTask {
+        return try await self.parseDebianPackageList(
+          using: client,
+          mirrorURL: mirrorURL,
+          release: distributionRelease,
+          releaseSuffix: "-updates",
+          repository: "main",
+          targetTriple: self.targetTriple,
+          xzPath: xzPath
+        )
+      }
+      if distributionName == .ubuntu {
+        group.addTask {
+          return try await self.parseDebianPackageList(
+            using: client,
+            mirrorURL: mirrorURL,
+            release: distributionRelease,
+            releaseSuffix: "-updates",
+            repository: "universe",
+            targetTriple: self.targetTriple,
+            xzPath: xzPath
+          )
+        }
+      }
 
-    async let extraPackages = try await parseDebianPackageList(
-      using: client,
-      mirrorURL: mirrorURL,
-      release: distributionRelease,
-      releaseSuffix: "-updates",
-      repository: distributionName == .ubuntu ? "universe" : "contrib",
-      targetTriple: self.targetTriple,
-      isVerbose: self.isVerbose,
-      xzPath: xzPath
-    )
-
-    let allPackages = try await mainPackages
-      .merging(updatesPackages, uniquingKeysWith: { $1 })
-      .merging(extraPackages, uniquingKeysWith: { $1 })
+      var packages: [String : URL] = [String: URL]()
+      for try await result in group {
+        packages.merge(result, uniquingKeysWith: { $1 })
+      }
+      return packages
+    }
 
     let urls = requiredPackages.compactMap { allPackages[$0] }
 
@@ -191,20 +199,22 @@ extension SwiftSDKGenerator {
     releaseSuffix: String,
     repository: String,
     targetTriple: Triple,
-    isVerbose: Bool,
     xzPath: String?
   ) async throws -> [String: URL] {
+    var contextLogger = logger
+
     let packagesListURL = """
     \(mirrorURL)/dists/\(release)\(releaseSuffix)/\(repository)/binary-\(
       targetTriple.arch!.debianConventionName
     )/\(packagesFileName(isXzAvailable: xzPath != nil))
     """
-  
-    logger.debug("Starting download of packages list", metadata: ["packagesListURL": .string(packagesListURL)])
+    contextLogger[metadataKey: "packagesListURL"] = .string(packagesListURL)
+
+    contextLogger.debug("Downloading packages list...")
     guard let packages = try await client.downloadDebianPackagesList(
       from: packagesListURL,
       unzipWith: xzPath ?? "/usr/bin/gzip", // fallback on gzip if xz not available
-      isVerbose: isVerbose
+      logger: logger
     ) else {
       throw GeneratorError.packagesListDecompressionFailure
     }
@@ -228,14 +238,9 @@ extension SwiftSDKGenerator {
       }
 
       Anchor.endOfLine
-
-      OneOrMore(.any, .reluctant)
-
-      "MD5sum: "
-
-      OneOrMore(.hexDigit)
     }
 
+    contextLogger.debug("Processing packages list...")
     var result = [String: URL]()
     for match in packages.matches(of: regex) {
       guard let url = URL(string: "\(mirrorURL)/\(match[pathRef])") else { continue }
@@ -292,9 +297,9 @@ extension HTTPClientProtocol {
   func downloadDebianPackagesList(
     from url: String,
     unzipWith zipPath: String,
-    isVerbose: Bool
+    logger: Logger
   ) async throws -> String? {
-    guard let packages = try await get(url: url).body?.unzip(zipPath: zipPath, isVerbose: isVerbose) else {
+    guard let packages = try await get(url: url).body?.unzip(zipPath: zipPath, logger: logger) else {
       throw FileOperationError.downloadFailed(url)
     }
 
