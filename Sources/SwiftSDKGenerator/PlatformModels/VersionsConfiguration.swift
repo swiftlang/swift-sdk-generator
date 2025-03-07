@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 import struct Foundation.URL
+import Logging
 
 public struct VersionsConfiguration: Sendable {
   init(
@@ -18,12 +19,18 @@ public struct VersionsConfiguration: Sendable {
     swiftBranch: String? = nil,
     lldVersion: String,
     linuxDistribution: LinuxDistribution,
-    targetTriple: Triple
+    targetTriple: Triple,
+    logger: Logger
   ) throws {
     self.swiftVersion = swiftVersion
     self.swiftBranch = swiftBranch ?? "swift-\(swiftVersion.lowercased())"
     self.lldVersion = lldVersion
-    self.linuxDistribution = linuxDistribution
+    if case let .debian(debian) = linuxDistribution, debian.version == "11" {
+      logger.warning("Debian 11 selected but not officially supported by Swift, falling back on Ubuntu 20.04 toolchain...")
+      self.linuxDistribution = try .init(name: .ubuntu, version: "20.04")
+    } else {
+      self.linuxDistribution = linuxDistribution
+    }
     self.linuxArchSuffix = targetTriple.arch == .aarch64 ? "-\(Triple.Arch.aarch64.linuxConventionName)" : ""
   }
 

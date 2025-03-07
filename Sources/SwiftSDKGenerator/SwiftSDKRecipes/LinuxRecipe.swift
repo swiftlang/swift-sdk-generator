@@ -62,7 +62,8 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       swiftBranch: swiftBranch,
       lldVersion: lldVersion,
       linuxDistribution: linuxDistribution,
-      targetTriple: targetTriple
+      targetTriple: targetTriple,
+      logger: logger
     )
 
     let targetSwiftSource: LinuxRecipe.TargetSwiftSource
