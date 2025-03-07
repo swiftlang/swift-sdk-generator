@@ -91,6 +91,18 @@ extension SwiftSDKGenerator {
         }
         try await generator.createSymlink(at: sdkDirPath.appending("lib"), pointingTo: "usr/lib")
 
+        // Look for 32-bit libraries to remove from RHEL-based distros
+        // These are not needed, and the amazonlinux2 x86_64 symlinks are messed up
+        if case .rhel = targetDistribution {
+          for gccVersion in 7...13 {
+            let removePath = "gcc/x86_64-redhat-linux/\(gccVersion)/32"
+            if await doesFileExist(at: sdkUsrLibPath.appending(removePath)) {
+              logger.warning("Removing 32-bit libraries from RHEL imported sysroot", metadata: ["removePath": .stringConvertible(removePath)])
+              try await removeRecursively(at: sdkUsrLibPath.appending(removePath))
+            }
+          }
+        }
+
         // Copy the ELF interpreter
         try await generator.copyFromDockerContainer(
             id: containerID,
