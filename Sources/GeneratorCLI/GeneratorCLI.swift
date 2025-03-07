@@ -125,7 +125,7 @@ extension GeneratorCLI {
       but requires exactly the same version of the swift.org toolchain to be installed for it to work.
       """
     )
-    var hostToolchain: Bool = false
+    var hostToolchain: Bool = hostToolchainDefault
 
     @Option(
       help: """
@@ -153,6 +153,15 @@ extension GeneratorCLI {
     var hostArch: Triple.Arch? = nil
     @Option(help: "Deprecated. Use `--target` instead")
     var targetArch: Triple.Arch? = nil
+
+    /// Default to adding host toolchain when building on macOS
+    static var hostToolchainDefault: Bool {
+      #if os(macOS)
+        true
+      #else
+        false
+      #endif
+    }
 
     func deriveHostTriple() throws -> Triple {
       if let host {

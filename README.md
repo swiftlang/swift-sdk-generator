@@ -116,6 +116,40 @@ for Ubuntu Jammy and Swift 5.9 this would be `swift:5.9-jammy-slim`. If you'd li
 an arbitrary Ubuntu Jammy system, make sure you pass `--static-swift-stdlib` flag to `swift build`, in addition
 to the `--experimental-swift-sdk` option.
 
+## Common Generator Options
+
+By default, on macOS hosts running on Apple Silicon, the Swift SDK Generator will create Swift SDKs
+for Ubuntu Jammy on aarch64, which matches the arch of the host. However, it is possible to change
+the default target architecture by passing the `--target` flag:
+
+```bash
+swift run swift-sdk-generator make-linux-sdk --target x86_64-unknown-linux-gnu
+```
+
+The Linux distribution name and version can also be passed to change from the default of Ubuntu Jammy:
+
+```bash
+swift run swift-sdk-generator make-linux-sdk --linux-distribution-name ubuntu --linux-distribution-version noble
+```
+
+### Host Toolchain
+
+The host toolchain is not included in the generated Swift SDK by default on Linux to match the behavior
+of the [Static Linux Swift SDKs](https://www.swift.org/documentation/articles/static-linux-getting-started.html)
+downloadable from [swift.org](https://www.swift.org/install/). However, on macOS, since most users are using Xcode
+and are likely not using the Swift OSS toolchain to build and run Swift projects, the Swift host toolchain
+is included by *default*. This default behavior can be changed by passing  `--no-host-toolchain`:
+
+```bash
+swift run swift-sdk-generator make-linux-sdk --no-host-toolchain --target x86_64-unknown-linux-gnu
+```
+
+Or, if on Linux, and desiring to generate the Swift SDK with the host toolchain included, add `--host-toolchain`:
+
+```bash
+swift run swift-sdk-generator make-linux-sdk --host-toolchain --target aarch64-unknown-linux-gnu
+```
+
 ## Building an SDK from a container image
 
 You can base your SDK on a container image, such as one of the
