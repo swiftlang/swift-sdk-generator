@@ -35,7 +35,7 @@ final class SwiftSDKGeneratorMetadataTests: XCTestCase {
         bundleVersion: "0.0.3",
         targetTriple: Triple("armv7-unknown-linux-gnueabihf"),
         expectedCanonicalName: "armv7-swift-linux-gnueabihf"
-      )
+      ),
     ]
 
     for testCase in testCases {

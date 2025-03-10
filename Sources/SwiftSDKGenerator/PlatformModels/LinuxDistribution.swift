@@ -34,7 +34,8 @@ public enum LinuxDistribution: Hashable, Sendable {
       case "24.04":
         self = .noble
       default:
-        throw GeneratorError.unknownLinuxDistribution(name: LinuxDistribution.Name.ubuntu.rawValue, version: version)
+        throw GeneratorError.unknownLinuxDistribution(
+          name: LinuxDistribution.Name.ubuntu.rawValue, version: version)
       }
     }
 
@@ -48,7 +49,8 @@ public enum LinuxDistribution: Hashable, Sendable {
 
     public var requiredPackages: [String] {
       switch self {
-      case .focal: return [
+      case .focal:
+        return [
           "libc6",
           "libc6-dev",
           "libgcc-s1",
@@ -61,7 +63,8 @@ public enum LinuxDistribution: Hashable, Sendable {
           "zlib1g",
           "zlib1g-dev",
         ]
-      case .jammy: return [
+      case .jammy:
+        return [
           "libc6",
           "libc6-dev",
           "libgcc-s1",
@@ -74,7 +77,8 @@ public enum LinuxDistribution: Hashable, Sendable {
           "zlib1g",
           "zlib1g-dev",
         ]
-      case .noble: return [
+      case .noble:
+        return [
           "libc6",
           "libc6-dev",
           "libgcc-s1",
@@ -129,8 +133,8 @@ public enum LinuxDistribution: Hashable, Sendable {
   }
 }
 
-public extension LinuxDistribution.Name {
-  init(nameString: String) throws {
+extension LinuxDistribution.Name {
+  public init(nameString: String) throws {
     guard let name = LinuxDistribution.Name(rawValue: nameString) else {
       throw GeneratorError.unknownLinuxDistribution(name: nameString, version: nil)
     }

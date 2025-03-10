@@ -10,11 +10,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-
 #if canImport(Darwin)
-import Darwin
+  import Darwin
 #elseif canImport(Glibc)
-import Glibc
+  import Glibc
 #endif
 
 /// libc's `uname` wrapper

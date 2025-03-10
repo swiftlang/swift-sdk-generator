@@ -14,13 +14,14 @@ import AsyncProcess
 import Foundation
 
 /// Look for an executable using the `which` utility.
-/// 
+///
 /// - Parameter executableName: The name of the executable to search for.
 /// - Throws: Any errors thrown by the ProcessExecutor.
 /// - Returns: The path to the executable if found, otherwise nil.
 func which(_ executableName: String) async throws -> String? {
   let result = try await ProcessExecutor.runCollectingOutput(
-    executable: "/usr/bin/which", [executableName], collectStandardOutput: true, collectStandardError: false,
+    executable: "/usr/bin/which", [executableName], collectStandardOutput: true,
+    collectStandardError: false,
     environment: ProcessInfo.processInfo.environment
   )
 

@@ -16,7 +16,9 @@ import SwiftSyntaxMacrosTestSupport
 import XCTest
 
 final class MacrosTests: XCTestCase {
-  private let macros: [String: Macro.Type] = ["CacheKey": CacheKeyMacro.self, "Query": QueryMacro.self]
+  private let macros: [String: Macro.Type] = [
+    "CacheKey": CacheKeyMacro.self, "Query": QueryMacro.self,
+  ]
 
   func testCacheKeyDerived() {
     assertMacroExpansion(
@@ -34,34 +36,34 @@ final class MacrosTests: XCTestCase {
       }
       """,
       expandedSource: """
-      struct Message {
-        let text: String
-        let sender: String
-      }
-      struct Q {
-        let number: Int
-        let text: String
-      }
-
-      extension Message: CacheKeyProtocol {
-        func hash(with hashFunction: inout some HashFunction) {
-          String(reflecting: Self.self).hash(with: &hashFunction)
-          text.hash(with: &hashFunction)
-          sender.hash(with: &hashFunction)
+        struct Message {
+          let text: String
+          let sender: String
         }
-      }
-
-      extension Q: QueryProtocol {
-      }
-
-      extension Q: CacheKeyProtocol {
-        func hash(with hashFunction: inout some HashFunction) {
-          String(reflecting: Self.self).hash(with: &hashFunction)
-          number.hash(with: &hashFunction)
-          text.hash(with: &hashFunction)
+        struct Q {
+          let number: Int
+          let text: String
         }
-      }
-      """,
+
+        extension Message: CacheKeyProtocol {
+          func hash(with hashFunction: inout some HashFunction) {
+            String(reflecting: Self.self).hash(with: &hashFunction)
+            text.hash(with: &hashFunction)
+            sender.hash(with: &hashFunction)
+          }
+        }
+
+        extension Q: QueryProtocol {
+        }
+
+        extension Q: CacheKeyProtocol {
+          func hash(with hashFunction: inout some HashFunction) {
+            String(reflecting: Self.self).hash(with: &hashFunction)
+            number.hash(with: &hashFunction)
+            text.hash(with: &hashFunction)
+          }
+        }
+        """,
       macros: self.macros,
       indentationWidth: .spaces(2)
     )

@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 import Helpers
+
 import struct SystemPackage.FilePath
 
 struct CMakeBuildQuery: CachingQuery {

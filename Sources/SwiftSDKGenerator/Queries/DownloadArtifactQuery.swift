@@ -10,9 +10,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-import class Foundation.ByteCountFormatter
-import Logging
 import Helpers
+import Logging
+
+import class Foundation.ByteCountFormatter
 import struct SystemPackage.FilePath
 
 struct DownloadArtifactQuery: Query {
@@ -22,7 +23,9 @@ struct DownloadArtifactQuery: Query {
   let logger: Logger
 
   func run(engine: QueryEngine) async throws -> FilePath {
-    logger.info("Downloading remote artifact not available in local cache", metadata: ["remoteUrl": .string(self.artifact.remoteURL.absoluteString)])
+    logger.info(
+      "Downloading remote artifact not available in local cache",
+      metadata: ["remoteUrl": .string(self.artifact.remoteURL.absoluteString)])
     let stream = self.httpClient.streamDownloadProgress(
       from: self.artifact.remoteURL, to: self.artifact.localPath
     )

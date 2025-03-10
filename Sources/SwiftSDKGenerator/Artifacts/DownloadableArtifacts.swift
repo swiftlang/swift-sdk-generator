@@ -10,12 +10,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-import struct Foundation.URL
 import Helpers
+
+import struct Foundation.URL
 import struct SystemPackage.FilePath
 
-private extension Triple {
-  var llvmBinaryURLSuffix: String {
+extension Triple {
+  fileprivate var llvmBinaryURLSuffix: String {
     switch (self.os, self.arch) {
     case (.linux, .aarch64): return "aarch64-linux-gnu"
     case (.linux, .x86_64): return "x86_64-linux-gnu-ubuntu-22.04"
@@ -53,7 +54,8 @@ struct DownloadableArtifacts: Sendable {
 
     if hostTriple.os == .linux {
       // Amazon Linux 2 is chosen for its best compatibility with all Swift-supported Linux hosts
-      let linuxArchSuffix = hostTriple.arch == .aarch64 ? "-\(Triple.Arch.aarch64.linuxConventionName)" : ""
+      let linuxArchSuffix =
+        hostTriple.arch == .aarch64 ? "-\(Triple.Arch.aarch64.linuxConventionName)" : ""
       self.hostSwift = .init(
         remoteURL: versions.swiftDownloadURL(
           subdirectory: "amazonlinux2\(linuxArchSuffix)",

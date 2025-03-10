@@ -10,8 +10,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-import struct Foundation.URL
 import Helpers
+
+import struct Foundation.URL
 import struct SystemPackage.FilePath
 
 struct DownloadFileQuery: Query {

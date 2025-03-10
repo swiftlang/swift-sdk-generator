@@ -10,18 +10,22 @@
 //
 //===----------------------------------------------------------------------===//
 
-import struct Foundation.Data
 import Crypto
-@testable import Helpers
+import XCTest
+
+import struct Foundation.Data
 import struct Logging.Logger
 import struct SystemPackage.FilePath
-import XCTest
+
+@testable import Helpers
 
 private let encoder = JSONEncoder()
 private let decoder = JSONDecoder()
 
-private extension AsyncFileSystem {
-  func read<V: Decodable>(_ path: FilePath, bufferLimit: Int = 10 * 1024 * 1024, as: V.Type) async throws -> V {
+extension AsyncFileSystem {
+  fileprivate func read<V: Decodable>(
+    _ path: FilePath, bufferLimit: Int = 10 * 1024 * 1024, as: V.Type
+  ) async throws -> V {
     let data = try await self.withOpenReadableFile(path) {
       var data = Data()
       for try await chunk in try await $0.read() {
@@ -35,7 +39,7 @@ private extension AsyncFileSystem {
     return try decoder.decode(V.self, from: data)
   }
 
-  func write(_ path: FilePath, _ value: some Encodable) async throws {
+  fileprivate func write(_ path: FilePath, _ value: some Encodable) async throws {
     let data = try encoder.encode(value)
     try await self.withOpenWritableFile(path) { fileHandle in
       try await fileHandle.write(data)
@@ -116,7 +120,7 @@ final class EngineTests: XCTestCase {
     let engine = QueryEngine(
       MockFileSystem(),
       Logger(label: "engine-tests")
-//      cacheLocation: .memory
+      //      cacheLocation: .memory
     )
 
     var resultPath = try await engine[Expression(x: 1, y: 2)].path
@@ -172,9 +176,11 @@ final class EngineTests: XCTestCase {
   func testQueryEncoding() throws {
     let item = MyItem(
       remoteURL: URL(
-        string: "https://download.swift.org/swift-5.9.2-release/ubuntu2204-aarch64/swift-5.9.2-RELEASE/swift-5.9.2-RELEASE-ubuntu22.04-aarch64.tar.gz"
+        string:
+          "https://download.swift.org/swift-5.9.2-release/ubuntu2204-aarch64/swift-5.9.2-RELEASE/swift-5.9.2-RELEASE-ubuntu22.04-aarch64.tar.gz"
       )!,
-      localPath: "/Users/katei/ghq/github.com/apple/swift-sdk-generator/Artifacts/target_swift_5.9.2-RELEASE_aarch64-unknown-linux-gnu.tar.gz",
+      localPath:
+        "/Users/katei/ghq/github.com/apple/swift-sdk-generator/Artifacts/target_swift_5.9.2-RELEASE_aarch64-unknown-linux-gnu.tar.gz",
       isPrebuilt: true
     )
     func hashValue(of key: some CacheKey) throws -> SHA256Digest {
