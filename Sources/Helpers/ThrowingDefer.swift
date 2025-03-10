@@ -22,7 +22,7 @@
 /// - SeeAlso: ``withAsyncThrowing(do:defer:)``
 public func withThrowing<T>(
   do work: () throws -> T,
-  defer deferred: () throws -> ()
+  defer deferred: () throws -> Void
 ) throws -> T {
   do {
     let result = try work()
@@ -46,7 +46,7 @@ public func withThrowing<T>(
 /// - SeeAlso: ``withThrowing(do:defer:)``
 public func withAsyncThrowing<T: Sendable>(
   do work: @Sendable () async throws -> T,
-  defer deferred: @Sendable () async throws -> ()
+  defer deferred: @Sendable () async throws -> Void
 ) async throws -> T {
   do {
     let result = try await work()

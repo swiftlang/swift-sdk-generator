@@ -53,7 +53,9 @@ public protocol HTTPClientProtocol: Sendable {
 }
 
 extension HTTPClientProtocol {
-  static func with<Result: Sendable>(_ body: @Sendable (any HTTPClientProtocol) async throws -> Result) async throws
+  static func with<Result: Sendable>(
+    _ body: @Sendable (any HTTPClientProtocol) async throws -> Result
+  ) async throws
     -> Result
   {
     try await self.with(http1Only: false, body)
@@ -63,107 +65,112 @@ extension HTTPClientProtocol {
 extension FilePath: @unchecked Sendable {}
 
 #if canImport(AsyncHTTPClient)
-import AsyncHTTPClient
+  import AsyncHTTPClient
 
-extension FileDownloadDelegate.Progress: @unchecked Sendable {}
+  extension FileDownloadDelegate.Progress: @unchecked Sendable {}
 
-extension HTTPClient: HTTPClientProtocol {
-  public static func with<Result: Sendable>(
-    http1Only: Bool, _ body: @Sendable (any HTTPClientProtocol) async throws -> Result
-  ) async throws -> Result {
-    var configuration = HTTPClient.Configuration(redirectConfiguration: .follow(max: 5, allowCycles: false))
-    if http1Only {
-      configuration.httpVersion = .http1Only
+  extension HTTPClient: HTTPClientProtocol {
+    public static func with<Result: Sendable>(
+      http1Only: Bool, _ body: @Sendable (any HTTPClientProtocol) async throws -> Result
+    ) async throws -> Result {
+      var configuration = HTTPClient.Configuration(
+        redirectConfiguration: .follow(max: 5, allowCycles: false))
+      if http1Only {
+        configuration.httpVersion = .http1Only
+      }
+      let client = HTTPClient(eventLoopGroupProvider: .singleton, configuration: configuration)
+      return try await withAsyncThrowing {
+        try await body(client)
+      } defer: {
+        try await client.shutdown()
+      }
     }
-    let client = HTTPClient(eventLoopGroupProvider: .singleton, configuration: configuration)
-    return try await withAsyncThrowing {
-      try await body(client)
-    } defer: {
-      try await client.shutdown()
+
+    public func get(url: String) async throws -> (
+      status: NIOHTTP1.HTTPResponseStatus, body: NIOCore.ByteBuffer?
+    ) {
+      let response = try await self.get(url: url).get()
+      return (status: response.status, body: response.body)
     }
-  }
 
-  public func get(url: String) async throws -> (status: NIOHTTP1.HTTPResponseStatus, body: NIOCore.ByteBuffer?) {
-    let response = try await self.get(url: url).get()
-    return (status: response.status, body: response.body)
-  }
+    public func head(url: String, headers: NIOHTTP1.HTTPHeaders) async throws -> Bool {
+      var headRequest = HTTPClientRequest(url: url)
+      headRequest.method = .HEAD
+      headRequest.headers = ["Accept": "*/*", "User-Agent": "Swift SDK Generator"]
+      return try await self.execute(headRequest, deadline: .distantFuture).status == .ok
+    }
 
-  public func head(url: String, headers: NIOHTTP1.HTTPHeaders) async throws -> Bool {
-    var headRequest = HTTPClientRequest(url: url)
-    headRequest.method = .HEAD
-    headRequest.headers = ["Accept": "*/*", "User-Agent": "Swift SDK Generator"]
-    return try await self.execute(headRequest, deadline: .distantFuture).status == .ok
-  }
+    public func downloadFile(
+      from url: URL,
+      to path: FilePath
+    ) async throws {
+      try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<(), Error>) in
+        do {
+          let delegate = try FileDownloadDelegate(
+            path: path.string,
+            reportHead: { task, responseHead in
+              if responseHead.status != .ok {
+                task.fail(
+                  reason: GeneratorError.fileDownloadFailed(url, responseHead.status.description))
+              }
+            }
+          )
+          let request = try HTTPClient.Request(url: url)
 
-  public func downloadFile(
-    from url: URL,
-    to path: FilePath
-  ) async throws {
-    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<(), Error>) in
-      do {
-        let delegate = try FileDownloadDelegate(
-          path: path.string,
-          reportHead: { task, responseHead in
-            if responseHead.status != .ok {
-              task.fail(reason: GeneratorError.fileDownloadFailed(url, responseHead.status.description))
+          execute(request: request, delegate: delegate).futureResult.whenComplete {
+            switch $0 {
+            case let .failure(error):
+              continuation.resume(throwing: error)
+            case .success:
+              continuation.resume(returning: ())
             }
           }
-        )
-        let request = try HTTPClient.Request(url: url)
-
-        execute(request: request, delegate: delegate).futureResult.whenComplete {
-          switch $0 {
-          case let .failure(error):
-            continuation.resume(throwing: error)
-          case .success:
-            continuation.resume(returning: ())
-          }
+        } catch {
+          continuation.resume(throwing: error)
         }
-      } catch {
-        continuation.resume(throwing: error)
+      }
+    }
+
+    public func streamDownloadProgress(
+      from url: URL,
+      to path: FilePath
+    ) -> AsyncThrowingStream<DownloadProgress, any Error> {
+      .init { continuation in
+        do {
+          let delegate = try FileDownloadDelegate(
+            path: path.string,
+            reportHead: {
+              if $0.status != .ok {
+                continuation
+                  .finish(throwing: FileOperationError.downloadFailed(url, $0.status.description))
+              }
+            },
+            reportProgress: {
+              continuation.yield(
+                DownloadProgress(totalBytes: $0.totalBytes, receivedBytes: $0.receivedBytes)
+              )
+            }
+          )
+          let request = try HTTPClient.Request(url: url)
+
+          execute(request: request, delegate: delegate).futureResult.whenComplete {
+            switch $0 {
+            case let .failure(error):
+              continuation.finish(throwing: error)
+            case let .success(finalProgress):
+              continuation.yield(
+                DownloadProgress(
+                  totalBytes: finalProgress.totalBytes, receivedBytes: finalProgress.receivedBytes)
+              )
+              continuation.finish()
+            }
+          }
+        } catch {
+          continuation.finish(throwing: error)
+        }
       }
     }
   }
-
-  public func streamDownloadProgress(
-    from url: URL,
-    to path: FilePath
-  ) -> AsyncThrowingStream<DownloadProgress, any Error> {
-    .init { continuation in
-      do {
-        let delegate = try FileDownloadDelegate(
-          path: path.string,
-          reportHead: {
-            if $0.status != .ok {
-              continuation
-                .finish(throwing: FileOperationError.downloadFailed(url, $0.status.description))
-            }
-          },
-          reportProgress: {
-            continuation.yield(
-              DownloadProgress(totalBytes: $0.totalBytes, receivedBytes: $0.receivedBytes)
-            )
-          }
-        )
-        let request = try HTTPClient.Request(url: url)
-
-        execute(request: request, delegate: delegate).futureResult.whenComplete {
-          switch $0 {
-          case let .failure(error):
-            continuation.finish(throwing: error)
-          case let .success(finalProgress):
-            continuation.yield(
-              DownloadProgress(totalBytes: finalProgress.totalBytes, receivedBytes: finalProgress.receivedBytes)
-            )
-            continuation.finish()
-          }
-        }
-      } catch {
-        continuation.finish(throwing: error)
-      }
-    }
-  }
-}
 #endif
 
 struct OfflineHTTPClient: HTTPClientProtocol {
@@ -189,11 +196,15 @@ struct OfflineHTTPClient: HTTPClientProtocol {
     }
   }
 
-  public func get(url: String) async throws -> (status: NIOHTTP1.HTTPResponseStatus, body: NIOCore.ByteBuffer?) {
-    throw FileOperationError.downloadFailed(URL(string: url)!, "Cannot fetch file with offline client")
+  public func get(url: String) async throws -> (
+    status: NIOHTTP1.HTTPResponseStatus, body: NIOCore.ByteBuffer?
+  ) {
+    throw FileOperationError.downloadFailed(
+      URL(string: url)!, "Cannot fetch file with offline client")
   }
 
   public func head(url: String, headers: NIOHTTP1.HTTPHeaders) async throws -> Bool {
-    throw FileOperationError.downloadFailed(URL(string: url)!, "Cannot fetch file with offline client")
+    throw FileOperationError.downloadFailed(
+      URL(string: url)!, "Cannot fetch file with offline client")
   }
 }

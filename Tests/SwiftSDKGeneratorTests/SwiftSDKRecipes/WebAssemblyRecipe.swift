@@ -17,7 +17,7 @@ import XCTest
 
 final class WebAssemblyRecipeTests: XCTestCase {
   let logger = Logger(label: "WebAssemblyRecipeTests")
-  
+
   func createRecipe() -> WebAssemblyRecipe {
     WebAssemblyRecipe(
       hostSwiftPackage: nil,
@@ -65,8 +65,10 @@ final class WebAssemblyRecipeTests: XCTestCase {
     ]
     XCTAssertEqual(toolset.cCompiler?.extraCLIOptions, ccOptions)
     XCTAssertEqual(toolset.cxxCompiler?.extraCLIOptions, ccOptions)
-    XCTAssertEqual(toolset.linker?.extraCLIOptions, [
-      "--import-memory", "--export-memory", "--shared-memory", "--max-memory=1073741824",
-    ])
+    XCTAssertEqual(
+      toolset.linker?.extraCLIOptions,
+      [
+        "--import-memory", "--export-memory", "--shared-memory", "--max-memory=1073741824",
+      ])
   }
 }

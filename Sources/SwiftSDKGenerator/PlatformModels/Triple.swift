@@ -16,12 +16,12 @@ public typealias Triple = Helpers.Triple
 
 extension Triple: @unchecked Sendable {}
 
-public extension Triple {
-  init(arch: Arch, vendor: Vendor?, os: OS, environment: Environment) {
+extension Triple {
+  public init(arch: Arch, vendor: Vendor?, os: OS, environment: Environment) {
     self.init("\(arch)-\(vendor?.rawValue ?? "unknown")-\(os)-\(environment)", normalizing: true)
   }
 
-  init(arch: Arch, vendor: Vendor?, os: OS) {
+  public init(arch: Arch, vendor: Vendor?, os: OS) {
     self.init("\(arch)-\(vendor?.rawValue ?? "unknown")-\(os)", normalizing: true)
   }
 }
