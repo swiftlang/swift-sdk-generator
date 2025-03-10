@@ -1020,7 +1020,7 @@ final class IntegrationTests: XCTestCase {
   }
 
   #if os(macOS)
-  // This test will hang on anything that uses swift-corelibs-foundation because of
+  // This test will deadlock on anything that uses swift-corelibs-foundation because of
   // https://github.com/apple/swift-corelibs-foundation/issues/4795
   // Foundation.Process on Linux doesn't correctly detect when child process dies (creating zombie processes)
   func testCanDealWithRunawayChildProcesses() async throws {
