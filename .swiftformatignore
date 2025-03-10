@@ -1,1 +1,2 @@
 Sources/Helpers/Vendor/*
+Sources/AsyncProcess/ProcessExecutor.swift
