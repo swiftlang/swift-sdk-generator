@@ -1,8 +1,11 @@
 .gitignore
 .swiftformat
 .swiftformatignore
+.editorconfig
 .unacceptablelanguageignore
 Brewfile
+Package.swift
+Package.resolved
 *.md
 *.txt
 *.yml
@@ -16,3 +19,4 @@ Brewfile
 **/CODEOWNERS
 **/Dockerfile
 **/Package.swift
+Utilities/git.commit.template
