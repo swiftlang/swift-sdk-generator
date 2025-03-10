@@ -39,15 +39,16 @@ struct DownloadArtifactQuery: Query {
     let byteCountFormatter = ByteCountFormatter()
 
     if let total = progress.totalBytes {
-      logger.debug("""
-      \(artifact.remoteURL.lastPathComponent) \(
-        byteCountFormatter
-          .string(fromByteCount: Int64(progress.receivedBytes))
-      )/\(
-        byteCountFormatter
-          .string(fromByteCount: Int64(total))
-      )
-      """)
+      logger.debug(
+        """
+        \(artifact.remoteURL.lastPathComponent) \(
+          byteCountFormatter
+            .string(fromByteCount: Int64(progress.receivedBytes))
+        )/\(
+          byteCountFormatter
+            .string(fromByteCount: Int64(total))
+        )
+        """)
     } else {
       logger.debug(
         "\(artifact.remoteURL.lastPathComponent) \(byteCountFormatter.string(fromByteCount: Int64(progress.receivedBytes)))"

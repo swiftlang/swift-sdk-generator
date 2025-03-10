@@ -80,12 +80,12 @@ struct DownloadableArtifacts: Sendable {
     self.hostLLVM = .init(
       remoteURL: URL(
         string: """
-        https://github.com/llvm/llvm-project/releases/download/llvmorg-\(
-          versions.lldVersion
-        )/clang+llvm-\(
-          versions.lldVersion
-        )-\(hostTriple.llvmBinaryURLSuffix).tar.xz
-        """
+          https://github.com/llvm/llvm-project/releases/download/llvmorg-\(
+            versions.lldVersion
+          )/clang+llvm-\(
+            versions.lldVersion
+          )-\(hostTriple.llvmBinaryURLSuffix).tar.xz
+          """
       )!,
       localPath: paths.artifactsCachePath
         .appending("host_llvm_\(versions.lldVersion)_\(hostTriple.triple).tar.xz"),
@@ -104,12 +104,12 @@ struct DownloadableArtifacts: Sendable {
     self.hostLLVM = .init(
       remoteURL: URL(
         string: """
-        https://github.com/llvm/llvm-project/releases/download/llvmorg-\(
-          self.versions.lldVersion
-        )/llvm-project-\(
-          self.versions.lldVersion
-        ).src.tar.xz
-        """
+          https://github.com/llvm/llvm-project/releases/download/llvmorg-\(
+            self.versions.lldVersion
+          )/llvm-project-\(
+            self.versions.lldVersion
+          ).src.tar.xz
+          """
       )!,
       localPath: self.paths.artifactsCachePath
         .appending("llvm_\(self.versions.lldVersion).src.tar.xz"),

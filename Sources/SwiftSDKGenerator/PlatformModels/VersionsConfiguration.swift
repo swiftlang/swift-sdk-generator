@@ -61,12 +61,12 @@ public struct VersionsConfiguration: Sendable {
 
     return URL(
       string: """
-      https://download.swift.org/\(
-        self.swiftBranch
-      )/\(
-        subdirectory ?? computedSubdirectory
-      )/swift-\(self.swiftVersion)/\(self.swiftDistributionName(platform: platform)).\(fileExtension)
-      """
+        https://download.swift.org/\(
+          self.swiftBranch
+        )/\(
+          subdirectory ?? computedSubdirectory
+        )/swift-\(self.swiftVersion)/\(self.swiftDistributionName(platform: platform)).\(fileExtension)
+        """
     )!
   }
 

@@ -221,10 +221,10 @@ extension HTTPClientProtocol {
     }
 
     let packagesListURL = """
-    \(mirrorURL)/dists/\(ubuntuRelease)\(releaseSuffix)/\(repository)/binary-\(
-      targetTriple.arch!.debianConventionName
-    )/\(packagesFileName(isXzAvailable: xzPath != nil))
-    """
+      \(mirrorURL)/dists/\(ubuntuRelease)\(releaseSuffix)/\(repository)/binary-\(
+        targetTriple.arch!.debianConventionName
+      )/\(packagesFileName(isXzAvailable: xzPath != nil))
+      """
 
     guard let packages = try await downloadUbuntuPackagesList(
       from: packagesListURL,
