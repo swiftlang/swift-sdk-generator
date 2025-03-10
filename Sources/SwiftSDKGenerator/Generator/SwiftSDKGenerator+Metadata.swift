@@ -43,7 +43,9 @@ extension SwiftSDKGenerator {
     return toolsetJSONPath
   }
 
-  func generateDestinationJSON(toolsetPath: FilePath, sdkDirPath: FilePath, recipe: SwiftSDKRecipe) throws {
+  func generateDestinationJSON(toolsetPath: FilePath, sdkDirPath: FilePath, recipe: SwiftSDKRecipe)
+    throws
+  {
     logger.info("Generating destination JSON file...")
 
     let destinationJSONPath = pathsConfiguration.swiftSDKRootPath.appending("swift-sdk.json")
@@ -57,10 +59,11 @@ extension SwiftSDKGenerator {
       relativeSDKDir.removePrefix(pathsConfiguration.swiftSDKRootPath),
       relativeToolsetPath.removePrefix(pathsConfiguration.swiftSDKRootPath)
     else {
-      fatalError("""
-      `toolchainBinDirPath`, `sdkDirPath`, and `toolsetPath` are at unexpected locations that prevent computing \
-      relative paths
-      """)
+      fatalError(
+        """
+        `toolchainBinDirPath`, `sdkDirPath`, and `toolsetPath` are at unexpected locations that prevent computing \
+        relative paths
+        """)
     }
 
     var metadata = SwiftSDKMetadataV4.TripleProperties(
@@ -79,7 +82,7 @@ extension SwiftSDKGenerator {
       encoder.encode(
         SwiftSDKMetadataV4(
           targetTriples: [
-            self.targetTriple.triple: metadata,
+            self.targetTriple.triple: metadata
           ]
         )
       )
@@ -104,9 +107,9 @@ extension SwiftSDKGenerator {
                 .init(
                   path: FilePath(artifactID).appending(self.targetTriple.triple).string,
                   supportedTriples: hostTriples.map { $0.map(\.triple) }
-                ),
+                )
               ]
-            ),
+            )
           ]
         )
       )
@@ -121,7 +124,7 @@ extension SwiftSDKGenerator {
   }
 
   /// Generates an `SDKSettings.json` file that looks like this:
-  /// 
+  ///
   /// ```json
   /// {
   ///   "CanonicalName" : "<arch>-swift-linux-[gnu|gnueabihf]",

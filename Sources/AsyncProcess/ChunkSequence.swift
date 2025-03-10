@@ -13,9 +13,9 @@
 import NIO
 
 #if os(Linux) || os(Android) || os(Windows)
-@preconcurrency import Foundation
+  @preconcurrency import Foundation
 #else
-import Foundation
+  import Foundation
 #endif
 
 public struct IllegalStreamConsumptionError: Error {
@@ -53,9 +53,9 @@ public struct ChunkSequence: AsyncSequence & Sendable {
       } else {
         throw IllegalStreamConsumptionError(
           description: """
-          Either `.discard`ed, `.inherit`ed or redirected this stream to a `.fileHandle`,
-          cannot also consume it. To consume, please `.stream` it.
-          """
+            Either `.discard`ed, `.inherit`ed or redirected this stream to a `.fileHandle`,
+            cannot also consume it. To consume, please `.stream` it.
+            """
         )
       }
     }

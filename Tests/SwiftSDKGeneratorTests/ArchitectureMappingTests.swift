@@ -11,8 +11,9 @@
 //===----------------------------------------------------------------------===//
 
 import Logging
-@testable import SwiftSDKGenerator
 import XCTest
+
+@testable import SwiftSDKGenerator
 
 final class ArchitectureMappingTests: XCTestCase {
   let logger = Logger(label: "ArchitectureMappingTests")
@@ -39,12 +40,12 @@ final class ArchitectureMappingTests: XCTestCase {
     hostTriple: Triple,
     targetTriple: Triple,
 
-    artifactID: String, // Base name of the generated bundle
-    hostLLVMDownloadURL: String, // URL of the host LLVM package
-    targetSwiftDownloadURL: String, // URL of the target Swift SDK
+    artifactID: String,  // Base name of the generated bundle
+    hostLLVMDownloadURL: String,  // URL of the host LLVM package
+    targetSwiftDownloadURL: String,  // URL of the target Swift SDK
 
-    artifactBundlePathSuffix: String, // Path to the generated bundle
-    sdkDirPathSuffix: String // Path of the SDK within the bundle
+    artifactBundlePathSuffix: String,  // Path to the generated bundle
+    sdkDirPathSuffix: String  // Path of the SDK within the bundle
   ) async throws {
     let recipe = try LinuxRecipe(
       targetTriple: targetTriple,
@@ -130,8 +131,10 @@ final class ArchitectureMappingTests: XCTestCase {
       hostTriple: Triple("x86_64-apple-macosx13"),
       targetTriple: Triple("x86_64-unknown-linux-gnu"),
       artifactID: "5.8-RELEASE_ubuntu_jammy_x86_64",
-      hostLLVMDownloadURL: "https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.4/clang+llvm-16.0.4-x86_64-apple-darwin22.0.tar.xz",
-      targetSwiftDownloadURL: "https://download.swift.org/swift-5.8-release/ubuntu2204/swift-5.8-RELEASE/swift-5.8-RELEASE-ubuntu22.04.tar.gz",
+      hostLLVMDownloadURL:
+        "https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.4/clang+llvm-16.0.4-x86_64-apple-darwin22.0.tar.xz",
+      targetSwiftDownloadURL:
+        "https://download.swift.org/swift-5.8-release/ubuntu2204/swift-5.8-RELEASE/swift-5.8-RELEASE-ubuntu22.04.tar.gz",
       artifactBundlePathSuffix: "/Bundles/5.8-RELEASE_ubuntu_jammy_x86_64.artifactbundle",
       sdkDirPathSuffix: "/5.8-RELEASE_ubuntu_jammy_x86_64/x86_64-unknown-linux-gnu/ubuntu-jammy.sdk"
     )
@@ -143,10 +146,13 @@ final class ArchitectureMappingTests: XCTestCase {
       hostTriple: Triple("x86_64-apple-macosx13"),
       targetTriple: Triple("aarch64-unknown-linux-gnu"),
       artifactID: "5.8-RELEASE_ubuntu_jammy_aarch64",
-      hostLLVMDownloadURL: "https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.4/clang+llvm-16.0.4-x86_64-apple-darwin22.0.tar.xz",
-      targetSwiftDownloadURL: "https://download.swift.org/swift-5.8-release/ubuntu2204-aarch64/swift-5.8-RELEASE/swift-5.8-RELEASE-ubuntu22.04-aarch64.tar.gz",
+      hostLLVMDownloadURL:
+        "https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.4/clang+llvm-16.0.4-x86_64-apple-darwin22.0.tar.xz",
+      targetSwiftDownloadURL:
+        "https://download.swift.org/swift-5.8-release/ubuntu2204-aarch64/swift-5.8-RELEASE/swift-5.8-RELEASE-ubuntu22.04-aarch64.tar.gz",
       artifactBundlePathSuffix: "/Bundles/5.8-RELEASE_ubuntu_jammy_aarch64.artifactbundle",
-      sdkDirPathSuffix: "/5.8-RELEASE_ubuntu_jammy_aarch64/aarch64-unknown-linux-gnu/ubuntu-jammy.sdk"
+      sdkDirPathSuffix:
+        "/5.8-RELEASE_ubuntu_jammy_aarch64/aarch64-unknown-linux-gnu/ubuntu-jammy.sdk"
     )
   }
 
@@ -156,10 +162,13 @@ final class ArchitectureMappingTests: XCTestCase {
       hostTriple: Triple("arm64-apple-macosx13"),
       targetTriple: Triple("aarch64-unknown-linux-gnu"),
       artifactID: "5.8-RELEASE_ubuntu_jammy_aarch64",
-      hostLLVMDownloadURL: "https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.4/clang+llvm-16.0.4-arm64-apple-darwin22.0.tar.xz",
-      targetSwiftDownloadURL: "https://download.swift.org/swift-5.8-release/ubuntu2204-aarch64/swift-5.8-RELEASE/swift-5.8-RELEASE-ubuntu22.04-aarch64.tar.gz",
+      hostLLVMDownloadURL:
+        "https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.4/clang+llvm-16.0.4-arm64-apple-darwin22.0.tar.xz",
+      targetSwiftDownloadURL:
+        "https://download.swift.org/swift-5.8-release/ubuntu2204-aarch64/swift-5.8-RELEASE/swift-5.8-RELEASE-ubuntu22.04-aarch64.tar.gz",
       artifactBundlePathSuffix: "/Bundles/5.8-RELEASE_ubuntu_jammy_aarch64.artifactbundle",
-      sdkDirPathSuffix: "/5.8-RELEASE_ubuntu_jammy_aarch64/aarch64-unknown-linux-gnu/ubuntu-jammy.sdk"
+      sdkDirPathSuffix:
+        "/5.8-RELEASE_ubuntu_jammy_aarch64/aarch64-unknown-linux-gnu/ubuntu-jammy.sdk"
     )
   }
 
@@ -169,8 +178,10 @@ final class ArchitectureMappingTests: XCTestCase {
       hostTriple: Triple("arm64-apple-macosx13"),
       targetTriple: Triple("x86_64-unknown-linux-gnu"),
       artifactID: "5.8-RELEASE_ubuntu_jammy_x86_64",
-      hostLLVMDownloadURL: "https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.4/clang+llvm-16.0.4-arm64-apple-darwin22.0.tar.xz",
-      targetSwiftDownloadURL: "https://download.swift.org/swift-5.8-release/ubuntu2204/swift-5.8-RELEASE/swift-5.8-RELEASE-ubuntu22.04.tar.gz",
+      hostLLVMDownloadURL:
+        "https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.4/clang+llvm-16.0.4-arm64-apple-darwin22.0.tar.xz",
+      targetSwiftDownloadURL:
+        "https://download.swift.org/swift-5.8-release/ubuntu2204/swift-5.8-RELEASE/swift-5.8-RELEASE-ubuntu22.04.tar.gz",
       artifactBundlePathSuffix: "/Bundles/5.8-RELEASE_ubuntu_jammy_x86_64.artifactbundle",
       sdkDirPathSuffix: "/5.8-RELEASE_ubuntu_jammy_x86_64/x86_64-unknown-linux-gnu/ubuntu-jammy.sdk"
     )

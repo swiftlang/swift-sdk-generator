@@ -15,7 +15,8 @@ import struct SystemPackage.FilePath
 public struct PathsConfiguration: Sendable {
   init(sourceRoot: FilePath, artifactID: String, targetTriple: Triple) {
     self.sourceRoot = sourceRoot
-    self.artifactBundlePath = sourceRoot
+    self.artifactBundlePath =
+      sourceRoot
       .appending("Bundles")
       .appending("\(artifactID).artifactbundle")
     self.artifactsCachePath = sourceRoot.appending("Artifacts")

@@ -11,14 +11,13 @@
 //===----------------------------------------------------------------------===//
 
 import AsyncAlgorithms
-import Logging
 import Helpers
+import Logging
 import RegexBuilder
 
 import class Foundation.ByteCountFormatter
 import class Foundation.FileManager
 import struct Foundation.URL
-
 import struct SystemPackage.FilePath
 
 private let ubuntuAMD64Mirror = "http://gb.archive.ubuntu.com/ubuntu"
@@ -40,7 +39,9 @@ extension SwiftSDKGenerator {
     let hostLLVMURL = downloadableArtifacts.hostLLVM.remoteURL
     // Workaround an issue with github.com returning 400 instead of 404 status to HEAD requests from AHC.
 
-    if itemsToDownload(downloadableArtifacts).contains(where: { $0.remoteURL == downloadableArtifacts.hostLLVM.remoteURL } ) {
+    if itemsToDownload(downloadableArtifacts).contains(where: {
+      $0.remoteURL == downloadableArtifacts.hostLLVM.remoteURL
+    }) {
       let isLLVMBinaryArtifactAvailable = try await type(of: client).with(http1Only: true) {
         try await $0.head(
           url: hostLLVMURL.absoluteString,
@@ -56,7 +57,8 @@ extension SwiftSDKGenerator {
     let results = try await withThrowingTaskGroup(of: FileCacheRecord.self) { group in
       for item in itemsToDownload(downloadableArtifacts) {
         group.addTask {
-          try await engine[DownloadArtifactQuery(artifact: item, httpClient: client, logger: self.logger)]
+          try await engine[
+            DownloadArtifactQuery(artifact: item, httpClient: client, logger: self.logger)]
         }
       }
 
@@ -68,9 +70,11 @@ extension SwiftSDKGenerator {
     }
 
     logger.info("Using downloaded artifacts from cache")
-    logger.debug("Using downloaded artifacts in these locations.", metadata: [
-      "paths": .array(results.map(\.path.metadataValue))
-    ])
+    logger.debug(
+      "Using downloaded artifacts in these locations.",
+      metadata: [
+        "paths": .array(results.map(\.path.metadataValue))
+      ])
   }
 
   func downloadUbuntuPackages(
@@ -85,10 +89,11 @@ extension SwiftSDKGenerator {
     // Find xz path
     let xzPath = try await which("xz")
     if xzPath == nil {
-      logger.warning("""
-      The `xz` utility was not found in `PATH`. \
-      Consider installing it for more efficient downloading of package lists.
-      """)
+      logger.warning(
+        """
+        The `xz` utility was not found in `PATH`. \
+        Consider installing it for more efficient downloading of package lists.
+        """)
     }
 
     async let mainPackages = try await client.parseUbuntuPackagesList(
@@ -117,7 +122,8 @@ extension SwiftSDKGenerator {
       xzPath: xzPath
     )
 
-    let allPackages = try await mainPackages
+    let allPackages =
+      try await mainPackages
       .merging(updatesPackages, uniquingKeysWith: { $1 })
       .merging(universePackages, uniquingKeysWith: { $1 })
 
@@ -130,7 +136,8 @@ extension SwiftSDKGenerator {
       )
     }
 
-    logger.info("Downloading Ubuntu packages...", metadata: ["packageCount": .stringConvertible(urls.count)])
+    logger.info(
+      "Downloading Ubuntu packages...", metadata: ["packageCount": .stringConvertible(urls.count)])
     try await inTemporaryDirectory { fs, tmpDir in
       let downloadedFiles = try await self.downloadFiles(from: urls, to: tmpDir, client, engine)
       await report(downloadedFiles: downloadedFiles)
@@ -151,13 +158,16 @@ extension SwiftSDKGenerator {
     try await withThrowingTaskGroup(of: (URL, UInt64).self) {
       for url in urls {
         $0.addTask {
-          let downloadedFilePath = try await engine[DownloadFileQuery(
-            remoteURL: url, localDirectory: directory, httpClient: client
-          )]
+          let downloadedFilePath = try await engine[
+            DownloadFileQuery(
+              remoteURL: url, localDirectory: directory, httpClient: client
+            )]
           let filePath = downloadedFilePath.path
-          guard let fileSize = try FileManager.default.attributesOfItem(
-            atPath: filePath.string
-          )[.size] as? UInt64 else {
+          guard
+            let fileSize = try FileManager.default.attributesOfItem(
+              atPath: filePath.string
+            )[.size] as? UInt64
+          else {
             throw GeneratorError.fileDoesNotExist(filePath)
           }
           return (url, fileSize)
@@ -176,10 +186,12 @@ extension SwiftSDKGenerator {
     let byteCountFormatter = ByteCountFormatter()
 
     for (url, bytes) in downloadedFiles {
-      logger.debug("Downloaded package", metadata: [
-        "url": .string(url.absoluteString),
-        "size": .string(byteCountFormatter.string(fromByteCount: Int64(bytes)))
-      ])
+      logger.debug(
+        "Downloaded package",
+        metadata: [
+          "url": .string(url.absoluteString),
+          "size": .string(byteCountFormatter.string(fromByteCount: Int64(bytes))),
+        ])
     }
   }
 }
@@ -190,7 +202,8 @@ extension HTTPClientProtocol {
     unzipWith zipPath: String,
     isVerbose: Bool
   ) async throws -> String? {
-    guard let packages = try await get(url: url).body?.unzip(zipPath: zipPath, isVerbose: isVerbose) else {
+    guard let packages = try await get(url: url).body?.unzip(zipPath: zipPath, isVerbose: isVerbose)
+    else {
       throw FileOperationError.downloadFailed(url)
     }
 
@@ -221,16 +234,18 @@ extension HTTPClientProtocol {
     }
 
     let packagesListURL = """
-    \(mirrorURL)/dists/\(ubuntuRelease)\(releaseSuffix)/\(repository)/binary-\(
-      targetTriple.arch!.debianConventionName
-    )/\(packagesFileName(isXzAvailable: xzPath != nil))
-    """
+      \(mirrorURL)/dists/\(ubuntuRelease)\(releaseSuffix)/\(repository)/binary-\(
+        targetTriple.arch!.debianConventionName
+      )/\(packagesFileName(isXzAvailable: xzPath != nil))
+      """
 
-    guard let packages = try await downloadUbuntuPackagesList(
-      from: packagesListURL,
-      unzipWith: xzPath ?? "/usr/bin/gzip", // fallback on gzip if xz not available
-      isVerbose: isVerbose
-    ) else {
+    guard
+      let packages = try await downloadUbuntuPackagesList(
+        from: packagesListURL,
+        unzipWith: xzPath ?? "/usr/bin/gzip",  // fallback on gzip if xz not available
+        isVerbose: isVerbose
+      )
+    else {
       throw GeneratorError.ubuntuPackagesDecompressionFailure
     }
 
