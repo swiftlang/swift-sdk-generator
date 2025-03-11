@@ -10,8 +10,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-import Logging
 import Helpers
+import Logging
+
 import struct SystemPackage.FilePath
 
 public struct WebAssemblyRecipe: SwiftSDKRecipe {
@@ -59,9 +60,10 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
         "-pthread", "-ftls-model=local-exec",
       ]
       // Tell LLVM codegen in swiftc to enable those features via clang options
-      toolset.swiftCompiler?.extraCLIOptions?.append(contentsOf: ccOptions.flatMap {
-        ["-Xcc", $0]
-      })
+      toolset.swiftCompiler?.extraCLIOptions?.append(
+        contentsOf: ccOptions.flatMap {
+          ["-Xcc", $0]
+        })
       // Tell the C and C++ compilers to enable those features
       toolset.cCompiler = Toolset.ToolProperties(extraCLIOptions: ccOptions)
       toolset.cxxCompiler = Toolset.ToolProperties(extraCLIOptions: ccOptions)
@@ -86,9 +88,11 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
   ) {
     var relativeToolchainDir = paths.toolchainDirPath
     guard relativeToolchainDir.removePrefix(paths.swiftSDKRootPath) else {
-      fatalError("The toolchain bin directory path must be a subdirectory of the Swift SDK root path.")
+      fatalError(
+        "The toolchain bin directory path must be a subdirectory of the Swift SDK root path.")
     }
-    metadata.swiftStaticResourcesPath = relativeToolchainDir.appending("usr/lib/swift_static").string
+    metadata.swiftStaticResourcesPath =
+      relativeToolchainDir.appending("usr/lib/swift_static").string
     metadata.swiftResourcesPath = metadata.swiftStaticResourcesPath
   }
 
@@ -104,7 +108,8 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
     var hostTriples: [Triple]? = nil
     if let hostSwiftPackage {
       hostTriples = [hostSwiftPackage.triple]
-      try await generator.rsync(from: hostSwiftPackage.path.appending("usr"), to: pathsConfiguration.toolchainDirPath)
+      try await generator.rsync(
+        from: hostSwiftPackage.path.appending("usr"), to: pathsConfiguration.toolchainDirPath)
 
       logger.info("Removing unused toolchain components...")
       let liblldbNames: [String] = try await {
@@ -127,15 +132,19 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
       try await self.mergeTargetSwift(from: targetSwiftLibPath, generator: generator)
     } else {
       // Simply copy the target Swift package into the SDK bundle when building host-agnostic SDK.
-      try await generator.createDirectoryIfNeeded(at: pathsConfiguration.toolchainDirPath.appending("usr"))
-      try await generator.copy(from: targetSwiftLibPath, to: pathsConfiguration.toolchainDirPath.appending("usr/lib"))
+      try await generator.createDirectoryIfNeeded(
+        at: pathsConfiguration.toolchainDirPath.appending("usr"))
+      try await generator.copy(
+        from: targetSwiftLibPath, to: pathsConfiguration.toolchainDirPath.appending("usr/lib"))
     }
 
-    let autolinkExtractPath = generator.pathsConfiguration.toolchainBinDirPath.appending("swift-autolink-extract")
+    let autolinkExtractPath = generator.pathsConfiguration.toolchainBinDirPath.appending(
+      "swift-autolink-extract")
 
     // WebAssembly object file requires `swift-autolink-extract`
     if await !generator.doesFileExist(at: autolinkExtractPath),
-       await generator.doesFileExist(at: generator.pathsConfiguration.toolchainBinDirPath.appending("swift"))
+      await generator.doesFileExist(
+        at: generator.pathsConfiguration.toolchainBinDirPath.appending("swift"))
     {
       logger.info("Fixing `swift-autolink-extract` symlink...")
       try await generator.createSymlink(at: autolinkExtractPath, pointingTo: "swift")
@@ -149,24 +158,40 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
   }
 
   /// Merge the target Swift package into the Swift SDK bundle derived from the host Swift package.
-  func mergeTargetSwift(from distributionPath: FilePath, generator: SwiftSDKGenerator) async throws {
+  func mergeTargetSwift(from distributionPath: FilePath, generator: SwiftSDKGenerator) async throws
+  {
     let pathsConfiguration = generator.pathsConfiguration
     logger.info("Copying Swift core libraries for the target triple into Swift SDK bundle...")
     for (pathWithinPackage, pathWithinSwiftSDK, isOptional) in [
       ("clang", pathsConfiguration.toolchainDirPath.appending("usr/lib"), false),
       ("swift/clang", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift"), false),
       ("swift/wasi", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift"), false),
-      ("swift_static/clang", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static"), false),
-      ("swift_static/wasi", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static"), false),
-      ("swift_static/shims", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static"), false),
+      (
+        "swift_static/clang", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static"),
+        false
+      ),
+      (
+        "swift_static/wasi", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static"),
+        false
+      ),
+      (
+        "swift_static/shims", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static"),
+        false
+      ),
       // Mark CoreFoundation as optional until we set up build system to build it for WebAssembly
-      ("swift_static/CoreFoundation", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static"), true),
+      (
+        "swift_static/CoreFoundation",
+        pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static"), true
+      ),
     ] {
-      if isOptional, await !(generator.doesFileExist(at: distributionPath.appending(pathWithinPackage))) {
+      if isOptional,
+        await !(generator.doesFileExist(at: distributionPath.appending(pathWithinPackage)))
+      {
         logger.debug("Skipping optional path \(pathWithinPackage)")
         continue
       }
-      try await generator.rsync(from: distributionPath.appending(pathWithinPackage), to: pathWithinSwiftSDK)
+      try await generator.rsync(
+        from: distributionPath.appending(pathWithinPackage), to: pathWithinSwiftSDK)
     }
   }
 }

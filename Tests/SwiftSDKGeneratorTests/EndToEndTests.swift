@@ -18,7 +18,9 @@ import XCTest
 @testable import SwiftSDKGenerator
 
 extension FileManager {
-  func withTemporaryDirectory<T>(logger: Logger, cleanup: Bool = true, body: (URL) async throws -> T) async throws -> T {
+  func withTemporaryDirectory<T>(
+    logger: Logger, cleanup: Bool = true, body: (URL) async throws -> T
+  ) async throws -> T {
     // Create a temporary directory using a UUID.  Throws if the directory already exists.
     // The docs suggest using FileManager.url(for: .itemReplacementDirectory, ...) to create a temporary directory,
     // but on Linux the directory name contains spaces, which means we need to be careful to quote it everywhere:
@@ -33,13 +35,13 @@ extension FileManager {
 
     try createDirectory(at: temporaryDirectory, withIntermediateDirectories: false)
     defer {
-        // Best effort cleanup.
-        if cleanup {
-            try? removeItem(at: temporaryDirectory)
-            logger.info("Removed temporary directory")
-        } else {
-            logger.info("Keeping temporary directory")
-        }
+      // Best effort cleanup.
+      if cleanup {
+        try? removeItem(at: temporaryDirectory)
+        logger.info("Removed temporary directory")
+      } else {
+        logger.info("Keeping temporary directory")
+      }
     }
 
     logger.info("Created temporary directory")
@@ -51,7 +53,9 @@ extension FileManager {
 // This takes a lock on `.build`, but if the tests are being run by `swift test` the outer Swift Package Manager
 // instance will already hold this lock, causing the test to deadlock.   We can work around this by giving
 // the `swift run swift-sdk-generator` instance its own scratch directory.
-func buildSDK(_ logger: Logger, scratchPath: String, withArguments runArguments: String) async throws -> String {
+func buildSDK(_ logger: Logger, scratchPath: String, withArguments runArguments: String)
+  async throws -> String
+{
   var logger = logger
   logger[metadataKey: "runArguments"] = "\"\(runArguments)\""
   logger[metadataKey: "scratchPath"] = "\(scratchPath)"
@@ -67,9 +71,10 @@ func buildSDK(_ logger: Logger, scratchPath: String, withArguments runArguments:
   )
   logger.info("Finished building Swift SDK")
 
-  let installCommand = try XCTUnwrap(generatorOutput.split(separator: "\n").first {
-    $0.contains("swift experimental-sdk install")
-  })
+  let installCommand = try XCTUnwrap(
+    generatorOutput.split(separator: "\n").first {
+      $0.contains("swift experimental-sdk install")
+    })
 
   let bundleName = try XCTUnwrap(
     FilePath(String(XCTUnwrap(installCommand.split(separator: " ").last))).components.last
@@ -77,7 +82,8 @@ func buildSDK(_ logger: Logger, scratchPath: String, withArguments runArguments:
   logger[metadataKey: "bundleName"] = "\(bundleName)"
 
   logger.info("Checking installed Swift SDKs")
-  let installedSDKs = try await Shell.readStdout("swift experimental-sdk list").components(separatedBy: "\n")
+  let installedSDKs = try await Shell.readStdout("swift experimental-sdk list").components(
+    separatedBy: "\n")
 
   // Make sure this bundle hasn't been installed already.
   if installedSDKs.contains(bundleName) {
@@ -113,8 +119,12 @@ final class RepeatedBuildTests: XCTestCase {
   private let logger = Logger(label: "swift-sdk-generator")
 
   func testRepeatedSDKBuilds() async throws {
-    if ProcessInfo.processInfo.environment.keys.contains("JENKINS_URL") {
-      throw XCTSkip("EndToEnd tests cannot currently run in CI: https://github.com/swiftlang/swift-sdk-generator/issues/145")
+    if ProcessInfo.processInfo.environment.keys.contains("JENKINS_URL")
+      || ProcessInfo.processInfo.environment.keys.contains("GITHUB_ACTIONS")
+    {
+      throw XCTSkip(
+        "EndToEnd tests cannot currently run in CI: https://github.com/swiftlang/swift-sdk-generator/issues/145"
+      )
     }
 
     var logger = logger
@@ -125,15 +135,19 @@ final class RepeatedBuildTests: XCTestCase {
     var possibleArguments = ["--host-toolchain"]
     do {
       try await Shell.run("docker ps")
-      possibleArguments.append("--with-docker --linux-distribution-name rhel --linux-distribution-version ubi9")
+      possibleArguments.append(
+        "--with-docker --linux-distribution-name rhel --linux-distribution-version ubi9")
     } catch {
-      self.logger.warning("Docker CLI does not seem to be working, skipping tests that involve Docker.")
+      self.logger.warning(
+        "Docker CLI does not seem to be working, skipping tests that involve Docker.")
     }
 
     for runArguments in possibleArguments {
       if runArguments.contains("rhel") {
         // Temporarily skip the RHEL-based SDK.  XCTSkip() is not suitable as it would skipping the entire test case
-        logger.warning("RHEL-based SDKs currently do not work with Swift 6.0: https://github.com/swiftlang/swift-sdk-generator/issues/138")
+        logger.warning(
+          "RHEL-based SDKs currently do not work with Swift 6.0: https://github.com/swiftlang/swift-sdk-generator/issues/138"
+        )
         continue
       }
 
@@ -198,8 +212,8 @@ struct SDKConfiguration {
       testLinuxSwiftSDKs ? "--host \(hostArch!)-unknown-linux-gnu" : nil,
       "--target \(architecture)-unknown-linux-gnu",
       "--linux-distribution-name \(linuxDistributionName)",
-      "--linux-distribution-version \(linuxDistributionVersion)"
-    ].compactMap{ $0 }.joined(separator: " ")
+      "--linux-distribution-version \(linuxDistributionVersion)",
+    ].compactMap { $0 }.joined(separator: " ")
   }
 }
 
@@ -215,10 +229,13 @@ var testLinuxSwiftSDKs: Bool {
   ProcessInfo.processInfo.environment.keys.contains("SWIFT_SDK_GENERATOR_TEST_LINUX_SWIFT_SDKS")
 }
 
-func buildTestcase(_ logger: Logger, testcase: String, bundleName: String, tempDir: URL) async throws {
+func buildTestcase(_ logger: Logger, testcase: String, bundleName: String, tempDir: URL)
+  async throws
+{
   let testPackageURL = tempDir.appendingPathComponent("swift-sdk-generator-test")
   let testPackageDir = FilePath(testPackageURL.path)
-  try FileManager.default.createDirectory(atPath: testPackageDir.string, withIntermediateDirectories: true)
+  try FileManager.default.createDirectory(
+    atPath: testPackageDir.string, withIntermediateDirectories: true)
 
   logger.info("Creating test project \(testPackageDir)")
   try await Shell.run("swift package --package-path \(testPackageDir) init --type executable")
@@ -243,7 +260,9 @@ func buildTestcase(_ logger: Logger, testcase: String, bundleName: String, tempD
   // that contains each Swift-supported Linux distribution. This way we can validate that each
   // distribution is capable of building using the Linux Swift SDK.
   if testLinuxSwiftSDKs {
-    let swiftContainerVersions = ["focal", "jammy", "noble", "fedora39", "rhel-ubi9", "amazonlinux2", "bookworm"]
+    let swiftContainerVersions = [
+      "focal", "jammy", "noble", "fedora39", "rhel-ubi9", "amazonlinux2", "bookworm",
+    ]
     for containerVersion in swiftContainerVersions {
       logger.info("Building test project in 6.0-\(containerVersion) container")
       buildOutput = try await Shell.readStdout(
@@ -257,7 +276,8 @@ func buildTestcase(_ logger: Logger, testcase: String, bundleName: String, tempD
       XCTAssertTrue(buildOutput.contains("Build complete!"))
       logger.info("Test project built successfully")
 
-      logger.info("Building test project in 6.0-\(containerVersion) container with static-swift-stdlib")
+      logger.info(
+        "Building test project in 6.0-\(containerVersion) container with static-swift-stdlib")
       buildOutput = try await Shell.readStdout(
         """
         docker run --rm -v \(testPackageDir):/src \
@@ -292,8 +312,12 @@ func buildTestcases(config: SDKConfiguration) async throws {
   var logger = Logger(label: "EndToEndTests")
   logger[metadataKey: "testcase"] = "testPackageInitExecutable"
 
-  if ProcessInfo.processInfo.environment.keys.contains("JENKINS_URL") {
-    throw XCTSkip("EndToEnd tests cannot currently run in CI: https://github.com/swiftlang/swift-sdk-generator/issues/145")
+  if ProcessInfo.processInfo.environment.keys.contains("JENKINS_URL")
+    || ProcessInfo.processInfo.environment.keys.contains("GITHUB_ACTIONS")
+  {
+    throw XCTSkip(
+      "EndToEnd tests cannot currently run in CI: https://github.com/swiftlang/swift-sdk-generator/issues/145"
+    )
   }
 
   if config.withDocker {
@@ -305,12 +329,13 @@ func buildTestcases(config: SDKConfiguration) async throws {
   }
 
   let bundleName = try await FileManager.default.withTemporaryDirectory(logger: logger) { tempDir in
-    try await buildSDK(logger, scratchPath: tempDir.path, withArguments: config.sdkGeneratorArguments)
+    try await buildSDK(
+      logger, scratchPath: tempDir.path, withArguments: config.sdkGeneratorArguments)
   }
 
   logger.info("Built Swift SDK")
 
-  // Cleanup 
+  // Cleanup
   let cleanupSdk: () async -> Void = {
     logger.info("Removing Swift SDK to cleanup...")
     try? await Shell.run("swift experimental-sdk remove \(bundleName)")
@@ -319,7 +344,8 @@ func buildTestcases(config: SDKConfiguration) async throws {
   for testcase in testcases {
     do {
       try await FileManager.default.withTemporaryDirectory(logger: logger) { tempDir in
-        try await buildTestcase(logger, testcase: testcase, bundleName: bundleName, tempDir: tempDir)
+        try await buildTestcase(
+          logger, testcase: testcase, bundleName: bundleName, tempDir: tempDir)
       }
     } catch {
       await cleanupSdk()
@@ -441,12 +467,14 @@ final class Swift59_RHELEndToEndTests: XCTestCase {
 
   func testAmazonLinux2Aarch64FromContainer() async throws {
     try skipSlow()
-    try await buildTestcases(config: config.withArchitecture("aarch64").withContainerImageSuffix("amazonlinux2"))
+    try await buildTestcases(
+      config: config.withArchitecture("aarch64").withContainerImageSuffix("amazonlinux2"))
   }
 
   func testAmazonLinux2X86_64FromContainer() async throws {
     try skipSlow()
-    try await buildTestcases(config: config.withArchitecture("x86_64").withContainerImageSuffix("amazonlinux2"))
+    try await buildTestcases(
+      config: config.withArchitecture("x86_64").withContainerImageSuffix("amazonlinux2"))
   }
 }
 
@@ -471,22 +499,26 @@ final class Swift510_RHELEndToEndTests: XCTestCase {
 
   func testAmazonLinux2Aarch64FromContainer() async throws {
     try skipSlow()
-    try await buildTestcases(config: config.withArchitecture("aarch64").withContainerImageSuffix("amazonlinux2"))
+    try await buildTestcases(
+      config: config.withArchitecture("aarch64").withContainerImageSuffix("amazonlinux2"))
   }
 
   func testAmazonLinux2X86_64FromContainer() async throws {
     try skipSlow()
-    try await buildTestcases(config: config.withArchitecture("x86_64").withContainerImageSuffix("amazonlinux2"))
+    try await buildTestcases(
+      config: config.withArchitecture("x86_64").withContainerImageSuffix("amazonlinux2"))
   }
 
   func testFedora39Aarch64FromContainer() async throws {
     try skipSlow()
-    try await buildTestcases(config: config.withArchitecture("aarch64").withContainerImageSuffix("fedora39"))
+    try await buildTestcases(
+      config: config.withArchitecture("aarch64").withContainerImageSuffix("fedora39"))
   }
 
   func testFedora39X86_64FromContainer() async throws {
     try skipSlow()
-    try await buildTestcases(config: config.withArchitecture("x86_64").withContainerImageSuffix("fedora39"))
+    try await buildTestcases(
+      config: config.withArchitecture("x86_64").withContainerImageSuffix("fedora39"))
   }
 }
 
@@ -511,21 +543,25 @@ final class Swift60_RHELEndToEndTests: XCTestCase {
 
   func testAmazonLinux2Aarch64FromContainer() async throws {
     try skipSlow()
-    try await buildTestcases(config: config.withArchitecture("aarch64").withContainerImageSuffix("amazonlinux2"))
+    try await buildTestcases(
+      config: config.withArchitecture("aarch64").withContainerImageSuffix("amazonlinux2"))
   }
 
   func testAmazonLinux2X86_64FromContainer() async throws {
     try skipSlow()
-    try await buildTestcases(config: config.withArchitecture("x86_64").withContainerImageSuffix("amazonlinux2"))
+    try await buildTestcases(
+      config: config.withArchitecture("x86_64").withContainerImageSuffix("amazonlinux2"))
   }
 
   func testFedora39Aarch64FromContainer() async throws {
     try skipSlow()
-    try await buildTestcases(config: config.withArchitecture("aarch64").withContainerImageSuffix("fedora39"))
+    try await buildTestcases(
+      config: config.withArchitecture("aarch64").withContainerImageSuffix("fedora39"))
   }
 
   func testFedora39X86_64FromContainer() async throws {
     try skipSlow()
-    try await buildTestcases(config: config.withArchitecture("x86_64").withContainerImageSuffix("fedora39"))
+    try await buildTestcases(
+      config: config.withArchitecture("x86_64").withContainerImageSuffix("fedora39"))
   }
 }

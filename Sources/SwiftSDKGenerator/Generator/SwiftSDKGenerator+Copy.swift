@@ -10,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-import SystemPackage
 import Foundation
+import SystemPackage
 
 extension SwiftSDKGenerator {
   func copyTargetSwiftFromDocker(
@@ -34,23 +34,23 @@ extension SwiftSDKGenerator {
           try await generator.runOnDockerContainer(
             id: containerID,
             command: #"""
-            sh -c '
-                chmod +w /usr/lib64
-                cd /usr/lib64
-                for n in *; do
-                    destination=$(readlink $n)
-                    echo $destination | grep "\.\." && \
-                        rm -f $n && \
-                        ln -s $(basename $destination) $n
-                done
-                rm -rf pm-utils
-            '
-            """#
+              sh -c '
+                  chmod +w /usr/lib64
+                  cd /usr/lib64
+                  for n in *; do
+                      destination=$(readlink $n)
+                      echo $destination | grep "\.\." && \
+                          rm -f $n && \
+                          ln -s $(basename $destination) $n
+                  done
+                  rm -rf pm-utils
+              '
+              """#
           )
         }
 
         if case let containerLib64 = FilePath("/usr/lib64"),
-           try await generator.doesPathExist(containerLib64, inContainer: containerID)
+          try await generator.doesPathExist(containerLib64, inContainer: containerID)
         {
           let sdkUsrLib64Path = sdkUsrPath.appending("lib64")
           // we already checked that the path exists above, so we don't pass `failIfNotExists: false` here.
@@ -105,10 +105,10 @@ extension SwiftSDKGenerator {
 
         // Copy the ELF interpreter
         try await generator.copyFromDockerContainer(
-            id: containerID,
-            from: FilePath(targetTriple.interpreterPath),
-            to: sdkDirPath.appending(targetTriple.interpreterPath),
-            failIfNotExists: true
+          id: containerID,
+          from: FilePath(targetTriple.interpreterPath),
+          to: sdkDirPath.appending(targetTriple.interpreterPath),
+          failIfNotExists: true
         )
 
         // Python artifacts are redundant.
@@ -131,7 +131,9 @@ extension SwiftSDKGenerator {
       let fromPath = distributionPath.appending(pathWithinPackage)
 
       if isOptional && !doesFileExist(at: fromPath) {
-        logger.debug("Optional package path ignored since it does not exist", metadata: ["packagePath": .string(fromPath.string)])
+        logger.debug(
+          "Optional package path ignored since it does not exist",
+          metadata: ["packagePath": .string(fromPath.string)])
         continue
       }
 
@@ -143,10 +145,10 @@ extension SwiftSDKGenerator {
 extension Triple {
   var interpreterPath: String {
     switch self.archName {
-      case "x86_64": return "/lib64/ld-linux-x86-64.so.2"
-      case "aarch64": return "/lib/ld-linux-aarch64.so.1"
-      case "armv7": return "/lib/ld-linux-armhf.so.3"
-      default: fatalError("unsupported architecture \(self.archName)")
+    case "x86_64": return "/lib64/ld-linux-x86-64.so.2"
+    case "aarch64": return "/lib/ld-linux-aarch64.so.1"
+    case "armv7": return "/lib/ld-linux-armhf.so.3"
+    default: fatalError("unsupported architecture \(self.archName)")
     }
   }
 }
