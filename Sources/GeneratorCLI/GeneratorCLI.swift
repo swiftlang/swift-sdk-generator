@@ -229,6 +229,7 @@ extension GeneratorCLI {
         let target = Triple(arch: arch, vendor: nil, os: .linux, environment: .gnu)
         appLogger.warning(
           "deprecated: Please use `--target \(target.triple)` instead of `--target-arch \(arch)`")
+        return target
       }
       return Triple(arch: hostTriple.arch!, vendor: nil, os: .linux, environment: .gnu)
     }
