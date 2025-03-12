@@ -150,7 +150,7 @@ extension GeneratorCLI {
     @Option(
       help:
         "The target triple of the bundle. The default depends on a recipe used for SDK generation."
-      )
+    )
     var target: Triple? = nil
 
     @Option(help: "Deprecated. Use `--host` instead")
