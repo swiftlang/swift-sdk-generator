@@ -11,14 +11,13 @@
 //===----------------------------------------------------------------------===//
 
 import AsyncAlgorithms
-import Logging
 import Helpers
+import Logging
 import RegexBuilder
 
 import class Foundation.ByteCountFormatter
 import class Foundation.FileManager
 import struct Foundation.URL
-
 import struct SystemPackage.FilePath
 
 private let ubuntuMainMirror = "http://gb.archive.ubuntu.com/ubuntu"
@@ -41,7 +40,9 @@ extension SwiftSDKGenerator {
     let hostLLVMURL = downloadableArtifacts.hostLLVM.remoteURL
     // Workaround an issue with github.com returning 400 instead of 404 status to HEAD requests from AHC.
 
-    if itemsToDownload(downloadableArtifacts).contains(where: { $0.remoteURL == downloadableArtifacts.hostLLVM.remoteURL } ) {
+    if itemsToDownload(downloadableArtifacts).contains(where: {
+      $0.remoteURL == downloadableArtifacts.hostLLVM.remoteURL
+    }) {
       let isLLVMBinaryArtifactAvailable = try await type(of: client).with(http1Only: true) {
         try await $0.head(
           url: hostLLVMURL.absoluteString,
@@ -57,7 +58,8 @@ extension SwiftSDKGenerator {
     let results = try await withThrowingTaskGroup(of: FileCacheRecord.self) { group in
       for item in itemsToDownload(downloadableArtifacts) {
         group.addTask {
-          try await engine[DownloadArtifactQuery(artifact: item, httpClient: client, logger: self.logger)]
+          try await engine[
+            DownloadArtifactQuery(artifact: item, httpClient: client, logger: self.logger)]
         }
       }
 
@@ -69,9 +71,11 @@ extension SwiftSDKGenerator {
     }
 
     logger.info("Using downloaded artifacts from cache")
-    logger.debug("Using downloaded artifacts in these locations.", metadata: [
-      "paths": .array(results.map(\.path.metadataValue))
-    ])
+    logger.debug(
+      "Using downloaded artifacts in these locations.",
+      metadata: [
+        "paths": .array(results.map(\.path.metadataValue))
+      ])
   }
 
   func getMirrorURL(for linuxDistribution: LinuxDistribution) throws -> String {
@@ -115,15 +119,19 @@ extension SwiftSDKGenerator {
         throw GeneratorError.debianPackagesListDownloadRequiresXz
       }
 
-      logger.warning("""
-      The `xz` utility was not found in `PATH`. \
-      Consider installing it for more efficient downloading of package lists.
-      """)
+      logger.warning(
+        """
+        The `xz` utility was not found in `PATH`. \
+        Consider installing it for more efficient downloading of package lists.
+        """)
     }
 
-    logger.info("Downloading and parsing packages lists...", metadata: [
-      "distributionName": .stringConvertible(distributionName), "distributionRelease": .string(distributionRelease)
-    ])
+    logger.info(
+      "Downloading and parsing packages lists...",
+      metadata: [
+        "distributionName": .stringConvertible(distributionName),
+        "distributionRelease": .string(distributionRelease),
+      ])
 
     let allPackages = try await withThrowingTaskGroup(of: [String: URL].self) { group in
       group.addTask {
@@ -162,7 +170,7 @@ extension SwiftSDKGenerator {
         }
       }
 
-      var packages: [String : URL] = [String: URL]()
+      var packages: [String: URL] = [String: URL]()
       for try await result in group {
         packages.merge(result, uniquingKeysWith: { $1 })
       }
@@ -178,9 +186,12 @@ extension SwiftSDKGenerator {
       )
     }
 
-    logger.info("Downloading packages...", metadata: [
-      "distributionName": .stringConvertible(distributionName), "packageCount": .stringConvertible(urls.count)
-    ])
+    logger.info(
+      "Downloading packages...",
+      metadata: [
+        "distributionName": .stringConvertible(distributionName),
+        "packageCount": .stringConvertible(urls.count),
+      ])
     try await inTemporaryDirectory { fs, tmpDir in
       let downloadedFiles = try await self.downloadFiles(from: urls, to: tmpDir, client, engine)
       await report(downloadedFiles: downloadedFiles)
@@ -204,18 +215,20 @@ extension SwiftSDKGenerator {
     var contextLogger = logger
 
     let packagesListURL = """
-    \(mirrorURL)/dists/\(release)\(releaseSuffix)/\(repository)/binary-\(
+      \(mirrorURL)/dists/\(release)\(releaseSuffix)/\(repository)/binary-\(
       targetTriple.arch!.debianConventionName
-    )/\(packagesFileName(isXzAvailable: xzPath != nil))
-    """
+      )/\(packagesFileName(isXzAvailable: xzPath != nil))
+      """
     contextLogger[metadataKey: "packagesListURL"] = .string(packagesListURL)
 
     contextLogger.debug("Downloading packages list...")
-    guard let packages = try await client.downloadDebianPackagesList(
-      from: packagesListURL,
-      unzipWith: xzPath ?? "/usr/bin/gzip", // fallback on gzip if xz not available
-      logger: logger
-    ) else {
+    guard
+      let packages = try await client.downloadDebianPackagesList(
+        from: packagesListURL,
+        unzipWith: xzPath ?? "/usr/bin/gzip",  // fallback on gzip if xz not available
+        logger: logger
+      )
+    else {
       throw GeneratorError.packagesListDecompressionFailure
     }
 
@@ -260,13 +273,16 @@ extension SwiftSDKGenerator {
     try await withThrowingTaskGroup(of: (URL, UInt64).self) {
       for url in urls {
         $0.addTask {
-          let downloadedFilePath = try await engine[DownloadFileQuery(
-            remoteURL: url, localDirectory: directory, httpClient: client
-          )]
+          let downloadedFilePath = try await engine[
+            DownloadFileQuery(
+              remoteURL: url, localDirectory: directory, httpClient: client
+            )]
           let filePath = downloadedFilePath.path
-          guard let fileSize = try FileManager.default.attributesOfItem(
-            atPath: filePath.string
-          )[.size] as? UInt64 else {
+          guard
+            let fileSize = try FileManager.default.attributesOfItem(
+              atPath: filePath.string
+            )[.size] as? UInt64
+          else {
             throw GeneratorError.fileDoesNotExist(filePath)
           }
           return (url, fileSize)
@@ -285,10 +301,12 @@ extension SwiftSDKGenerator {
     let byteCountFormatter = ByteCountFormatter()
 
     for (url, bytes) in downloadedFiles {
-      logger.debug("Downloaded package", metadata: [
-        "url": .string(url.absoluteString),
-        "size": .string(byteCountFormatter.string(fromByteCount: Int64(bytes)))
-      ])
+      logger.debug(
+        "Downloaded package",
+        metadata: [
+          "url": .string(url.absoluteString),
+          "size": .string(byteCountFormatter.string(fromByteCount: Int64(bytes))),
+        ])
     }
   }
 }
@@ -299,7 +317,8 @@ extension HTTPClientProtocol {
     unzipWith zipPath: String,
     logger: Logger
   ) async throws -> String? {
-    guard let packages = try await get(url: url).body?.unzip(zipPath: zipPath, logger: logger) else {
+    guard let packages = try await get(url: url).body?.unzip(zipPath: zipPath, logger: logger)
+    else {
       throw FileOperationError.downloadFailed(url)
     }
 

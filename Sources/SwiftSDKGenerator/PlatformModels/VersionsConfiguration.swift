@@ -10,8 +10,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-import struct Foundation.URL
 import Logging
+
+import struct Foundation.URL
 
 public struct VersionsConfiguration: Sendable {
   init(
@@ -26,12 +27,15 @@ public struct VersionsConfiguration: Sendable {
     self.swiftBranch = swiftBranch ?? "swift-\(swiftVersion.lowercased())"
     self.lldVersion = lldVersion
     if case let .debian(debian) = linuxDistribution, debian.version == "11" {
-      logger.warning("Debian 11 selected but not officially supported by Swift, falling back on Ubuntu 20.04 toolchain...")
+      logger.warning(
+        "Debian 11 selected but not officially supported by Swift, falling back on Ubuntu 20.04 toolchain..."
+      )
       self.linuxDistribution = try .init(name: .ubuntu, version: "20.04")
     } else {
       self.linuxDistribution = linuxDistribution
     }
-    self.linuxArchSuffix = targetTriple.arch == .aarch64 ? "-\(Triple.Arch.aarch64.linuxConventionName)" : ""
+    self.linuxArchSuffix =
+      targetTriple.arch == .aarch64 ? "-\(Triple.Arch.aarch64.linuxConventionName)" : ""
   }
 
   let swiftVersion: String
@@ -63,21 +67,23 @@ public struct VersionsConfiguration: Sendable {
     let computedSubdirectory: String
     switch self.linuxDistribution {
     case let .ubuntu(ubuntu):
-      computedSubdirectory = "ubuntu\(ubuntu.version.replacingOccurrences(of: ".", with: ""))\(self.linuxArchSuffix)"
+      computedSubdirectory =
+        "ubuntu\(ubuntu.version.replacingOccurrences(of: ".", with: ""))\(self.linuxArchSuffix)"
     case let .debian(debian):
-      computedSubdirectory = "debian\(debian.version.replacingOccurrences(of: ".", with: ""))\(self.linuxArchSuffix)"
+      computedSubdirectory =
+        "debian\(debian.version.replacingOccurrences(of: ".", with: ""))\(self.linuxArchSuffix)"
     case let .rhel(rhel):
       computedSubdirectory = rhel.rawValue
     }
 
     return URL(
       string: """
-      https://download.swift.org/\(
-        self.swiftBranch
-      )/\(
-        subdirectory ?? computedSubdirectory
-      )/swift-\(self.swiftVersion)/\(self.swiftDistributionName(platform: platform)).\(fileExtension)
-      """
+        https://download.swift.org/\(
+          self.swiftBranch
+        )/\(
+          subdirectory ?? computedSubdirectory
+        )/swift-\(self.swiftVersion)/\(self.swiftDistributionName(platform: platform)).\(fileExtension)
+        """
     )!
   }
 

@@ -11,7 +11,7 @@ let package = Package(
     .executable(
       name: "swift-sdk-generator",
       targets: ["GeneratorCLI"]
-    ),
+    )
   ],
   targets: [
     // Targets are the basic building blocks of a package. A target can define a module or a test suite.
@@ -23,7 +23,7 @@ let package = Package(
         .product(name: "ArgumentParser", package: "swift-argument-parser"),
       ],
       swiftSettings: [
-        .enableExperimentalFeature("StrictConcurrency=complete"),
+        .enableExperimentalFeature("StrictConcurrency=complete")
       ]
     ),
     .target(
@@ -38,22 +38,22 @@ let package = Package(
       ],
       exclude: ["Dockerfiles"],
       swiftSettings: [
-        .enableExperimentalFeature("StrictConcurrency=complete"),
+        .enableExperimentalFeature("StrictConcurrency=complete")
       ]
     ),
     .testTarget(
       name: "SwiftSDKGeneratorTests",
       dependencies: [
-        "SwiftSDKGenerator",
+        "SwiftSDKGenerator"
       ],
       swiftSettings: [
-        .enableExperimentalFeature("StrictConcurrency=complete"),
+        .enableExperimentalFeature("StrictConcurrency=complete")
       ]
     ),
     .testTarget(
       name: "GeneratorEngineTests",
       dependencies: [
-        "Helpers",
+        "Helpers"
       ]
     ),
     .target(
@@ -66,13 +66,13 @@ let package = Package(
       ],
       exclude: ["Vendor/README.md"],
       swiftSettings: [
-        .enableExperimentalFeature("StrictConcurrency=complete"),
+        .enableExperimentalFeature("StrictConcurrency=complete")
       ]
     ),
     .testTarget(
       name: "HelpersTests",
       dependencies: [
-        "Helpers",
+        "Helpers"
       ]
     ),
     .systemLibrary(name: "SystemSQLite", pkgConfig: "sqlite3"),

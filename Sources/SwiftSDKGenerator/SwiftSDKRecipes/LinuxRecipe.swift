@@ -11,8 +11,9 @@
 //===----------------------------------------------------------------------===//
 
 import Foundation
-import Logging
 import Helpers
+import Logging
+
 import struct SystemPackage.FilePath
 
 public struct LinuxRecipe: SwiftSDKRecipe {
@@ -178,7 +179,8 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     var items: [DownloadableArtifacts.Item] = []
     if self.hostSwiftSource != .preinstalled
       && self.mainHostTriple.os != .linux
-      && !self.versionsConfiguration.swiftVersion.hasPrefix("6.0") {
+      && !self.versionsConfiguration.swiftVersion.hasPrefix("6.0")
+    {
       items.append(artifacts.hostLLVM)
     }
 
@@ -227,7 +229,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
         self.linuxDistribution, targetArchName: self.mainTargetTriple.archName
       )
     }
-  
+
     let sdkDirPath = self.sdkDirPath(paths: generator.pathsConfiguration)
     if !generator.isIncremental {
       try await generator.removeRecursively(at: sdkDirPath)
@@ -250,25 +252,26 @@ public struct LinuxRecipe: SwiftSDKRecipe {
 
     if !self.shouldUseDocker {
       switch linuxDistribution {
-        case .ubuntu(let version):
-          try await generator.downloadDebianPackages(
-            client,
-            engine,
-            requiredPackages: version.requiredPackages,
-            versionsConfiguration: self.versionsConfiguration,
-            sdkDirPath: sdkDirPath
-          )
-        case .debian(let version):
-          try await generator.downloadDebianPackages(
-            client,
-            engine,
-            requiredPackages: version.requiredPackages,
-            versionsConfiguration: self.versionsConfiguration,
-            sdkDirPath: sdkDirPath
-          )
-        default:
-          throw GeneratorError
-            .distributionSupportsOnlyDockerGenerator(self.linuxDistribution)
+      case .ubuntu(let version):
+        try await generator.downloadDebianPackages(
+          client,
+          engine,
+          requiredPackages: version.requiredPackages,
+          versionsConfiguration: self.versionsConfiguration,
+          sdkDirPath: sdkDirPath
+        )
+      case .debian(let version):
+        try await generator.downloadDebianPackages(
+          client,
+          engine,
+          requiredPackages: version.requiredPackages,
+          versionsConfiguration: self.versionsConfiguration,
+          sdkDirPath: sdkDirPath
+        )
+      default:
+        throw
+          GeneratorError
+          .distributionSupportsOnlyDockerGenerator(self.linuxDistribution)
       }
     }
 
@@ -299,7 +302,9 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     case .remoteTarball:
       try await generator.unpackTargetSwiftPackage(
         targetSwiftPackagePath: downloadableArtifacts.targetSwift.localPath,
-        relativePathToRoot: [FilePath.Component(self.versionsConfiguration.swiftDistributionName())!],
+        relativePathToRoot: [
+          FilePath.Component(self.versionsConfiguration.swiftDistributionName())!
+        ],
         sdkDirPath: sdkDirPath
       )
     }
@@ -318,11 +323,14 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     // Swift 6.1 and later do not throw warnings about the SDKSettings.json file missing,
     // so they don't need this file.
     if self.versionsConfiguration.swiftVersion.hasAnyPrefix(from: ["5.9", "5.10", "6.0"]) {
-      try await generator.generateSDKSettingsFile(sdkDirPath: sdkDirPath, distribution: linuxDistribution)
+      try await generator.generateSDKSettingsFile(
+        sdkDirPath: sdkDirPath, distribution: linuxDistribution)
     }
 
     if self.hostSwiftSource != .preinstalled {
-      if self.mainHostTriple.os != .linux && !self.versionsConfiguration.swiftVersion.hasPrefix("6.0") {
+      if self.mainHostTriple.os != .linux
+        && !self.versionsConfiguration.swiftVersion.hasPrefix("6.0")
+      {
         try await generator.prepareLLDLinker(engine, llvmArtifact: downloadableArtifacts.hostLLVM)
       }
 
@@ -330,7 +338,8 @@ public struct LinuxRecipe: SwiftSDKRecipe {
         try await generator.symlinkClangHeaders()
       }
 
-      let autolinkExtractPath = generator.pathsConfiguration.toolchainBinDirPath.appending("swift-autolink-extract")
+      let autolinkExtractPath = generator.pathsConfiguration.toolchainBinDirPath.appending(
+        "swift-autolink-extract")
 
       if await !generator.doesFileExist(at: autolinkExtractPath) {
         logger.info("Fixing `swift-autolink-extract` symlink...")

@@ -19,10 +19,6 @@ services:
       - ..:/code:z
     working_dir: /code
 
-  soundness:
-    <<: *common
-    command: /bin/bash -xcl "swift -version && uname -a && ./Utilities/soundness.sh"
-
   test:
     <<: *common
     environment:
