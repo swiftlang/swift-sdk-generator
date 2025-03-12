@@ -40,7 +40,7 @@ extension GeneratorError: CustomStringConvertible {
       return "Process launched with \(commandInfo) failed with exit code \(exitCode)"
     case let .unknownLinuxDistribution(name, version):
       return
-        "Linux distribution `\(name)`\(version.map { " with version \($0)" } ?? "")` is not supported by this generator."
+        "Linux distribution `\(name)`\(version.map { " with version `\($0)`" } ?? "") is not supported by this generator."
     case let .unknownMacOSVersion(version):
       return "macOS version `\(version)` is not supported by this generator."
     case let .unknownCPUArchitecture(cpu):
