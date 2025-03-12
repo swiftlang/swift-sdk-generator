@@ -336,8 +336,8 @@ func buildTestcases(config: SDKConfiguration) async throws {
   logger.info("Built Swift SDK")
 
   // Cleanup
-  let cleanupSdk: () async -> Void = {
-    logger.info("Removing Swift SDK to cleanup...")
+  func cleanupSDK() async {
+    logger.info("Removing Swift SDK to clean up...")
     try? await Shell.run("swift experimental-sdk remove \(bundleName)")
   }
 
@@ -349,12 +349,12 @@ func buildTestcases(config: SDKConfiguration) async throws {
         )
       }
     } catch {
-      await cleanupSdk()
+      await cleanupSDK()
       throw error
     }
   }
 
-  await cleanupSdk()
+  await cleanupSDK()
 }
 
 final class Swift59_UbuntuEndToEndTests: XCTestCase {
