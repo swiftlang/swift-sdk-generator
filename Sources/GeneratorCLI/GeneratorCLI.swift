@@ -148,15 +148,19 @@ extension GeneratorCLI {
     var host: Triple? = nil
 
     @Option(
-      help: """
-        The target triple of the bundle. The default depends on a recipe used for SDK generation. Pass `--help` to a specific recipe subcommand for more details.
-        """
-    )
+      help:
+        "The target triple of the bundle. The default depends on a recipe used for SDK generation.")
     var target: Triple? = nil
 
     @Option(help: "Deprecated. Use `--host` instead")
     var hostArch: Triple.Arch? = nil
-    @Option(help: "Deprecated. Use `--target` instead")
+    @Option(
+      help: """
+        The target arch of the bundle. The default depends on a recipe used for SDK generation.
+        If this is passed, the target triple will default to `<target-arch>-unknown-linux-gnu`.
+        Use the `--target` param to pass the full target triple if needed.
+        """
+    )
     var targetArch: Triple.Arch? = nil
 
     /// Default to adding host toolchain when building on macOS
@@ -228,7 +232,8 @@ extension GeneratorCLI {
       if let arch = generatorOptions.targetArch {
         let target = Triple(arch: arch, vendor: nil, os: .linux, environment: .gnu)
         appLogger.warning(
-          "deprecated: Please use `--target \(target.triple)` instead of `--target-arch \(arch)`")
+          "Using `--target-arch \(arch)` defaults to `\(target.triple)`. Use `--target` if you want to pass the full target triple."
+        )
         return target
       }
       return Triple(arch: hostTriple.arch!, vendor: nil, os: .linux, environment: .gnu)

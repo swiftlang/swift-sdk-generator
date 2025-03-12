@@ -120,11 +120,14 @@ to the `--experimental-swift-sdk` option.
 
 By default, on macOS hosts running on Apple Silicon, the Swift SDK Generator will create Swift SDKs
 for Ubuntu Jammy on aarch64, which matches the arch of the host. However, it is possible to change
-the default target architecture by passing the `--target` flag:
+the default target architecture by passing the `--target-arch` flag:
 
 ```bash
-swift run swift-sdk-generator make-linux-sdk --target x86_64-unknown-linux-gnu
+swift run swift-sdk-generator make-linux-sdk --target-arch x86_64
 ```
+
+This will default to building the Swift SDK for `x86_64-unknown-linux-gnu`. To build for other
+platforms and environments, supply the `--target` flag with the full target triple instead.
 
 The Linux distribution name and version can also be passed to change from the default of Ubuntu Jammy:
 
@@ -141,13 +144,13 @@ and are likely not using the Swift OSS toolchain to build and run Swift projects
 is included by *default*. This default behavior can be changed by passing  `--no-host-toolchain`:
 
 ```bash
-swift run swift-sdk-generator make-linux-sdk --no-host-toolchain --target x86_64-unknown-linux-gnu
+swift run swift-sdk-generator make-linux-sdk --no-host-toolchain --target x86_64
 ```
 
 Or, if on Linux, and desiring to generate the Swift SDK with the host toolchain included, add `--host-toolchain`:
 
 ```bash
-swift run swift-sdk-generator make-linux-sdk --host-toolchain --target aarch64-unknown-linux-gnu
+swift run swift-sdk-generator make-linux-sdk --host-toolchain --target aarch64
 ```
 
 ## Building an SDK from a container image
