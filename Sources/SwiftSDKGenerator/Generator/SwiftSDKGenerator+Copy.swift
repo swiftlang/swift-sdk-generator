@@ -98,7 +98,7 @@ extension SwiftSDKGenerator {
             let removePath = "gcc/x86_64-redhat-linux/\(gccVersion)/32"
             if await doesFileExist(at: sdkUsrLibPath.appending(removePath)) {
               logger.warning(
-                "Removing 32-bit libraries from RHEL imported sysroot", 
+                "Removing 32-bit libraries from RHEL imported sysroot",
                 metadata: ["removePath": .stringConvertible(removePath)]
               )
               try await removeRecursively(at: sdkUsrLibPath.appending(removePath))
