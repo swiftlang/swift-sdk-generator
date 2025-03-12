@@ -36,14 +36,12 @@ extension FileManager {
     try createDirectory(at: temporaryDirectory, withIntermediateDirectories: false)
     defer {
       // Best effort cleanup.
-      do {
-        if cleanup {
-          try removeItem(at: temporaryDirectory)
-          logger.info("Removed temporary directory")
-        } else {
-          logger.info("Keeping temporary directory")
-        }
-      } catch {}
+      if cleanup {
+        try? removeItem(at: temporaryDirectory)
+        logger.info("Removed temporary directory")
+      } else {
+        logger.info("Keeping temporary directory")
+      }
     }
 
     logger.info("Created temporary directory")
@@ -62,7 +60,7 @@ func buildSDK(_ logger: Logger, scratchPath: String, withArguments runArguments:
   logger[metadataKey: "runArguments"] = "\"\(runArguments)\""
   logger[metadataKey: "scratchPath"] = "\(scratchPath)"
 
-  logger.info("Building SDK")
+  logger.info("Building Swift SDK")
 
   var packageDirectory = FilePath(#filePath)
   packageDirectory.removeLastComponent()
@@ -71,7 +69,7 @@ func buildSDK(_ logger: Logger, scratchPath: String, withArguments runArguments:
   let generatorOutput = try await Shell.readStdout(
     "cd \(packageDirectory) && swift run --scratch-path \"\(scratchPath)\" swift-sdk-generator make-linux-sdk \(runArguments)"
   )
-  logger.info("Finished building SDK")
+  logger.info("Finished building Swift SDK")
 
   let installCommand = try XCTUnwrap(
     generatorOutput.split(separator: "\n").first {
@@ -83,17 +81,17 @@ func buildSDK(_ logger: Logger, scratchPath: String, withArguments runArguments:
   ).stem
   logger[metadataKey: "bundleName"] = "\(bundleName)"
 
-  logger.info("Checking installed SDKs")
+  logger.info("Checking installed Swift SDKs")
   let installedSDKs = try await Shell.readStdout("swift experimental-sdk list").components(
     separatedBy: "\n")
 
   // Make sure this bundle hasn't been installed already.
   if installedSDKs.contains(bundleName) {
-    logger.info("Removing existing SDK")
+    logger.info("Removing existing Swift SDK")
     try await Shell.run("swift experimental-sdk remove \(bundleName)")
   }
 
-  logger.info("Installing new SDK")
+  logger.info("Installing new Swift SDK")
   let installOutput = try await Shell.readStdout(String(installCommand))
   XCTAssertTrue(installOutput.contains("successfully installed"))
 
@@ -168,14 +166,22 @@ struct SDKConfiguration {
   var linuxDistributionVersion: String
   var architecture: String
   var withDocker: Bool
+  var containerImageSuffix: String?
 
   var bundleName: String {
-    "\(linuxDistributionName)_\(linuxDistributionVersion)_\(architecture)_\(swiftVersion)-RELEASE\(withDocker ? "_with-docker" : "")"
+    let sdkPrefix = containerImageSuffix ?? "\(linuxDistributionName)_\(linuxDistributionVersion)"
+    return "\(sdkPrefix)_\(architecture)_\(swiftVersion)-RELEASE\(withDocker ? "_with-docker" : "")"
   }
 
   func withDocker(_ enabled: Bool = true) -> SDKConfiguration {
     var res = self
     res.withDocker = enabled
+    return res
+  }
+
+  func withContainerImageSuffix(_ containerImageSuffix: String) -> SDKConfiguration {
+    var res = self
+    res.containerImageSuffix = containerImageSuffix
     return res
   }
 
@@ -191,14 +197,22 @@ struct SDKConfiguration {
   }
 
   var sdkGeneratorArguments: String {
+    // Build the container image tag
+    var containerImage: String? = nil
+    if let containerImageSuffix {
+      containerImage = "swift:\(swiftVersion)-\(containerImageSuffix)"
+    }
+
     return [
       "--sdk-name \(bundleName)",
       "--host-toolchain",
       withDocker ? "--with-docker" : nil,
+      containerImage != nil ? "--from-container-image" : nil, containerImage,
       "--swift-version \(swiftVersion)-RELEASE",
       testLinuxSwiftSDKs ? "--host \(hostArch!)-unknown-linux-gnu" : nil,
       "--target \(architecture)-unknown-linux-gnu",
       "--linux-distribution-name \(linuxDistributionName)",
+      "--linux-distribution-version \(linuxDistributionVersion)",
     ].compactMap { $0 }.joined(separator: " ")
   }
 }
@@ -319,17 +333,28 @@ func buildTestcases(config: SDKConfiguration) async throws {
       logger, scratchPath: tempDir.path, withArguments: config.sdkGeneratorArguments)
   }
 
-  logger.info("Built SDK")
+  logger.info("Built Swift SDK")
+
+  // Cleanup
+  func cleanupSDK() async {
+    logger.info("Removing Swift SDK to clean up...")
+    try? await Shell.run("swift experimental-sdk remove \(bundleName)")
+  }
 
   for testcase in testcases {
-    try await FileManager.default.withTemporaryDirectory(logger: logger) { tempDir in
-      try await buildTestcase(logger, testcase: testcase, bundleName: bundleName, tempDir: tempDir)
+    do {
+      try await FileManager.default.withTemporaryDirectory(logger: logger) { tempDir in
+        try await buildTestcase(
+          logger, testcase: testcase, bundleName: bundleName, tempDir: tempDir
+        )
+      }
+    } catch {
+      await cleanupSDK()
+      throw error
     }
   }
 
-  // Cleanup
-  logger.info("Removing SDK to cleanup...")
-  try await Shell.run("swift experimental-sdk remove \(bundleName)")
+  await cleanupSDK()
 }
 
 final class Swift59_UbuntuEndToEndTests: XCTestCase {
@@ -433,12 +458,24 @@ final class Swift59_RHELEndToEndTests: XCTestCase {
 
   func testAarch64FromContainer() async throws {
     try skipSlow()
-    try await buildTestcases(config: config.withArchitecture("aarch64").withDocker())
+    try await buildTestcases(config: config.withArchitecture("aarch64"))
   }
 
   func testX86_64FromContainer() async throws {
     try skipSlow()
-    try await buildTestcases(config: config.withArchitecture("x86_64").withDocker())
+    try await buildTestcases(config: config.withArchitecture("x86_64"))
+  }
+
+  func testAmazonLinux2Aarch64FromContainer() async throws {
+    try skipSlow()
+    try await buildTestcases(
+      config: config.withArchitecture("aarch64").withContainerImageSuffix("amazonlinux2"))
+  }
+
+  func testAmazonLinux2X86_64FromContainer() async throws {
+    try skipSlow()
+    try await buildTestcases(
+      config: config.withArchitecture("x86_64").withContainerImageSuffix("amazonlinux2"))
   }
 }
 
@@ -453,12 +490,36 @@ final class Swift510_RHELEndToEndTests: XCTestCase {
 
   func testAarch64FromContainer() async throws {
     try skipSlow()
-    try await buildTestcases(config: config.withArchitecture("aarch64").withDocker())
+    try await buildTestcases(config: config.withArchitecture("aarch64"))
   }
 
   func testX86_64FromContainer() async throws {
     try skipSlow()
-    try await buildTestcases(config: config.withArchitecture("x86_64").withDocker())
+    try await buildTestcases(config: config.withArchitecture("x86_64"))
+  }
+
+  func testAmazonLinux2Aarch64FromContainer() async throws {
+    try skipSlow()
+    try await buildTestcases(
+      config: config.withArchitecture("aarch64").withContainerImageSuffix("amazonlinux2"))
+  }
+
+  func testAmazonLinux2X86_64FromContainer() async throws {
+    try skipSlow()
+    try await buildTestcases(
+      config: config.withArchitecture("x86_64").withContainerImageSuffix("amazonlinux2"))
+  }
+
+  func testFedora39Aarch64FromContainer() async throws {
+    try skipSlow()
+    try await buildTestcases(
+      config: config.withArchitecture("aarch64").withContainerImageSuffix("fedora39"))
+  }
+
+  func testFedora39X86_64FromContainer() async throws {
+    try skipSlow()
+    try await buildTestcases(
+      config: config.withArchitecture("x86_64").withContainerImageSuffix("fedora39"))
   }
 }
 
@@ -473,11 +534,35 @@ final class Swift60_RHELEndToEndTests: XCTestCase {
 
   func testAarch64FromContainer() async throws {
     try skipSlow()
-    try await buildTestcases(config: config.withArchitecture("aarch64").withDocker())
+    try await buildTestcases(config: config.withArchitecture("aarch64"))
   }
 
   func testX86_64FromContainer() async throws {
     try skipSlow()
-    try await buildTestcases(config: config.withArchitecture("x86_64").withDocker())
+    try await buildTestcases(config: config.withArchitecture("x86_64"))
+  }
+
+  func testAmazonLinux2Aarch64FromContainer() async throws {
+    try skipSlow()
+    try await buildTestcases(
+      config: config.withArchitecture("aarch64").withContainerImageSuffix("amazonlinux2"))
+  }
+
+  func testAmazonLinux2X86_64FromContainer() async throws {
+    try skipSlow()
+    try await buildTestcases(
+      config: config.withArchitecture("x86_64").withContainerImageSuffix("amazonlinux2"))
+  }
+
+  func testFedora39Aarch64FromContainer() async throws {
+    try skipSlow()
+    try await buildTestcases(
+      config: config.withArchitecture("aarch64").withContainerImageSuffix("fedora39"))
+  }
+
+  func testFedora39X86_64FromContainer() async throws {
+    try skipSlow()
+    try await buildTestcases(
+      config: config.withArchitecture("x86_64").withContainerImageSuffix("fedora39"))
   }
 }
