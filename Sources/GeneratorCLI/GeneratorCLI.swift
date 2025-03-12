@@ -214,16 +214,16 @@ extension GeneratorCLI {
         """,
       transform: LinuxDistribution.Name.init(nameString:)
     )
-    var linuxDistributionName = LinuxDistribution.Name.ubuntu
+    var distributionName = LinuxDistribution.Name.ubuntu
 
     @Option(
       help: """
         Version of the Linux distribution used as a target platform.
-        Available options for Ubuntu: `20.04`, `22.04` (default when `--linux-distribution-name` is `ubuntu`), `24.04`.
-        Available options for RHEL: `ubi9` (default when `--linux-distribution-name` is `rhel`).
+        Available options for Ubuntu: `20.04`, `22.04` (default when `--distribution-name` is `ubuntu`), `24.04`.
+        Available options for RHEL: `ubi9` (default when `--distribution-name` is `rhel`).
         """
     )
-    var linuxDistributionVersion: String?
+    var distributionVersion: String?
 
     func deriveTargetTriple(hostTriple: Triple) -> Triple {
       if let target = generatorOptions.target {
@@ -245,17 +245,17 @@ extension GeneratorCLI {
           "deprecated: Please explicitly specify the subcommand to run. For example: $ swift-sdk-generator make-linux-sdk"
         )
       }
-      let linuxDistributionDefaultVersion: String
-      switch self.linuxDistributionName {
+      let distributionDefaultVersion: String
+      switch self.distributionName {
       case .rhel:
-        linuxDistributionDefaultVersion = "ubi9"
+        distributionDefaultVersion = "ubi9"
       case .ubuntu:
-        linuxDistributionDefaultVersion = "22.04"
+        distributionDefaultVersion = "22.04"
       }
-      let linuxDistributionVersion =
-        self.linuxDistributionVersion ?? linuxDistributionDefaultVersion
+      let distributionVersion =
+        self.distributionVersion ?? distributionDefaultVersion
       let linuxDistribution = try LinuxDistribution(
-        name: linuxDistributionName, version: linuxDistributionVersion)
+        name: distributionName, version: distributionVersion)
       let hostTriple = try self.generatorOptions.deriveHostTriple()
       let targetTriple = self.deriveTargetTriple(hostTriple: hostTriple)
 

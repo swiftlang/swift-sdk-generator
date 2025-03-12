@@ -132,7 +132,7 @@ platforms and environments, supply the `--target` flag with the full target trip
 The Linux distribution name and version can also be passed to change from the default of Ubuntu Jammy:
 
 ```bash
-swift run swift-sdk-generator make-linux-sdk --linux-distribution-name ubuntu --linux-distribution-version noble
+swift run swift-sdk-generator make-linux-sdk --distribution-name ubuntu --distribution-version 24.04
 ```
 
 ### Host Toolchain
@@ -144,13 +144,13 @@ and are likely not using the Swift OSS toolchain to build and run Swift projects
 is included by *default*. This default behavior can be changed by passing  `--no-host-toolchain`:
 
 ```bash
-swift run swift-sdk-generator make-linux-sdk --no-host-toolchain --target x86_64
+swift run swift-sdk-generator make-linux-sdk --no-host-toolchain --target-arch x86_64
 ```
 
 Or, if on Linux, and desiring to generate the Swift SDK with the host toolchain included, add `--host-toolchain`:
 
 ```bash
-swift run swift-sdk-generator make-linux-sdk --host-toolchain --target aarch64
+swift run swift-sdk-generator make-linux-sdk --host-toolchain --target-arch aarch64
 ```
 
 ## Building an SDK from a container image
@@ -162,10 +162,10 @@ Jammy image:
 ```
 swift run swift-sdk-generator make-linux-sdk --with-docker
 ```
-To build a RHEL images, use the `--linux-distribution-name` option.
+To build a RHEL images, use the `--distribution-name` option.
 The following command will build a `ubi9`-based image:
 ```
-swift run swift-sdk-generator make-linux-sdk --with-docker --linux-distribution-name rhel
+swift run swift-sdk-generator make-linux-sdk --with-docker --distribution-name rhel
 ```
 
 You can also specify the base container image by name:
@@ -175,7 +175,7 @@ swift run swift-sdk-generator make-linux-sdk --from-container-image swift:5.9-ja
 ```
 
 ```
-swift run swift-sdk-generator make-linux-sdk --with-docker --linux-distribution-name rhel --from-container-image swift:5.9-rhel-ubi9
+swift run swift-sdk-generator make-linux-sdk --with-docker --distribution-name rhel --from-container-image swift:5.9-rhel-ubi9
 ```
 
 ### Including extra Linux libraries

@@ -138,7 +138,7 @@ final class RepeatedBuildTests: XCTestCase {
     do {
       try await Shell.run("docker ps")
       possibleArguments.append(
-        "--with-docker --linux-distribution-name rhel --linux-distribution-version ubi9")
+        "--with-docker --distribution-name rhel --distribution-version ubi9")
     } catch {
       self.logger.warning(
         "Docker CLI does not seem to be working, skipping tests that involve Docker.")
@@ -198,7 +198,7 @@ struct SDKConfiguration {
       "--swift-version \(swiftVersion)-RELEASE",
       testLinuxSwiftSDKs ? "--host \(hostArch!)-unknown-linux-gnu" : nil,
       "--target \(architecture)-unknown-linux-gnu",
-      "--linux-distribution-name \(linuxDistributionName)",
+      "--distribution-name \(linuxDistributionName)",
     ].compactMap { $0 }.joined(separator: " ")
   }
 }
