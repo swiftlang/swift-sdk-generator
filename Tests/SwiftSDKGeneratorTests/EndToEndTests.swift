@@ -345,7 +345,8 @@ func buildTestcases(config: SDKConfiguration) async throws {
     do {
       try await FileManager.default.withTemporaryDirectory(logger: logger) { tempDir in
         try await buildTestcase(
-          logger, testcase: testcase, bundleName: bundleName, tempDir: tempDir)
+          logger, testcase: testcase, bundleName: bundleName, tempDir: tempDir
+        )
       }
     } catch {
       await cleanupSdk()
