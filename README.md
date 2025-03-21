@@ -87,7 +87,7 @@ subsequently as `<generated_sdk_id>`.
 Create a new project to verify that the SDK works:
 
 ```
-mkdir cross-compilation test
+mkdir cross-compilation-test
 cd cross-compilation-test
 swift package init --type executable
 ```
