@@ -37,14 +37,19 @@ public struct VersionsConfiguration: Sendable {
   var swiftPlatform: String {
     switch self.linuxDistribution {
     case let .ubuntu(ubuntu):
-      return "ubuntu\(ubuntu.version)\(self.linuxArchSuffix)"
+      return "ubuntu\(ubuntu.version)"
     case let .rhel(rhel):
-      return "\(rhel.rawValue)\(self.linuxArchSuffix)"
+      return rhel.rawValue
     }
   }
 
+  var swiftPlatformAndSuffix: String {
+    return "\(self.swiftPlatform)\(self.linuxArchSuffix)"
+  }
+
   func swiftDistributionName(platform: String? = nil) -> String {
-    "swift-\(self.swiftVersion)-\(platform ?? self.swiftPlatform)"
+    return
+      "swift-\(self.swiftVersion)-\(platform ?? self.swiftPlatformAndSuffix)"
   }
 
   func swiftDownloadURL(
@@ -52,14 +57,10 @@ public struct VersionsConfiguration: Sendable {
     platform: String? = nil,
     fileExtension: String = "tar.gz"
   ) -> URL {
-    let computedSubdirectory: String
-    switch self.linuxDistribution {
-    case let .ubuntu(ubuntu):
-      computedSubdirectory =
-        "ubuntu\(ubuntu.version.replacingOccurrences(of: ".", with: ""))\(self.linuxArchSuffix)"
-    case let .rhel(rhel):
-      computedSubdirectory = rhel.rawValue
-    }
+    let computedPlatform = platform ?? self.swiftPlatformAndSuffix
+    let computedSubdirectory =
+      subdirectory
+      ?? computedPlatform.replacingOccurrences(of: ".", with: "")
 
     return URL(
       string: """
