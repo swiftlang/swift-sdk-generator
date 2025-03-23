@@ -125,7 +125,7 @@ public enum LinuxDistribution: Hashable, Sendable {
           "libc6-dev",
           "libgcc-s1",
           "libgcc-10-dev",
-          "libicu66",
+          "libicu67",
           "libicu-dev",
           "libstdc++-10-dev",
           "libstdc++6",

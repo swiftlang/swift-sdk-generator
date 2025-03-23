@@ -26,16 +26,10 @@ public struct VersionsConfiguration: Sendable {
     self.swiftVersion = swiftVersion
     self.swiftBranch = swiftBranch ?? "swift-\(swiftVersion.lowercased())"
     self.lldVersion = lldVersion
-    if case let .debian(debian) = linuxDistribution, debian.version == "11" {
-      logger.warning(
-        "Debian 11 selected but not officially supported by Swift, falling back on Ubuntu 20.04 toolchain..."
-      )
-      self.linuxDistribution = try .init(name: .ubuntu, version: "20.04")
-    } else {
-      self.linuxDistribution = linuxDistribution
-    }
+    self.linuxDistribution = linuxDistribution
     self.linuxArchSuffix =
       targetTriple.arch == .aarch64 ? "-\(Triple.Arch.aarch64.linuxConventionName)" : ""
+    self.logger = logger
   }
 
   let swiftVersion: String
@@ -43,12 +37,27 @@ public struct VersionsConfiguration: Sendable {
   let lldVersion: String
   let linuxDistribution: LinuxDistribution
   let linuxArchSuffix: String
+  private let logger: Logger
 
   var swiftPlatform: String {
     switch self.linuxDistribution {
     case let .ubuntu(ubuntu):
       return "ubuntu\(ubuntu.version)\(self.linuxArchSuffix)"
     case let .debian(debian):
+      if debian.version == "11" {
+        logger.warning(
+          "Debian 11 selected but not officially supported by Swift, falling back on Ubuntu 20.04 toolchain..."
+        )
+        // Ubuntu 20.04 toolchain is binary compatible with Debian 11
+        return "ubuntu20.04\(self.linuxArchSuffix)"
+      } else if self.swiftVersion.hasPrefix("5.9") || self.swiftVersion == "5.10" {
+        logger.warning(
+          "Debian 12 selected but not officially supported by Swift version, falling back on Ubuntu 22.04 toolchain...",
+          metadata: ["swiftVersion": .string(self.swiftVersion)]
+        )
+        // Ubuntu 22.04 toolchain is binary compatible with Debian 12
+        return "ubuntu22.04\(self.linuxArchSuffix)"
+      }
       return "debian\(debian.version)\(self.linuxArchSuffix)"
     case let .rhel(rhel):
       return "\(rhel.rawValue)\(self.linuxArchSuffix)"
@@ -56,7 +65,7 @@ public struct VersionsConfiguration: Sendable {
   }
 
   func swiftDistributionName(platform: String? = nil) -> String {
-    "swift-\(self.swiftVersion)-\(platform ?? self.swiftPlatform)"
+    return "swift-\(self.swiftVersion)-\(platform ?? self.swiftPlatform)"
   }
 
   func swiftDownloadURL(
@@ -64,25 +73,16 @@ public struct VersionsConfiguration: Sendable {
     platform: String? = nil,
     fileExtension: String = "tar.gz"
   ) -> URL {
-    let computedSubdirectory: String
-    switch self.linuxDistribution {
-    case let .ubuntu(ubuntu):
-      computedSubdirectory =
-        "ubuntu\(ubuntu.version.replacingOccurrences(of: ".", with: ""))\(self.linuxArchSuffix)"
-    case let .debian(debian):
-      computedSubdirectory =
-        "debian\(debian.version.replacingOccurrences(of: ".", with: ""))\(self.linuxArchSuffix)"
-    case let .rhel(rhel):
-      computedSubdirectory = rhel.rawValue
-    }
+    let computedPlatform = platform ?? self.swiftPlatform
+    let computedSubdirectory =
+      subdirectory ?? computedPlatform.replacingOccurrences(of: ".", with: "")
 
     return URL(
       string: """
         https://download.swift.org/\(
           self.swiftBranch
-        )/\(
-          subdirectory ?? computedSubdirectory
-        )/swift-\(self.swiftVersion)/\(self.swiftDistributionName(platform: platform)).\(fileExtension)
+        )/\(computedSubdirectory)/\
+        swift-\(self.swiftVersion)/\(self.swiftDistributionName(platform: computedPlatform)).\(fileExtension)
         """
     )!
   }

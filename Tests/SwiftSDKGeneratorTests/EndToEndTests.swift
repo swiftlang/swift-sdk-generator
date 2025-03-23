@@ -462,17 +462,30 @@ final class Swift59_DebianEndToEndTests: XCTestCase {
     withDocker: false
   )
 
-  func testAarch64Direct() async throws {
+  func testBullseyeAarch64Direct() async throws {
     try skipSlow()
     try await buildTestcases(config: config.withArchitecture("aarch64"))
   }
 
-  func testX86_64Direct() async throws {
+  func testBullseyeX86_64Direct() async throws {
     try skipSlow()
     try await buildTestcases(config: config.withArchitecture("x86_64"))
   }
 
-  // NOTE: we do support building a Swift SDK from a pre-built Debian 11 Bullseye container
+  func testBookwormAarch64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(
+      config: config.withLinuxDistributionVersion("12").withArchitecture("aarch64"))
+  }
+
+  func testBookwormX86_64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(
+      config: config.withLinuxDistributionVersion("12").withArchitecture("x86_64"))
+  }
+
+  // NOTE: the generator does not support building a Debian 11/Debian 12 Swift SDK for
+  // Swift 5.9.x and 5.10 without a pre-built container, so we do not test this here.
 }
 
 final class Swift510_DebianEndToEndTests: XCTestCase {
