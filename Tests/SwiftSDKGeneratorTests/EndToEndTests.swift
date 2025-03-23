@@ -179,6 +179,12 @@ struct SDKConfiguration {
     return res
   }
 
+  func withContainerImageSuffix(_ containerImageSuffix: String) -> SDKConfiguration {
+    var res = self
+    res.containerImageSuffix = containerImageSuffix
+    return res
+  }
+
   func withLinuxDistributionVersion(_ version: String) -> SDKConfiguration {
     var res = self
     res.linuxDistributionVersion = version
