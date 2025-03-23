@@ -516,7 +516,8 @@ final class Swift510_DebianEndToEndTests: XCTestCase {
       config: config.withLinuxDistributionVersion("11").withArchitecture("x86_64"))
   }
 
-  // NOTE: we do support building a Swift SDK from a pre-built Debian 11 Bullseye container
+  // NOTE: the generator does not support building a Debian 11 Swift container automatically,
+  // so we don't test this scenario.
 }
 
 final class Swift60_DebianEndToEndTests: XCTestCase {
@@ -560,7 +561,8 @@ final class Swift60_DebianEndToEndTests: XCTestCase {
       config: config.withLinuxDistributionVersion("11").withArchitecture("x86_64"))
   }
 
-  // NOTE: we do support building a Swift SDK from a pre-built Debian 11 Bullseye container
+  // NOTE: the generator does not support building a Debian 11 Swift container automatically,
+  // so we don't test this scenario.}
 }
 
 final class Swift59_RHELEndToEndTests: XCTestCase {
