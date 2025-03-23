@@ -484,8 +484,8 @@ final class Swift59_DebianEndToEndTests: XCTestCase {
       config: config.withLinuxDistributionVersion("12").withArchitecture("x86_64"))
   }
 
-  // NOTE: the generator does not support building a Debian 11/Debian 12 Swift SDK for
-  // Swift 5.9.x and 5.10 without a pre-built container, so we do not test this here.
+  // NOTE: the generator does not support building a Debian 11/Debian 12 Swift SDK with Docker
+  // for Swift 5.9.x and 5.10 without a pre-built container, so we do not test this here.
 }
 
 final class Swift510_DebianEndToEndTests: XCTestCase {
@@ -529,8 +529,8 @@ final class Swift510_DebianEndToEndTests: XCTestCase {
       config: config.withLinuxDistributionVersion("11").withArchitecture("x86_64"))
   }
 
-  // NOTE: the generator does not support building a Debian 11 Swift container automatically,
-  // so we don't test this scenario.
+  // NOTE: Debian 11 containers do not exist for Swift, and the generator does not support
+  // generating this container for you automatically, so we do not test this scenario.
 }
 
 final class Swift60_DebianEndToEndTests: XCTestCase {
@@ -574,8 +574,8 @@ final class Swift60_DebianEndToEndTests: XCTestCase {
       config: config.withLinuxDistributionVersion("11").withArchitecture("x86_64"))
   }
 
-  // NOTE: the generator does not support building a Debian 11 Swift container automatically,
-  // so we don't test this scenario.}
+  // NOTE: Debian 11 containers do not exist for Swift, and the generator does not support
+  // generating this container for you automatically, so we do not test this scenario.
 }
 
 final class Swift59_RHELEndToEndTests: XCTestCase {

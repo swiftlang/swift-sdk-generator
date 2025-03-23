@@ -42,30 +42,28 @@ public struct VersionsConfiguration: Sendable {
   var swiftPlatform: String {
     switch self.linuxDistribution {
     case let .ubuntu(ubuntu):
-      return "ubuntu\(ubuntu.version)\(self.linuxArchSuffix)"
+      return "ubuntu\(ubuntu.version)"
     case let .debian(debian):
       if debian.version == "11" {
-        logger.warning(
-          "Debian 11 selected but not officially supported by Swift, falling back on Ubuntu 20.04 toolchain..."
-        )
         // Ubuntu 20.04 toolchain is binary compatible with Debian 11
-        return "ubuntu20.04\(self.linuxArchSuffix)"
+        return "ubuntu20.04"
       } else if self.swiftVersion.hasPrefix("5.9") || self.swiftVersion == "5.10" {
-        logger.warning(
-          "Debian 12 selected but not officially supported by Swift version, falling back on Ubuntu 22.04 toolchain...",
-          metadata: ["swiftVersion": .string(self.swiftVersion)]
-        )
         // Ubuntu 22.04 toolchain is binary compatible with Debian 12
-        return "ubuntu22.04\(self.linuxArchSuffix)"
+        return "ubuntu22.04"
       }
-      return "debian\(debian.version)\(self.linuxArchSuffix)"
+      return "debian\(debian.version)"
     case let .rhel(rhel):
-      return "\(rhel.rawValue)\(self.linuxArchSuffix)"
+      return rhel.rawValue
     }
   }
 
+  var swiftPlatformAndSuffix: String {
+    return "\(self.swiftPlatform)\(self.linuxArchSuffix)"
+  }
+
   func swiftDistributionName(platform: String? = nil) -> String {
-    return "swift-\(self.swiftVersion)-\(platform ?? self.swiftPlatform)"
+    return
+      "swift-\(self.swiftVersion)-\(platform ?? self.swiftPlatformAndSuffix)"
   }
 
   func swiftDownloadURL(
@@ -73,9 +71,10 @@ public struct VersionsConfiguration: Sendable {
     platform: String? = nil,
     fileExtension: String = "tar.gz"
   ) -> URL {
-    let computedPlatform = platform ?? self.swiftPlatform
+    let computedPlatform = platform ?? self.swiftPlatformAndSuffix
     let computedSubdirectory =
-      subdirectory ?? computedPlatform.replacingOccurrences(of: ".", with: "")
+      subdirectory
+      ?? computedPlatform.replacingOccurrences(of: ".", with: "")
 
     return URL(
       string: """
