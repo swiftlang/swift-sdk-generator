@@ -83,11 +83,12 @@ extension SwiftSDKGenerator {
         //   https://wiki.ubuntu.com/MultiarchSpec
         // But not in all containers, so don't fail if it does not exist.
         if targetDistribution.name == .ubuntu || targetDistribution.name == .debian {
-          let archSubpath =
-            switch targetTriple.archName {
-            case "armv7": "arm-linux-gnueabihf"
-            default: "\(targetTriple.archName)-linux-gnu"
-            }
+          var archSubpath = "\(targetTriple.archName)-linux-gnu"
+
+          // armv7 with Debian uses a custom subpath for armhf
+          if targetTriple.archName == "armv7" {
+            archSubpath = "arm-linux-gnueabihf"
+          }
 
           // Copy /lib/<archSubpath> for Debian 11
           if case let .debian(debian) = targetDistribution, debian == .bullseye {
