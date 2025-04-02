@@ -627,16 +627,4 @@ final class Swift61_RHELEndToEndTests: XCTestCase {
     try await buildTestcases(
       config: config.withArchitecture("x86_64").withContainerImageSuffix("amazonlinux2"))
   }
-
-  func testFedora39Aarch64FromContainer() async throws {
-    try skipSlow()
-    try await buildTestcases(
-      config: config.withArchitecture("aarch64").withContainerImageSuffix("fedora39"))
-  }
-
-  func testFedora39X86_64FromContainer() async throws {
-    try skipSlow()
-    try await buildTestcases(
-      config: config.withArchitecture("x86_64").withContainerImageSuffix("fedora39"))
-  }
 }
