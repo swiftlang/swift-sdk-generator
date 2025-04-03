@@ -20,7 +20,9 @@ import Foundation
 /// - Returns: The path to the executable if found, otherwise nil.
 func which(_ executableName: String) async throws -> String? {
   let result = try await ProcessExecutor.runCollectingOutput(
-    executable: "/usr/bin/which", [executableName], collectStandardOutput: true,
+    executable: "/usr/bin/which",
+    [executableName],
+    collectStandardOutput: true,
     collectStandardError: false,
     environment: ProcessInfo.processInfo.environment
   )

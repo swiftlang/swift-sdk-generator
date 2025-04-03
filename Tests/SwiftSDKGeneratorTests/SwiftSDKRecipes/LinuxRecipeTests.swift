@@ -32,8 +32,10 @@ final class LinuxRecipeTests: XCTestCase {
       hostTriple: hostTriple,
       linuxDistribution: .init(name: .ubuntu, version: "22.04"),
       swiftVersion: swiftVersion,
-      swiftBranch: nil, lldVersion: "",
-      withDocker: withDocker, fromContainerImage: fromContainerImage,
+      swiftBranch: nil,
+      lldVersion: "",
+      withDocker: withDocker,
+      fromContainerImage: fromContainerImage,
       hostSwiftPackagePath: hostSwiftPackagePath,
       targetSwiftPackagePath: targetSwiftPackagePath,
       includeHostToolchain: includeHostToolchain,
@@ -77,7 +79,8 @@ final class LinuxRecipeTests: XCTestCase {
       let recipe = try self.createRecipe(swiftVersion: testCase.swiftVersion)
       var toolset = Toolset(rootPath: nil)
       recipe.applyPlatformOptions(
-        toolset: &toolset, targetTriple: testCase.targetTriple
+        toolset: &toolset,
+        targetTriple: testCase.targetTriple
       )
       XCTAssertEqual(toolset.swiftCompiler?.extraCLIOptions, testCase.expectedSwiftCompilerOptions)
       XCTAssertEqual(toolset.linker?.path, testCase.expectedLinkerPath)
@@ -90,7 +93,8 @@ final class LinuxRecipeTests: XCTestCase {
     let recipe = try self.createRecipe(includeHostToolchain: false)
     var toolset = Toolset(rootPath: "swift.xctoolchain")
     recipe.applyPlatformOptions(
-      toolset: &toolset, targetTriple: Triple("x86_64-unknown-linux-gnu")
+      toolset: &toolset,
+      targetTriple: Triple("x86_64-unknown-linux-gnu")
     )
     XCTAssertEqual(toolset.rootPath, nil)
     XCTAssertEqual(
@@ -98,14 +102,18 @@ final class LinuxRecipeTests: XCTestCase {
       [
         "-Xlinker", "-R/usr/lib/swift/linux/",
         "-use-ld=lld",
-      ])
+      ]
+    )
     XCTAssertEqual(toolset.cxxCompiler?.extraCLIOptions, ["-lstdc++"])
     XCTAssertEqual(toolset.librarian?.path, "llvm-ar")
     XCTAssert(toolset.linker == nil)
   }
 
   func runItemsToDownloadTestCase(
-    recipe: LinuxRecipe, includesHostLLVM: Bool, includesTargetSwift: Bool, includesHostSwift: Bool
+    recipe: LinuxRecipe,
+    includesHostLLVM: Bool,
+    includesTargetSwift: Bool,
+    includesHostSwift: Bool
   ) throws {
     let pathsConfiguration = PathsConfiguration(
       sourceRoot: ".",
@@ -159,7 +167,10 @@ final class LinuxRecipeTests: XCTestCase {
         (
           // Remote target tarball with preinstalled toolchain
           recipe: try createRecipe(
-            hostTriple: hostTriple, swiftVersion: "5.9", includeHostToolchain: false),
+            hostTriple: hostTriple,
+            swiftVersion: "5.9",
+            includeHostToolchain: false
+          ),
           includesHostLLVM: false,
           includesTargetSwift: true,
           includesHostSwift: false
@@ -218,7 +229,10 @@ final class LinuxRecipeTests: XCTestCase {
       (
         // Remote target tarball with preinstalled toolchain
         recipe: try createRecipe(
-          hostTriple: hostTriple, swiftVersion: "5.9", includeHostToolchain: false),
+          hostTriple: hostTriple,
+          swiftVersion: "5.9",
+          includeHostToolchain: false
+        ),
         includesTargetSwift: true,
         includesHostSwift: false
       ),

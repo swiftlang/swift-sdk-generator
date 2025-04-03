@@ -35,7 +35,9 @@ public enum LinuxDistribution: Hashable, Sendable {
         self = .noble
       default:
         throw GeneratorError.unknownLinuxDistribution(
-          name: LinuxDistribution.Name.ubuntu.rawValue, version: version)
+          name: LinuxDistribution.Name.ubuntu.rawValue,
+          version: version
+        )
       }
     }
 
