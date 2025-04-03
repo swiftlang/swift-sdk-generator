@@ -185,6 +185,12 @@ struct SDKConfiguration {
     return res
   }
 
+  func withLinuxDistributionVersion(_ version: String) -> SDKConfiguration {
+    var res = self
+    res.linuxDistributionVersion = version
+    return res
+  }
+
   func withArchitecture(_ arch: String) -> SDKConfiguration {
     var res = self
     res.architecture = arch
@@ -474,6 +480,30 @@ final class Swift61_UbuntuEndToEndTests: XCTestCase {
   func testX86_64FromContainer() async throws {
     try skipSlow()
     try await buildTestcases(config: config.withArchitecture("x86_64").withDocker())
+  }
+
+  func testJammyAarch64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(
+      config: config.withArchitecture("aarch64").withLinuxDistributionVersion("22.04"))
+  }
+
+  func testJammyX86_64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(
+      config: config.withArchitecture("x86_64").withLinuxDistributionVersion("22.04"))
+  }
+
+  func testJammyAarch64FromContainer() async throws {
+    try skipSlow()
+    try await buildTestcases(
+      config: config.withArchitecture("aarch64").withLinuxDistributionVersion("22.04").withDocker())
+  }
+
+  func testJammyX86_64FromContainer() async throws {
+    try skipSlow()
+    try await buildTestcases(
+      config: config.withArchitecture("x86_64").withLinuxDistributionVersion("22.04").withDocker())
   }
 }
 
