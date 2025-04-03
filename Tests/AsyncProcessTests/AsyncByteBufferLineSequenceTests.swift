@@ -44,7 +44,8 @@ final class AsyncByteBufferLineSequenceTests: XCTestCase {
     for n in 0..<100 {
       let inputs: [ByteBuffer] = [ByteBuffer(repeating: 0, count: n)]
       let lines = try await Array(
-        inputs.async.splitIntoLines(dropLastChunkIfNoNewline: true).strings)
+        inputs.async.splitIntoLines(dropLastChunkIfNoNewline: true).strings
+      )
       XCTAssertEqual([], lines)
     }
   }

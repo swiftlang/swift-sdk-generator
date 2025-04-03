@@ -63,7 +63,8 @@ extension SwiftSDKGenerator {
         """
         `toolchainBinDirPath`, `sdkDirPath`, and `toolsetPath` are at unexpected locations that prevent computing \
         relative paths
-        """)
+        """
+      )
     }
 
     var metadata = SwiftSDKMetadataV4.TripleProperties(
