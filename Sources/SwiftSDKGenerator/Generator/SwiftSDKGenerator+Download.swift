@@ -31,7 +31,8 @@ extension FilePath {
 
 extension SwiftSDKGenerator {
   func downloadArtifacts(
-    _ client: some HTTPClientProtocol, _ engine: QueryEngine,
+    _ client: some HTTPClientProtocol,
+    _ engine: QueryEngine,
     downloadableArtifacts: inout DownloadableArtifacts,
     itemsToDownload: @Sendable (DownloadableArtifacts) -> [DownloadableArtifacts.Item]
   ) async throws {
@@ -58,7 +59,8 @@ extension SwiftSDKGenerator {
       for item in itemsToDownload(downloadableArtifacts) {
         group.addTask {
           try await engine[
-            DownloadArtifactQuery(artifact: item, httpClient: client, logger: self.logger)]
+            DownloadArtifactQuery(artifact: item, httpClient: client, logger: self.logger)
+          ]
         }
       }
 
@@ -74,7 +76,8 @@ extension SwiftSDKGenerator {
       "Using downloaded artifacts in these locations.",
       metadata: [
         "paths": .array(results.map(\.path.metadataValue))
-      ])
+      ]
+    )
   }
 
   func downloadUbuntuPackages(
@@ -93,7 +96,8 @@ extension SwiftSDKGenerator {
         """
         The `xz` utility was not found in `PATH`. \
         Consider installing it for more efficient downloading of package lists.
-        """)
+        """
+      )
     }
 
     async let mainPackages = try await client.parseUbuntuPackagesList(
@@ -137,7 +141,9 @@ extension SwiftSDKGenerator {
     }
 
     logger.info(
-      "Downloading Ubuntu packages...", metadata: ["packageCount": .stringConvertible(urls.count)])
+      "Downloading Ubuntu packages...",
+      metadata: ["packageCount": .stringConvertible(urls.count)]
+    )
     try await inTemporaryDirectory { fs, tmpDir in
       let downloadedFiles = try await self.downloadFiles(from: urls, to: tmpDir, client, engine)
       await report(downloadedFiles: downloadedFiles)
@@ -171,8 +177,11 @@ extension SwiftSDKGenerator {
         $0.addTask {
           let downloadedFilePath = try await engine[
             DownloadFileQuery(
-              remoteURL: url, localDirectory: directory, httpClient: client
-            )]
+              remoteURL: url,
+              localDirectory: directory,
+              httpClient: client
+            )
+          ]
           let filePath = downloadedFilePath.path
           guard
             let fileSize = try FileManager.default.attributesOfItem(
@@ -202,7 +211,8 @@ extension SwiftSDKGenerator {
         metadata: [
           "url": .string(url.absoluteString),
           "size": .string(byteCountFormatter.string(fromByteCount: Int64(bytes))),
-        ])
+        ]
+      )
     }
   }
 }

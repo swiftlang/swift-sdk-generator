@@ -324,7 +324,10 @@ extension ProcessExecutor {
       }
 
       var allInfo = ProcessExitReasonAndOutput(
-        exitReason: .exit(-1), standardOutput: nil, standardError: nil)
+        exitReason: .exit(-1),
+        standardOutput: nil,
+        standardError: nil
+      )
       while let next = try await group.next() {
         switch next {
         case let .exitReason(exitReason):
@@ -467,7 +470,8 @@ extension ProcessExecutor {
     try await self.runCollectingOutput(
       group: group,
       executable: executable,
-      arguments, standardInput: EOFSequence(),
+      arguments,
+      standardInput: EOFSequence(),
       collectStandardOutput: collectStandardOutput,
       collectStandardError: collectStandardError,
       perStreamCollectionLimitBytes: perStreamCollectionLimitBytes,

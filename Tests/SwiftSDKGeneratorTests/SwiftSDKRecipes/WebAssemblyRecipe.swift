@@ -32,7 +32,8 @@ final class WebAssemblyRecipeTests: XCTestCase {
     let recipe = self.createRecipe()
     var toolset = Toolset(rootPath: nil)
     recipe.applyPlatformOptions(
-      toolset: &toolset, targetTriple: Triple("wasm32-unknown-wasi")
+      toolset: &toolset,
+      targetTriple: Triple("wasm32-unknown-wasi")
     )
     XCTAssertEqual(toolset.swiftCompiler?.extraCLIOptions, ["-static-stdlib"])
     XCTAssertNil(toolset.cCompiler)
@@ -44,7 +45,8 @@ final class WebAssemblyRecipeTests: XCTestCase {
     let recipe = self.createRecipe()
     var toolset = Toolset(rootPath: nil)
     recipe.applyPlatformOptions(
-      toolset: &toolset, targetTriple: Triple("wasm32-unknown-wasip1-threads")
+      toolset: &toolset,
+      targetTriple: Triple("wasm32-unknown-wasip1-threads")
     )
     XCTAssertEqual(
       toolset.swiftCompiler?.extraCLIOptions,
@@ -69,6 +71,7 @@ final class WebAssemblyRecipeTests: XCTestCase {
       toolset.linker?.extraCLIOptions,
       [
         "--import-memory", "--export-memory", "--shared-memory", "--max-memory=1073741824",
-      ])
+      ]
+    )
   }
 }

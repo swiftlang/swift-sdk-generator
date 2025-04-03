@@ -9,7 +9,7 @@
   },
   "lineBreakAroundMultilineExpressionChainComponents" : false,
   "lineBreakBeforeControlFlowKeywords" : false,
-  "lineBreakBeforeEachArgument" : false,
+  "lineBreakBeforeEachArgument" : true,
   "lineBreakBeforeEachGenericRequirement" : false,
   "lineLength" : 100,
   "maximumBlankLines" : 1,

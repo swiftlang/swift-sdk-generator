@@ -51,7 +51,10 @@ extension SwiftSDKGenerator {
         try await self.createDirectoryIfNeeded(at: pathsConfiguration.artifactsCachePath)
 
         let swiftSDKProduct = try await recipe.makeSwiftSDK(
-          generator: self, engine: engine, httpClient: client)
+          generator: self,
+          engine: engine,
+          httpClient: client
+        )
 
         let toolsetJSONPath = try await self.generateToolsetJSON(recipe: recipe)
 

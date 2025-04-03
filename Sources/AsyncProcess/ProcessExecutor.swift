@@ -159,7 +159,8 @@ public final actor ProcessExecutor {
   private let _standardOutput: ChunkSequence
   private let _standardError: ChunkSequence
   private let processIsRunningApproximation = ManagedAtomic(
-    RunningStateApproximation.neverStarted.rawValue)
+    RunningStateApproximation.neverStarted.rawValue
+  )
   private let processOutputConsumptionApproximation = ManagedAtomic(UInt8(0))
   private let processPid = ManagedAtomic(pid_t(0))
   private let ownsStandardOutputWriteHandle: Bool
@@ -568,7 +569,10 @@ public final actor ProcessExecutor {
     // At this point, the process is running, we should therefore have a process ID (unless we're already dead).
     let childPid = p.processIdentifier
     _ = self.processPid.compareExchange(
-      expected: 0, desired: childPid, ordering: .sequentiallyConsistent)
+      expected: 0,
+      desired: childPid,
+      ordering: .sequentiallyConsistent
+    )
     assert(childPid != 0 || !p.isRunning)
     self.logger.debug(
       "running command",
