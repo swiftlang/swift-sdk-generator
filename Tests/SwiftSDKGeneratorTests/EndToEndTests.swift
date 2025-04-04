@@ -500,25 +500,29 @@ final class Swift61_UbuntuEndToEndTests: XCTestCase {
   func testJammyAarch64Direct() async throws {
     try skipSlow()
     try await buildTestcases(
-      config: config.withArchitecture("aarch64").withLinuxDistributionVersion("22.04"))
+      config: config.withArchitecture("aarch64").withLinuxDistributionVersion("22.04")
+    )
   }
 
   func testJammyX86_64Direct() async throws {
     try skipSlow()
     try await buildTestcases(
-      config: config.withArchitecture("x86_64").withLinuxDistributionVersion("22.04"))
+      config: config.withArchitecture("x86_64").withLinuxDistributionVersion("22.04")
+    )
   }
 
   func testJammyAarch64FromContainer() async throws {
     try skipSlow()
     try await buildTestcases(
-      config: config.withArchitecture("aarch64").withLinuxDistributionVersion("22.04").withDocker())
+      config: config.withArchitecture("aarch64").withLinuxDistributionVersion("22.04").withDocker()
+    )
   }
 
   func testJammyX86_64FromContainer() async throws {
     try skipSlow()
     try await buildTestcases(
-      config: config.withArchitecture("x86_64").withLinuxDistributionVersion("22.04").withDocker())
+      config: config.withArchitecture("x86_64").withLinuxDistributionVersion("22.04").withDocker()
+    )
   }
 }
 
@@ -674,12 +678,14 @@ final class Swift61_RHELEndToEndTests: XCTestCase {
   func testAmazonLinux2Aarch64FromContainer() async throws {
     try skipSlow()
     try await buildTestcases(
-      config: config.withArchitecture("aarch64").withContainerImageSuffix("amazonlinux2"))
+      config: config.withArchitecture("aarch64").withContainerImageSuffix("amazonlinux2")
+    )
   }
 
   func testAmazonLinux2X86_64FromContainer() async throws {
     try skipSlow()
     try await buildTestcases(
-      config: config.withArchitecture("x86_64").withContainerImageSuffix("amazonlinux2"))
+      config: config.withArchitecture("x86_64").withContainerImageSuffix("amazonlinux2")
+    )
   }
 }
