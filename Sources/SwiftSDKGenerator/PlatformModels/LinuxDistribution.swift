@@ -108,7 +108,9 @@ public enum LinuxDistribution: Hashable, Sendable {
       case "12": self = .bookworm
       default:
         throw GeneratorError.unknownLinuxDistribution(
-          name: LinuxDistribution.Name.debian.rawValue, version: version)
+          name: LinuxDistribution.Name.debian.rawValue,
+          version: version
+        )
       }
     }
 
