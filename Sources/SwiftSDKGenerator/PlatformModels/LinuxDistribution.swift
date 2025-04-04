@@ -11,9 +11,10 @@
 //===----------------------------------------------------------------------===//
 
 public enum LinuxDistribution: Hashable, Sendable {
-  public enum Name: String {
+  public enum Name: String, Sendable {
     case rhel
     case ubuntu
+    case debian
   }
 
   public enum RHEL: String, Sendable {
@@ -97,8 +98,66 @@ public enum LinuxDistribution: Hashable, Sendable {
     }
   }
 
+  public enum Debian: String, Sendable {
+    case bullseye
+    case bookworm
+
+    init(version: String) throws {
+      switch version {
+      case "11": self = .bullseye
+      case "12": self = .bookworm
+      default:
+        throw GeneratorError.unknownLinuxDistribution(
+          name: LinuxDistribution.Name.debian.rawValue,
+          version: version
+        )
+      }
+    }
+
+    var version: String {
+      switch self {
+      case .bullseye: return "11"
+      case .bookworm: return "12"
+      }
+    }
+
+    public var requiredPackages: [String] {
+      switch self {
+      case .bullseye:
+        return [
+          "libc6",
+          "libc6-dev",
+          "libgcc-s1",
+          "libgcc-10-dev",
+          "libicu67",
+          "libicu-dev",
+          "libstdc++-10-dev",
+          "libstdc++6",
+          "linux-libc-dev",
+          "zlib1g",
+          "zlib1g-dev",
+        ]
+      case .bookworm:
+        return [
+          "libc6",
+          "libc6-dev",
+          "libgcc-s1",
+          "libgcc-12-dev",
+          "libicu72",
+          "libicu-dev",
+          "libstdc++-12-dev",
+          "libstdc++6",
+          "linux-libc-dev",
+          "zlib1g",
+          "zlib1g-dev",
+        ]
+      }
+    }
+  }
+
   case rhel(RHEL)
   case ubuntu(Ubuntu)
+  case debian(Debian)
 
   public init(name: Name, version: String) throws {
     switch name {
@@ -110,6 +169,9 @@ public enum LinuxDistribution: Hashable, Sendable {
 
     case .ubuntu:
       self = try .ubuntu(Ubuntu(version: version))
+
+    case .debian:
+      self = try .debian(Debian(version: version))
     }
   }
 
@@ -117,6 +179,7 @@ public enum LinuxDistribution: Hashable, Sendable {
     switch self {
     case .rhel: return .rhel
     case .ubuntu: return .ubuntu
+    case .debian: return .debian
     }
   }
 
@@ -124,6 +187,7 @@ public enum LinuxDistribution: Hashable, Sendable {
     switch self {
     case let .rhel(rhel): return rhel.rawValue
     case let .ubuntu(ubuntu): return ubuntu.rawValue
+    case let .debian(debian): return debian.rawValue
     }
   }
 
@@ -131,6 +195,7 @@ public enum LinuxDistribution: Hashable, Sendable {
     switch self {
     case let .rhel(rhel): return "rhel-\(rhel.rawValue)"
     case let .ubuntu(ubuntu): return ubuntu.rawValue
+    case let .debian(debian): return debian.rawValue
     }
   }
 }
@@ -150,7 +215,7 @@ extension LinuxDistribution: CustomStringConvertible {
     switch self {
     case .rhel:
       versionComponent = self.release.uppercased()
-    case .ubuntu:
+    case .ubuntu, .debian:
       versionComponent = self.release.capitalized
     }
 
@@ -163,6 +228,7 @@ extension LinuxDistribution.Name: CustomStringConvertible {
     switch self {
     case .rhel: return "RHEL"
     case .ubuntu: return "Ubuntu"
+    case .debian: return "Debian"
     }
   }
 }

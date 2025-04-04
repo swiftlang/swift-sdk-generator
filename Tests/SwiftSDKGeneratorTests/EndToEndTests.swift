@@ -526,6 +526,184 @@ final class Swift61_UbuntuEndToEndTests: XCTestCase {
   }
 }
 
+final class Swift59_DebianEndToEndTests: XCTestCase {
+  let config = SDKConfiguration(
+    swiftVersion: "5.9.2",
+    linuxDistributionName: "debian",
+    linuxDistributionVersion: "11",  // we use ubuntu2004 toolchain here
+    architecture: "aarch64",
+    withDocker: false
+  )
+
+  func testBullseyeAarch64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(config: config.withArchitecture("aarch64"))
+  }
+
+  func testBullseyeX86_64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(config: config.withArchitecture("x86_64"))
+  }
+
+  func testBookwormAarch64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(
+      config: config.withLinuxDistributionVersion("12").withArchitecture("aarch64")
+    )
+  }
+
+  func testBookwormX86_64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(
+      config: config.withLinuxDistributionVersion("12").withArchitecture("x86_64")
+    )
+  }
+
+  // NOTE: the generator does not support building a Debian 11/Debian 12 Swift SDK with Docker
+  // for Swift 5.9.x and 5.10 without a pre-built container, so we do not test this here.
+}
+
+final class Swift510_DebianEndToEndTests: XCTestCase {
+  let config = SDKConfiguration(
+    swiftVersion: "5.10.1",
+    linuxDistributionName: "debian",
+    linuxDistributionVersion: "12",
+    architecture: "aarch64",
+    withDocker: false
+  )
+
+  func testBookwormAarch64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(config: config.withArchitecture("aarch64"))
+  }
+
+  func testBookwormX86_64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(config: config.withArchitecture("x86_64"))
+  }
+
+  func testBookwormAarch64FromContainer() async throws {
+    try skipSlow()
+    try await buildTestcases(config: config.withArchitecture("aarch64").withDocker())
+  }
+
+  func testBookwormX86_64FromContainer() async throws {
+    try skipSlow()
+    try await buildTestcases(config: config.withArchitecture("x86_64").withDocker())
+  }
+
+  func testBullseyeAarch64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(
+      config: config.withLinuxDistributionVersion("11").withArchitecture("aarch64")
+    )
+  }
+
+  func testBullseyeX86_64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(
+      config: config.withLinuxDistributionVersion("11").withArchitecture("x86_64")
+    )
+  }
+
+  // NOTE: Debian 11 containers do not exist for Swift, and the generator does not support
+  // generating this container for you automatically, so we do not test this scenario.
+}
+
+final class Swift60_DebianEndToEndTests: XCTestCase {
+  let config = SDKConfiguration(
+    swiftVersion: "6.0.3",
+    linuxDistributionName: "debian",
+    linuxDistributionVersion: "12",
+    architecture: "aarch64",
+    withDocker: false
+  )
+
+  func testBookwormAarch64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(config: config.withArchitecture("aarch64"))
+  }
+
+  func testBookwormX86_64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(config: config.withArchitecture("x86_64"))
+  }
+
+  func testBookwormAarch64FromContainer() async throws {
+    try skipSlow()
+    try await buildTestcases(config: config.withArchitecture("aarch64").withDocker())
+  }
+
+  func testBookwormX86_64FromContainer() async throws {
+    try skipSlow()
+    try await buildTestcases(config: config.withArchitecture("x86_64").withDocker())
+  }
+
+  func testBullseyeAarch64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(
+      config: config.withLinuxDistributionVersion("11").withArchitecture("aarch64")
+    )
+  }
+
+  func testBullseyeX86_64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(
+      config: config.withLinuxDistributionVersion("11").withArchitecture("x86_64")
+    )
+  }
+
+  // NOTE: Debian 11 containers do not exist for Swift, and the generator does not support
+  // generating this container for you automatically, so we do not test this scenario.
+}
+
+final class Swift61_DebianEndToEndTests: XCTestCase {
+  let config = SDKConfiguration(
+    swiftVersion: "6.1",
+    linuxDistributionName: "debian",
+    linuxDistributionVersion: "12",
+    architecture: "aarch64",
+    withDocker: false
+  )
+
+  func testBookwormAarch64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(config: config.withArchitecture("aarch64"))
+  }
+
+  func testBookwormX86_64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(config: config.withArchitecture("x86_64"))
+  }
+
+  func testBookwormAarch64FromContainer() async throws {
+    try skipSlow()
+    try await buildTestcases(config: config.withArchitecture("aarch64").withDocker())
+  }
+
+  func testBookwormX86_64FromContainer() async throws {
+    try skipSlow()
+    try await buildTestcases(config: config.withArchitecture("x86_64").withDocker())
+  }
+
+  func testBullseyeAarch64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(
+      config: config.withLinuxDistributionVersion("11").withArchitecture("aarch64")
+    )
+  }
+
+  func testBullseyeX86_64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(
+      config: config.withLinuxDistributionVersion("11").withArchitecture("x86_64")
+    )
+  }
+
+  // NOTE: Debian 11 containers do not exist for Swift, and the generator does not support
+  // generating this container for you automatically, so we do not test this scenario.
+}
+
 final class Swift59_RHELEndToEndTests: XCTestCase {
   let config = SDKConfiguration(
     swiftVersion: "5.9.2",
