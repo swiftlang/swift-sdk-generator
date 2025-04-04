@@ -26,7 +26,8 @@ public protocol HTTPClientProtocol: Sendable {
   /// NOTE: The client will be shutdown after the operation completes, so it
   /// should not be stored or used outside of the operation.
   static func with<Result: Sendable>(
-    http1Only: Bool, _ body: @Sendable (any HTTPClientProtocol) async throws -> Result
+    http1Only: Bool,
+    _ body: @Sendable (any HTTPClientProtocol) async throws -> Result
   ) async throws -> Result
 
   /// Download a file from the given URL to the given path.
@@ -71,10 +72,12 @@ extension FilePath: @unchecked Sendable {}
 
   extension HTTPClient: HTTPClientProtocol {
     public static func with<Result: Sendable>(
-      http1Only: Bool, _ body: @Sendable (any HTTPClientProtocol) async throws -> Result
+      http1Only: Bool,
+      _ body: @Sendable (any HTTPClientProtocol) async throws -> Result
     ) async throws -> Result {
       var configuration = HTTPClient.Configuration(
-        redirectConfiguration: .follow(max: 5, allowCycles: false))
+        redirectConfiguration: .follow(max: 5, allowCycles: false)
+      )
       if http1Only {
         configuration.httpVersion = .http1Only
       }
@@ -111,7 +114,8 @@ extension FilePath: @unchecked Sendable {}
             reportHead: { task, responseHead in
               if responseHead.status != .ok {
                 task.fail(
-                  reason: GeneratorError.fileDownloadFailed(url, responseHead.status.description))
+                  reason: GeneratorError.fileDownloadFailed(url, responseHead.status.description)
+                )
               }
             }
           )
@@ -160,7 +164,9 @@ extension FilePath: @unchecked Sendable {}
             case let .success(finalProgress):
               continuation.yield(
                 DownloadProgress(
-                  totalBytes: finalProgress.totalBytes, receivedBytes: finalProgress.receivedBytes)
+                  totalBytes: finalProgress.totalBytes,
+                  receivedBytes: finalProgress.receivedBytes
+                )
               )
               continuation.finish()
             }
@@ -175,7 +181,8 @@ extension FilePath: @unchecked Sendable {}
 
 struct OfflineHTTPClient: HTTPClientProtocol {
   static func with<Result: Sendable>(
-    http1Only: Bool, _ body: @Sendable (any HTTPClientProtocol) async throws -> Result
+    http1Only: Bool,
+    _ body: @Sendable (any HTTPClientProtocol) async throws -> Result
   ) async throws -> Result {
     let client = OfflineHTTPClient()
     return try await body(client)
@@ -200,11 +207,15 @@ struct OfflineHTTPClient: HTTPClientProtocol {
     status: NIOHTTP1.HTTPResponseStatus, body: NIOCore.ByteBuffer?
   ) {
     throw FileOperationError.downloadFailed(
-      URL(string: url)!, "Cannot fetch file with offline client")
+      URL(string: url)!,
+      "Cannot fetch file with offline client"
+    )
   }
 
   public func head(url: String, headers: NIOHTTP1.HTTPHeaders) async throws -> Bool {
     throw FileOperationError.downloadFailed(
-      URL(string: url)!, "Cannot fetch file with offline client")
+      URL(string: url)!,
+      "Cannot fetch file with offline client"
+    )
   }
 }

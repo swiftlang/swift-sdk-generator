@@ -58,7 +58,8 @@ extension SwiftSDKGenerator {
 
   func symlinkClangHeaders() throws {
     let swiftStaticClangPath = self.pathsConfiguration.toolchainDirPath.appending(
-      "usr/lib/swift_static/clang")
+      "usr/lib/swift_static/clang"
+    )
     if !doesFileExist(at: swiftStaticClangPath) {
       logger.info("Symlinking clang headers...")
       try self.createSymlink(

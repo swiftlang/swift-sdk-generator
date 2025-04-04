@@ -226,7 +226,8 @@ public struct LinuxRecipe: SwiftSDKRecipe {
   ) async throws -> SwiftSDKProduct {
     if self.linuxDistribution.name == .rhel && self.mainTargetTriple.archName == "armv7" {
       throw GeneratorError.distributionDoesNotSupportArchitecture(
-        self.linuxDistribution, targetArchName: self.mainTargetTriple.archName
+        self.linuxDistribution,
+        targetArchName: self.mainTargetTriple.archName
       )
     }
 
@@ -278,7 +279,8 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     switch self.hostSwiftSource {
     case let .localPackage(filePath):
       try await generator.rsync(
-        from: filePath.appending("usr"), to: generator.pathsConfiguration.toolchainDirPath
+        from: filePath.appending("usr"),
+        to: generator.pathsConfiguration.toolchainDirPath
       )
     case .remoteTarball:
       try await generator.unpackHostSwift(
@@ -297,7 +299,8 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       )
     case let .localPackage(filePath):
       try await generator.copyTargetSwift(
-        from: filePath.appending("usr"), sdkDirPath: sdkDirPath
+        from: filePath.appending("usr"),
+        sdkDirPath: sdkDirPath
       )
     case .remoteTarball:
       try await generator.unpackTargetSwiftPackage(
@@ -324,7 +327,9 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     // so they don't need this file.
     if self.versionsConfiguration.swiftVersion.hasAnyPrefix(from: ["5.9", "5.10", "6.0"]) {
       try await generator.generateSDKSettingsFile(
-        sdkDirPath: sdkDirPath, distribution: linuxDistribution)
+        sdkDirPath: sdkDirPath,
+        distribution: linuxDistribution
+      )
     }
 
     if self.hostSwiftSource != .preinstalled {
@@ -339,7 +344,8 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       }
 
       let autolinkExtractPath = generator.pathsConfiguration.toolchainBinDirPath.appending(
-        "swift-autolink-extract")
+        "swift-autolink-extract"
+      )
 
       if await !generator.doesFileExist(at: autolinkExtractPath) {
         logger.info("Fixing `swift-autolink-extract` symlink...")

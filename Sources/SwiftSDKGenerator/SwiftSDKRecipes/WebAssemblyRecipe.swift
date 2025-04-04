@@ -63,7 +63,8 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
       toolset.swiftCompiler?.extraCLIOptions?.append(
         contentsOf: ccOptions.flatMap {
           ["-Xcc", $0]
-        })
+        }
+      )
       // Tell the C and C++ compilers to enable those features
       toolset.cCompiler = Toolset.ToolProperties(extraCLIOptions: ccOptions)
       toolset.cxxCompiler = Toolset.ToolProperties(extraCLIOptions: ccOptions)
@@ -89,7 +90,8 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
     var relativeToolchainDir = paths.toolchainDirPath
     guard relativeToolchainDir.removePrefix(paths.swiftSDKRootPath) else {
       fatalError(
-        "The toolchain bin directory path must be a subdirectory of the Swift SDK root path.")
+        "The toolchain bin directory path must be a subdirectory of the Swift SDK root path."
+      )
     }
     metadata.swiftStaticResourcesPath =
       relativeToolchainDir.appending("usr/lib/swift_static").string
@@ -109,7 +111,9 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
     if let hostSwiftPackage {
       hostTriples = [hostSwiftPackage.triple]
       try await generator.rsync(
-        from: hostSwiftPackage.path.appending("usr"), to: pathsConfiguration.toolchainDirPath)
+        from: hostSwiftPackage.path.appending("usr"),
+        to: pathsConfiguration.toolchainDirPath
+      )
 
       logger.info("Removing unused toolchain components...")
       let liblldbNames: [String] = try await {
@@ -133,18 +137,23 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
     } else {
       // Simply copy the target Swift package into the SDK bundle when building host-agnostic SDK.
       try await generator.createDirectoryIfNeeded(
-        at: pathsConfiguration.toolchainDirPath.appending("usr"))
+        at: pathsConfiguration.toolchainDirPath.appending("usr")
+      )
       try await generator.copy(
-        from: targetSwiftLibPath, to: pathsConfiguration.toolchainDirPath.appending("usr/lib"))
+        from: targetSwiftLibPath,
+        to: pathsConfiguration.toolchainDirPath.appending("usr/lib")
+      )
     }
 
     let autolinkExtractPath = generator.pathsConfiguration.toolchainBinDirPath.appending(
-      "swift-autolink-extract")
+      "swift-autolink-extract"
+    )
 
     // WebAssembly object file requires `swift-autolink-extract`
     if await !generator.doesFileExist(at: autolinkExtractPath),
       await generator.doesFileExist(
-        at: generator.pathsConfiguration.toolchainBinDirPath.appending("swift"))
+        at: generator.pathsConfiguration.toolchainBinDirPath.appending("swift")
+      )
     {
       logger.info("Fixing `swift-autolink-extract` symlink...")
       try await generator.createSymlink(at: autolinkExtractPath, pointingTo: "swift")
@@ -191,7 +200,9 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
         continue
       }
       try await generator.rsync(
-        from: distributionPath.appending(pathWithinPackage), to: pathWithinSwiftSDK)
+        from: distributionPath.appending(pathWithinPackage),
+        to: pathWithinSwiftSDK
+      )
     }
   }
 }

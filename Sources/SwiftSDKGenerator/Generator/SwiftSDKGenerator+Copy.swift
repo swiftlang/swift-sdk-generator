@@ -163,7 +163,8 @@ extension SwiftSDKGenerator {
       if isOptional && !doesFileExist(at: fromPath) {
         logger.debug(
           "Optional package path ignored since it does not exist",
-          metadata: ["packagePath": .string(fromPath.string)])
+          metadata: ["packagePath": .string(fromPath.string)]
+        )
         continue
       }
 

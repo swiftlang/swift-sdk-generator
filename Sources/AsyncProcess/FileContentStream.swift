@@ -256,7 +256,9 @@ private final class ReadIntoAsyncChannelHandler: ChannelDuplexHandler {
 extension FileHandle {
   func fileContentStream(eventLoop: EventLoop) throws -> FileContentStream {
     let asyncBytes = try FileContentStream(
-      fileDescriptor: self.fileDescriptor, eventLoop: eventLoop)
+      fileDescriptor: self.fileDescriptor,
+      eventLoop: eventLoop
+    )
     try self.close()
     return asyncBytes
   }
@@ -432,7 +434,8 @@ where Base: AsyncSequence, Base.Element == ByteBuffer {
   }
 
   public init(
-    _ underlying: Base, dropTerminator: Bool,
+    _ underlying: Base,
+    dropTerminator: Bool,
     maximumAllowableBufferSize: Int,
     dropLastChunkIfNoNewline: Bool
   ) {

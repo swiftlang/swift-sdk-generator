@@ -71,7 +71,8 @@ struct GeneratorCLI: AsyncParsableCommand {
 
     logger.info(
       "Generator run finished successfully.",
-      metadata: ["elapsedTime": .string(elapsed.intervalString)])
+      metadata: ["elapsedTime": .string(elapsed.intervalString)]
+    )
   }
 }
 
@@ -167,7 +168,8 @@ extension GeneratorCLI {
       if let arch = hostArch {
         let target = Triple(arch: arch, vendor: current.vendor!, os: current.os!)
         appLogger.warning(
-          "deprecated: Please use `--host \(target.triple)` instead of `--host-arch \(arch)`")
+          "deprecated: Please use `--host \(target.triple)` instead of `--host-arch \(arch)`"
+        )
         return target
       }
       return current
@@ -221,7 +223,8 @@ extension GeneratorCLI {
       if let arch = generatorOptions.targetArch {
         let target = Triple(arch: arch, vendor: nil, os: .linux, environment: .gnu)
         appLogger.warning(
-          "deprecated: Please use `--target \(target.triple)` instead of `--target-arch \(arch)`")
+          "deprecated: Please use `--target \(target.triple)` instead of `--target-arch \(arch)`"
+        )
       }
       return Triple(arch: hostTriple.arch!, vendor: nil, os: .linux, environment: .gnu)
     }
@@ -244,7 +247,9 @@ extension GeneratorCLI {
       let linuxDistributionVersion =
         self.linuxDistributionVersion ?? linuxDistributionDefaultVersion
       let linuxDistribution = try LinuxDistribution(
-        name: linuxDistributionName, version: linuxDistributionVersion)
+        name: linuxDistributionName,
+        version: linuxDistributionVersion
+      )
       let hostTriple = try self.generatorOptions.deriveHostTriple()
       let targetTriple = self.deriveTargetTriple(hostTriple: hostTriple)
 
@@ -263,7 +268,10 @@ extension GeneratorCLI {
         logger: loggerWithLevel(from: self.generatorOptions)
       )
       try await GeneratorCLI.run(
-        recipe: recipe, targetTriple: targetTriple, options: self.generatorOptions)
+        recipe: recipe,
+        targetTriple: targetTriple,
+        options: self.generatorOptions
+      )
     }
 
     func isInvokedAsDefaultSubcommand() -> Bool {
@@ -320,7 +328,10 @@ extension GeneratorCLI {
       )
       let targetTriple = self.deriveTargetTriple()
       try await GeneratorCLI.run(
-        recipe: recipe, targetTriple: targetTriple, options: self.generatorOptions)
+        recipe: recipe,
+        targetTriple: targetTriple,
+        options: self.generatorOptions
+      )
     }
   }
 }
@@ -331,12 +342,19 @@ extension Duration {
     let date = Date(timeInterval: TimeInterval(self.components.seconds), since: reference)
 
     let components = Calendar.current.dateComponents(
-      [.hour, .minute, .second], from: reference, to: date)
+      [.hour, .minute, .second],
+      from: reference,
+      to: date
+    )
 
     if let hours = components.hour, hours > 0 {
       #if !canImport(Darwin) && compiler(<6.0)
         return String(
-          format: "%02d:%02d:%02d", hours, components.minute ?? 0, components.second ?? 0)
+          format: "%02d:%02d:%02d",
+          hours,
+          components.minute ?? 0,
+          components.second ?? 0
+        )
       #else
         return self.formatted()
       #endif

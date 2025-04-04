@@ -19,7 +19,9 @@ import XCTest
 
 extension FileManager {
   func withTemporaryDirectory<T>(
-    logger: Logger, cleanup: Bool = true, body: (URL) async throws -> T
+    logger: Logger,
+    cleanup: Bool = true,
+    body: (URL) async throws -> T
   ) async throws -> T {
     // Create a temporary directory using a UUID.  Throws if the directory already exists.
     // The docs suggest using FileManager.url(for: .itemReplacementDirectory, ...) to create a temporary directory,
@@ -74,7 +76,8 @@ func buildSDK(_ logger: Logger, scratchPath: String, withArguments runArguments:
   let installCommand = try XCTUnwrap(
     generatorOutput.split(separator: "\n").first {
       $0.contains("swift experimental-sdk install")
-    })
+    }
+  )
 
   let bundleName = try XCTUnwrap(
     FilePath(String(XCTUnwrap(installCommand.split(separator: " ").last))).components.last
@@ -83,7 +86,8 @@ func buildSDK(_ logger: Logger, scratchPath: String, withArguments runArguments:
 
   logger.info("Checking installed Swift SDKs")
   let installedSDKs = try await Shell.readStdout("swift experimental-sdk list").components(
-    separatedBy: "\n")
+    separatedBy: "\n"
+  )
 
   // Make sure this bundle hasn't been installed already.
   if installedSDKs.contains(bundleName) {
@@ -136,10 +140,12 @@ final class RepeatedBuildTests: XCTestCase {
     do {
       try await Shell.run("docker ps")
       possibleArguments.append(
-        "--with-docker --linux-distribution-name rhel --linux-distribution-version ubi9")
+        "--with-docker --linux-distribution-name rhel --linux-distribution-version ubi9"
+      )
     } catch {
       self.logger.warning(
-        "Docker CLI does not seem to be working, skipping tests that involve Docker.")
+        "Docker CLI does not seem to be working, skipping tests that involve Docker."
+      )
     }
 
     for runArguments in possibleArguments {
@@ -241,7 +247,9 @@ func buildTestcase(_ logger: Logger, testcase: String, bundleName: String, tempD
   let testPackageURL = tempDir.appendingPathComponent("swift-sdk-generator-test")
   let testPackageDir = FilePath(testPackageURL.path)
   try FileManager.default.createDirectory(
-    atPath: testPackageDir.string, withIntermediateDirectories: true)
+    atPath: testPackageDir.string,
+    withIntermediateDirectories: true
+  )
 
   logger.info("Creating test project \(testPackageDir)")
   try await Shell.run("swift package --package-path \(testPackageDir) init --type executable")
@@ -283,7 +291,8 @@ func buildTestcase(_ logger: Logger, testcase: String, bundleName: String, tempD
       logger.info("Test project built successfully")
 
       logger.info(
-        "Building test project in 6.0-\(containerVersion) container with static-swift-stdlib")
+        "Building test project in 6.0-\(containerVersion) container with static-swift-stdlib"
+      )
       buildOutput = try await Shell.readStdout(
         """
         docker run --rm -v \(testPackageDir):/src \
@@ -336,7 +345,10 @@ func buildTestcases(config: SDKConfiguration) async throws {
 
   let bundleName = try await FileManager.default.withTemporaryDirectory(logger: logger) { tempDir in
     try await buildSDK(
-      logger, scratchPath: tempDir.path, withArguments: config.sdkGeneratorArguments)
+      logger,
+      scratchPath: tempDir.path,
+      withArguments: config.sdkGeneratorArguments
+    )
   }
 
   logger.info("Built Swift SDK")
@@ -351,7 +363,10 @@ func buildTestcases(config: SDKConfiguration) async throws {
     do {
       try await FileManager.default.withTemporaryDirectory(logger: logger) { tempDir in
         try await buildTestcase(
-          logger, testcase: testcase, bundleName: bundleName, tempDir: tempDir
+          logger,
+          testcase: testcase,
+          bundleName: bundleName,
+          tempDir: tempDir
         )
       }
     } catch {
@@ -600,13 +615,15 @@ final class Swift59_RHELEndToEndTests: XCTestCase {
   func testAmazonLinux2Aarch64FromContainer() async throws {
     try skipSlow()
     try await buildTestcases(
-      config: config.withArchitecture("aarch64").withContainerImageSuffix("amazonlinux2"))
+      config: config.withArchitecture("aarch64").withContainerImageSuffix("amazonlinux2")
+    )
   }
 
   func testAmazonLinux2X86_64FromContainer() async throws {
     try skipSlow()
     try await buildTestcases(
-      config: config.withArchitecture("x86_64").withContainerImageSuffix("amazonlinux2"))
+      config: config.withArchitecture("x86_64").withContainerImageSuffix("amazonlinux2")
+    )
   }
 }
 
@@ -632,25 +649,29 @@ final class Swift510_RHELEndToEndTests: XCTestCase {
   func testAmazonLinux2Aarch64FromContainer() async throws {
     try skipSlow()
     try await buildTestcases(
-      config: config.withArchitecture("aarch64").withContainerImageSuffix("amazonlinux2"))
+      config: config.withArchitecture("aarch64").withContainerImageSuffix("amazonlinux2")
+    )
   }
 
   func testAmazonLinux2X86_64FromContainer() async throws {
     try skipSlow()
     try await buildTestcases(
-      config: config.withArchitecture("x86_64").withContainerImageSuffix("amazonlinux2"))
+      config: config.withArchitecture("x86_64").withContainerImageSuffix("amazonlinux2")
+    )
   }
 
   func testFedora39Aarch64FromContainer() async throws {
     try skipSlow()
     try await buildTestcases(
-      config: config.withArchitecture("aarch64").withContainerImageSuffix("fedora39"))
+      config: config.withArchitecture("aarch64").withContainerImageSuffix("fedora39")
+    )
   }
 
   func testFedora39X86_64FromContainer() async throws {
     try skipSlow()
     try await buildTestcases(
-      config: config.withArchitecture("x86_64").withContainerImageSuffix("fedora39"))
+      config: config.withArchitecture("x86_64").withContainerImageSuffix("fedora39")
+    )
   }
 }
 
@@ -676,24 +697,28 @@ final class Swift60_RHELEndToEndTests: XCTestCase {
   func testAmazonLinux2Aarch64FromContainer() async throws {
     try skipSlow()
     try await buildTestcases(
-      config: config.withArchitecture("aarch64").withContainerImageSuffix("amazonlinux2"))
+      config: config.withArchitecture("aarch64").withContainerImageSuffix("amazonlinux2")
+    )
   }
 
   func testAmazonLinux2X86_64FromContainer() async throws {
     try skipSlow()
     try await buildTestcases(
-      config: config.withArchitecture("x86_64").withContainerImageSuffix("amazonlinux2"))
+      config: config.withArchitecture("x86_64").withContainerImageSuffix("amazonlinux2")
+    )
   }
 
   func testFedora39Aarch64FromContainer() async throws {
     try skipSlow()
     try await buildTestcases(
-      config: config.withArchitecture("aarch64").withContainerImageSuffix("fedora39"))
+      config: config.withArchitecture("aarch64").withContainerImageSuffix("fedora39")
+    )
   }
 
   func testFedora39X86_64FromContainer() async throws {
     try skipSlow()
     try await buildTestcases(
-      config: config.withArchitecture("x86_64").withContainerImageSuffix("fedora39"))
+      config: config.withArchitecture("x86_64").withContainerImageSuffix("fedora39")
+    )
   }
 }
