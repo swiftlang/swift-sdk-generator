@@ -24,7 +24,9 @@ private let decoder = JSONDecoder()
 
 extension AsyncFileSystem {
   fileprivate func read<V: Decodable>(
-    _ path: FilePath, bufferLimit: Int = 10 * 1024 * 1024, as: V.Type
+    _ path: FilePath,
+    bufferLimit: Int = 10 * 1024 * 1024,
+    as: V.Type
   ) async throws -> V {
     let data = try await self.withOpenReadableFile(path) {
       var data = Data()

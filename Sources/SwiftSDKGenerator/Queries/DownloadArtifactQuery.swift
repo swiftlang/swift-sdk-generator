@@ -25,9 +25,11 @@ struct DownloadArtifactQuery: Query {
   func run(engine: QueryEngine) async throws -> FilePath {
     logger.info(
       "Downloading remote artifact not available in local cache",
-      metadata: ["remoteUrl": .string(self.artifact.remoteURL.absoluteString)])
+      metadata: ["remoteUrl": .string(self.artifact.remoteURL.absoluteString)]
+    )
     let stream = self.httpClient.streamDownloadProgress(
-      from: self.artifact.remoteURL, to: self.artifact.localPath
+      from: self.artifact.remoteURL,
+      to: self.artifact.localPath
     )
     .removeDuplicates(by: didProgressChangeSignificantly)
     ._throttle(for: .seconds(1))
@@ -51,7 +53,8 @@ struct DownloadArtifactQuery: Query {
           byteCountFormatter
             .string(fromByteCount: Int64(total))
         )
-        """)
+        """
+      )
     } else {
       logger.debug(
         "\(artifact.remoteURL.lastPathComponent) \(byteCountFormatter.string(fromByteCount: Int64(progress.receivedBytes)))"

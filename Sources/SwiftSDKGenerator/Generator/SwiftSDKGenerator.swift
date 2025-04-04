@@ -72,7 +72,8 @@ public actor SwiftSDKGenerator {
       return Triple("\(cpu)-unknown-linux-gnu")
     #else
       fatalError(
-        "Triple detection not implemented for the platform that this generator was built on.")
+        "Triple detection not implemented for the platform that this generator was built on."
+      )
     #endif
   }
 
@@ -195,7 +196,8 @@ public actor SwiftSDKGenerator {
       if isSymlink {
         let path = url.path
         try result.append(
-          (FilePath(path), FilePath(self.fileManager.destinationOfSymbolicLink(atPath: url.path))))
+          (FilePath(path), FilePath(self.fileManager.destinationOfSymbolicLink(atPath: url.path)))
+        )
       }
     }
 
@@ -235,7 +237,9 @@ public actor SwiftSDKGenerator {
 
   func gunzip(file: FilePath, into directoryPath: FilePath) async throws {
     try await Shell.run(
-      #"cd "\#(directoryPath)" && gzip -d "\#(file)""#, shouldLogCommands: self.isVerbose)
+      #"cd "\#(directoryPath)" && gzip -d "\#(file)""#,
+      shouldLogCommands: self.isVerbose
+    )
   }
 
   func untar(
@@ -264,7 +268,8 @@ public actor SwiftSDKGenerator {
         let lsOutput = try await Shell.readStdout(cmd)
         logger.debug(
           "Files unpacked from deb file",
-          metadata: ["cmd": .string(cmd), "output": .string(lsOutput)])
+          metadata: ["cmd": .string(cmd), "output": .string(lsOutput)]
+        )
       }
 
       try await Shell.run(

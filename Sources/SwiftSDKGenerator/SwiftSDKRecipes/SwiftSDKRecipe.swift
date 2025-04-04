@@ -25,7 +25,8 @@ public struct SwiftSDKProduct {
 public protocol SwiftSDKRecipe: Sendable {
   /// Update the given toolset with platform specific options
   func applyPlatformOptions(
-    toolset: inout Toolset, targetTriple: Triple
+    toolset: inout Toolset,
+    targetTriple: Triple
   )
   func applyPlatformOptions(
     metadata: inout SwiftSDKMetadataV4.TripleProperties,
@@ -41,7 +42,9 @@ public protocol SwiftSDKRecipe: Sendable {
 
   /// The main entrypoint of the recipe to make a Swift SDK
   func makeSwiftSDK(
-    generator: SwiftSDKGenerator, engine: QueryEngine, httpClient: some HTTPClientProtocol
+    generator: SwiftSDKGenerator,
+    engine: QueryEngine,
+    httpClient: some HTTPClientProtocol
   ) async throws
     -> SwiftSDKProduct
 }

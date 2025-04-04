@@ -31,7 +31,8 @@ final class IntegrationTests: XCTestCase {
   func testTheBasicsWork() async throws {
     let exe = ProcessExecutor(
       group: self.group,
-      executable: "/bin/sh", ["-c", "exit 0"],
+      executable: "/bin/sh",
+      ["-c", "exit 0"],
       standardInput: EOFSequence(),
       logger: self.logger
     )
@@ -50,7 +51,8 @@ final class IntegrationTests: XCTestCase {
     for exitCode in UInt8.min...UInt8.max {
       let exe = ProcessExecutor(
         group: self.group,
-        executable: "/bin/sh", ["-c", "exit \(exitCode)"],
+        executable: "/bin/sh",
+        ["-c", "exit \(exitCode)"],
         standardInput: EOFSequence(),
         logger: self.logger
       )
@@ -77,7 +79,8 @@ final class IntegrationTests: XCTestCase {
     for signal in signalsToTest {
       let exe = ProcessExecutor(
         group: self.group,
-        executable: "/bin/sh", ["-c", "kill -\(signal) $$"],
+        executable: "/bin/sh",
+        ["-c", "kill -\(signal) $$"],
         standardInput: EOFSequence(),
         logger: self.logger
       )
@@ -99,7 +102,8 @@ final class IntegrationTests: XCTestCase {
     let input = AsyncStream.justMakeIt(elementType: ByteBuffer.self)
     let exe = ProcessExecutor(
       group: self.group,
-      executable: "/bin/cat", ["-nu"],  // sh", ["-c", "while read -r line; do echo $line; done"],
+      executable: "/bin/cat",
+      ["-nu"],  // sh", ["-c", "while read -r line; do echo $line; done"],
       standardInput: input.consumer,
       logger: self.logger
     )
@@ -209,7 +213,8 @@ final class IntegrationTests: XCTestCase {
     let input = AsyncStream.justMakeIt(elementType: ByteBuffer.self)
     let exe = ProcessExecutor(
       group: self.group,
-      executable: "/bin/sh", [],
+      executable: "/bin/sh",
+      [],
       standardInput: input.consumer,
       logger: self.logger
     )
@@ -531,7 +536,9 @@ final class IntegrationTests: XCTestCase {
       standardInput: EOFSequence(),
       logger: recordedLogger,
       logConfiguration: OutputLoggingSettings(
-        logLevel: .critical, to: .metadata(logMessage: "msg", key: "key"))
+        logLevel: .critical,
+        to: .metadata(logMessage: "msg", key: "key")
+      )
     ).throwIfNonZero()
     XCTAssert(sharedRecorder.recordedMessages.allSatisfy { $0.level == .critical })
     XCTAssert(sharedRecorder.recordedMessages.allSatisfy { $0.message == "msg" })
@@ -611,7 +618,8 @@ final class IntegrationTests: XCTestCase {
   func testBasicRunMethodWorks() async throws {
     try await ProcessExecutor.run(
       group: self.group,
-      executable: "/bin/dd", ["if=/dev/zero", "bs=\(1024 * 1024)", "count=100"],
+      executable: "/bin/dd",
+      ["if=/dev/zero", "bs=\(1024 * 1024)", "count=100"],
       standardInput: EOFSequence(),
       logger: self.logger
     ).throwIfNonZero()
@@ -620,7 +628,8 @@ final class IntegrationTests: XCTestCase {
   func testCollectJustStandardOutput() async throws {
     let allInfo = try await ProcessExecutor.runCollectingOutput(
       group: self.group,
-      executable: "/bin/dd", ["if=/dev/zero", "bs=\(1024 * 1024)", "count=1"],
+      executable: "/bin/dd",
+      ["if=/dev/zero", "bs=\(1024 * 1024)", "count=1"],
       standardInput: EOFSequence(),
       collectStandardOutput: true,
       collectStandardError: false,
@@ -690,7 +699,8 @@ final class IntegrationTests: XCTestCase {
     do {
       let result = try await ProcessExecutor.runCollectingOutput(
         group: self.group,
-        executable: "/bin/dd", ["if=/dev/zero", "bs=\(1024 * 1024)", "count=1"],
+        executable: "/bin/dd",
+        ["if=/dev/zero", "bs=\(1024 * 1024)", "count=1"],
         standardInput: EOFSequence(),
         collectStandardOutput: true,
         collectStandardError: false,
@@ -769,7 +779,8 @@ final class IntegrationTests: XCTestCase {
 
   func testAPIsWithoutELGOrLoggerArguments() async throws {
     let exe = ProcessExecutor(
-      executable: "/bin/sh", ["-c", "true"],
+      executable: "/bin/sh",
+      ["-c", "true"],
       standardInput: EOFSequence(),
       standardOutput: .discard,
       standardError: .discard
@@ -777,7 +788,8 @@ final class IntegrationTests: XCTestCase {
     try await exe.run().throwIfNonZero()
 
     try await ProcessExecutor.run(
-      executable: "/bin/sh", ["-c", "true"],
+      executable: "/bin/sh",
+      ["-c", "true"],
       standardInput: EOFSequence()
     ).throwIfNonZero()
 
@@ -807,7 +819,8 @@ final class IntegrationTests: XCTestCase {
 
   func testAPIsWithoutELGStandardInputOrLoggerArguments() async throws {
     let exe = ProcessExecutor(
-      executable: "/bin/sh", ["-c", "true"],
+      executable: "/bin/sh",
+      ["-c", "true"],
       standardOutput: .discard,
       standardError: .discard
     )
@@ -965,7 +978,8 @@ final class IntegrationTests: XCTestCase {
       ) { group in
         group.addTask { [logger = self.logger!] in
           try await ProcessExecutor.run(
-            executable: "/bin/sleep", ["100000"],
+            executable: "/bin/sleep",
+            ["100000"],
             logger: logger
           )
         }
