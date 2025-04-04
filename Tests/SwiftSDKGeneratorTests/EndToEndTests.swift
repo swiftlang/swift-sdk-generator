@@ -191,6 +191,12 @@ struct SDKConfiguration {
     return res
   }
 
+  func withLinuxDistributionVersion(_ version: String) -> SDKConfiguration {
+    var res = self
+    res.linuxDistributionVersion = version
+    return res
+  }
+
   func withArchitecture(_ arch: String) -> SDKConfiguration {
     var res = self
     res.architecture = arch
@@ -462,6 +468,64 @@ final class Swift60_UbuntuEndToEndTests: XCTestCase {
   }
 }
 
+final class Swift61_UbuntuEndToEndTests: XCTestCase {
+  let config = SDKConfiguration(
+    swiftVersion: "6.1",
+    linuxDistributionName: "ubuntu",
+    linuxDistributionVersion: "24.04",
+    architecture: "aarch64",
+    withDocker: false
+  )
+
+  func testAarch64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(config: config.withArchitecture("aarch64"))
+  }
+
+  func testX86_64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(config: config.withArchitecture("x86_64"))
+  }
+
+  func testAarch64FromContainer() async throws {
+    try skipSlow()
+    try await buildTestcases(config: config.withArchitecture("aarch64").withDocker())
+  }
+
+  func testX86_64FromContainer() async throws {
+    try skipSlow()
+    try await buildTestcases(config: config.withArchitecture("x86_64").withDocker())
+  }
+
+  func testJammyAarch64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(
+      config: config.withArchitecture("aarch64").withLinuxDistributionVersion("22.04")
+    )
+  }
+
+  func testJammyX86_64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(
+      config: config.withArchitecture("x86_64").withLinuxDistributionVersion("22.04")
+    )
+  }
+
+  func testJammyAarch64FromContainer() async throws {
+    try skipSlow()
+    try await buildTestcases(
+      config: config.withArchitecture("aarch64").withLinuxDistributionVersion("22.04").withDocker()
+    )
+  }
+
+  func testJammyX86_64FromContainer() async throws {
+    try skipSlow()
+    try await buildTestcases(
+      config: config.withArchitecture("x86_64").withLinuxDistributionVersion("22.04").withDocker()
+    )
+  }
+}
+
 final class Swift59_RHELEndToEndTests: XCTestCase {
   let config = SDKConfiguration(
     swiftVersion: "5.9.2",
@@ -588,6 +652,40 @@ final class Swift60_RHELEndToEndTests: XCTestCase {
     try skipSlow()
     try await buildTestcases(
       config: config.withArchitecture("x86_64").withContainerImageSuffix("fedora39")
+    )
+  }
+}
+
+final class Swift61_RHELEndToEndTests: XCTestCase {
+  let config = SDKConfiguration(
+    swiftVersion: "6.1",
+    linuxDistributionName: "rhel",
+    linuxDistributionVersion: "ubi9",
+    architecture: "aarch64",
+    withDocker: true  // RHEL-based SDKs can only be built from containers
+  )
+
+  func testAarch64FromContainer() async throws {
+    try skipSlow()
+    try await buildTestcases(config: config.withArchitecture("aarch64"))
+  }
+
+  func testX86_64FromContainer() async throws {
+    try skipSlow()
+    try await buildTestcases(config: config.withArchitecture("x86_64"))
+  }
+
+  func testAmazonLinux2Aarch64FromContainer() async throws {
+    try skipSlow()
+    try await buildTestcases(
+      config: config.withArchitecture("aarch64").withContainerImageSuffix("amazonlinux2")
+    )
+  }
+
+  func testAmazonLinux2X86_64FromContainer() async throws {
+    try skipSlow()
+    try await buildTestcases(
+      config: config.withArchitecture("x86_64").withContainerImageSuffix("amazonlinux2")
     )
   }
 }

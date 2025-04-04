@@ -153,6 +153,17 @@ extension SwiftSDKGenerator {
         try await fs.unpack(file: tmpDir.appending(fileName), into: sdkDirPath)
       }
     }
+
+    // Make sure we have /lib and /lib64, and if not symlink from /usr
+    // This makes building from packages more consistent with copying from the Docker container
+    let libDirectories = ["lib", "lib64"]
+    for dir in libDirectories {
+      let sdkLibPath = sdkDirPath.appending(dir)
+      let sdkUsrLibPath = sdkDirPath.appending("usr/\(dir)")
+      if !doesFileExist(at: sdkLibPath) && doesFileExist(at: sdkUsrLibPath) {
+        try createSymlink(at: sdkLibPath, pointingTo: FilePath("./usr/\(dir)"))
+      }
+    }
   }
 
   func downloadFiles(

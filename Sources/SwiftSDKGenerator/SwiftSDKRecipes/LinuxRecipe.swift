@@ -178,7 +178,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     var items: [DownloadableArtifacts.Item] = []
     if self.hostSwiftSource != .preinstalled
       && self.mainHostTriple.os != .linux
-      && !self.versionsConfiguration.swiftVersion.hasPrefix("6.0")
+      && !self.versionsConfiguration.swiftVersion.hasPrefix("6.")
     {
       items.append(artifacts.hostLLVM)
     }
@@ -324,7 +324,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
 
     if self.hostSwiftSource != .preinstalled {
       if self.mainHostTriple.os != .linux
-        && !self.versionsConfiguration.swiftVersion.hasPrefix("6.0")
+        && !self.versionsConfiguration.swiftVersion.hasPrefix("6.")
       {
         try await generator.prepareLLDLinker(engine, llvmArtifact: downloadableArtifacts.hostLLVM)
       }
