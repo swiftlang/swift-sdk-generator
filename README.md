@@ -16,16 +16,23 @@ a newly generated Swift SDK for users to install.
 
 ## Requirements
 
-Usage of Swift SDKs requires Swift 5.9, follow [installation instructions on swift.org](https://www.swift.org/install/) to install it first.
+Usage of Swift SDKs requires Swift 6.0 or later (experimental implementation is available in Swift 5.9/5.10), follow [installation instructions on swift.org](https://www.swift.org/install/) to install it first.
 
-After that, verify that the `experimental-sdk` command is available:
+After that, verify that the `sdk` command is available:
+
+```
+swift sdk list
+```
+
+For Swift 5.9/5.10 add `experimental-` prefix to the command invocation:
+
 
 ```
 swift experimental-sdk list
 ```
 
 The output will either state that no Swift SDKs are available, or produce a list of those you previously had 
-installed, in case you've used the `swift experimental-sdk install` command before.
+installed, in case you've used the `swift sdk install` (or `swift experimental-sdk install` with Swift 5.9/5.10) command before.
 
 ### macOS Requirements
 
@@ -78,7 +85,7 @@ swift run swift-sdk-generator make-linux-sdk --help
 After installing a Swift SDK, verify that it's available to SwiftPM:
 
 ```
-swift experimental-sdk list
+swift sdk list
 ```
 
 The output of the last command should contain `ubuntu22.04`. Note the full Swift SDK ID in the output, we'll refer to it
@@ -92,7 +99,13 @@ cd cross-compilation-test
 swift package init --type executable
 ```
 
-Build this project with the SDK:
+Build this project with the Swift SDK:
+
+```
+swift build --swift-sdk <generated_sdk_id>
+```
+
+When cross-compiling with Swift 5.9/5.10, add `experimental-` prefix to the option name:
 
 ```
 swift build --experimental-swift-sdk <generated_sdk_id>
@@ -112,9 +125,9 @@ dynamically linked, interpreter /lib/ld-linux-aarch64.so.1, for GNU/Linux 3.7.0,
 ```
 
 You can then copy this binary to a Docker image that has Swift runtime libraries installed. For example,
-for Ubuntu Jammy and Swift 5.9 this would be `swift:5.9-jammy-slim`. If you'd like to copy the binary to
+for Ubuntu Jammy and Swift 6.0 this would be `swift:6.0-jammy-slim`. If you'd like to copy the binary to
 an arbitrary Ubuntu Jammy system, make sure you pass `--static-swift-stdlib` flag to `swift build`, in addition
-to the `--experimental-swift-sdk` option.
+to the `--swift-sdk` option.
 
 ## Building an SDK from a container image
 
@@ -169,7 +182,7 @@ swift run swift-sdk-generator make-linux-sdk --with-docker --from-container-imag
 ## Swift SDK distribution
 
 The `.artifactbundle` directory produced in the previous section can be packaged as a `.tar.gz` archive and redistributed
-in this form. Users of such Swift SDK bundle archive can easily install it with `swift experimental-sdk install`
+in this form. Users of such Swift SDK bundle archive can easily install it with `swift sdk install`
 command, which supports both local file system paths and public `http://` and `https://` URLs as an argument.
 
 
