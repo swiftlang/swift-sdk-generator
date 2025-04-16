@@ -58,29 +58,6 @@ We require that your commit messages match our template. The easiest way to do t
 
     git config commit.template Utilities/git.commit.template
 
-### Run `./Utilities/soundness.sh`
-
-The scripts directory contains a [`soundness.sh` script](https://github.com/apple/swift-sdk-generator/blob/main/Utilities/soundness.sh) 
-that enforces additional checks, like license headers and formatting style.
-
-Please make sure to run `./Utilities/soundness.sh` before pushing a change upstream, otherwise it is likely the PR validation will fail
-on minor changes such as formatting issues.
-
-For frequent contributors, we recommend adding the script as a [git pre-push hook](https://git-scm.com/book/en/v2/Customizing-Git-Git-Hooks), which you can do via executing the following command in the project root directory: 
-
-```bash
-cat << EOF > .git/hooks/pre-push
-
-if [[ -f "Utilities/soundness.sh" ]]; then
-  Utilities/soundness.sh
-fi
-EOF
-```
-
-Which makes the script execute, and only allow the `git push` to complete if the check has passed.
-
-In the case of formatting issues, you can then `git add` the formatting changes, and attempt the push again. 
-
 ## How to contribute your work
 
 Please open a pull request at https://github.com/apple/swift-sdk-generator. Make sure the CI passes, and then wait for code review.
