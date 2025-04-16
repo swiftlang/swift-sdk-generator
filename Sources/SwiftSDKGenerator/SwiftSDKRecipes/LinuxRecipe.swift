@@ -63,7 +63,8 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       swiftBranch: swiftBranch,
       lldVersion: lldVersion,
       linuxDistribution: linuxDistribution,
-      targetTriple: targetTriple
+      targetTriple: targetTriple,
+      logger: logger
     )
 
     let targetSwiftSource: LinuxRecipe.TargetSwiftSource
@@ -251,19 +252,28 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     )
 
     if !self.shouldUseDocker {
-      guard case let .ubuntu(version) = linuxDistribution else {
+      switch linuxDistribution {
+      case .ubuntu(let version):
+        try await generator.downloadDebianPackages(
+          client,
+          engine,
+          requiredPackages: version.requiredPackages,
+          versionsConfiguration: self.versionsConfiguration,
+          sdkDirPath: sdkDirPath
+        )
+      case .debian(let version):
+        try await generator.downloadDebianPackages(
+          client,
+          engine,
+          requiredPackages: version.requiredPackages,
+          versionsConfiguration: self.versionsConfiguration,
+          sdkDirPath: sdkDirPath
+        )
+      default:
         throw
           GeneratorError
           .distributionSupportsOnlyDockerGenerator(self.linuxDistribution)
       }
-
-      try await generator.downloadUbuntuPackages(
-        client,
-        engine,
-        requiredPackages: version.requiredPackages,
-        versionsConfiguration: self.versionsConfiguration,
-        sdkDirPath: sdkDirPath
-      )
     }
 
     switch self.hostSwiftSource {

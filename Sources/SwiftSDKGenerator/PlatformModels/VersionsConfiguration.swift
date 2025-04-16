@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+import Logging
+
 import struct Foundation.URL
 
 public struct VersionsConfiguration: Sendable {
@@ -18,7 +20,8 @@ public struct VersionsConfiguration: Sendable {
     swiftBranch: String? = nil,
     lldVersion: String,
     linuxDistribution: LinuxDistribution,
-    targetTriple: Triple
+    targetTriple: Triple,
+    logger: Logger
   ) throws {
     self.swiftVersion = swiftVersion
     self.swiftBranch = swiftBranch ?? "swift-\(swiftVersion.lowercased())"
@@ -26,6 +29,7 @@ public struct VersionsConfiguration: Sendable {
     self.linuxDistribution = linuxDistribution
     self.linuxArchSuffix =
       targetTriple.arch == .aarch64 ? "-\(Triple.Arch.aarch64.linuxConventionName)" : ""
+    self.logger = logger
   }
 
   let swiftVersion: String
@@ -33,11 +37,21 @@ public struct VersionsConfiguration: Sendable {
   let lldVersion: String
   let linuxDistribution: LinuxDistribution
   let linuxArchSuffix: String
+  private let logger: Logger
 
   var swiftPlatform: String {
     switch self.linuxDistribution {
     case let .ubuntu(ubuntu):
       return "ubuntu\(ubuntu.version)"
+    case let .debian(debian):
+      if debian.version == "11" {
+        // Ubuntu 20.04 toolchain is binary compatible with Debian 11
+        return "ubuntu20.04"
+      } else if self.swiftVersion.hasPrefix("5.9") || self.swiftVersion == "5.10" {
+        // Ubuntu 22.04 toolchain is binary compatible with Debian 12
+        return "ubuntu22.04"
+      }
+      return "debian\(debian.version)"
     case let .rhel(rhel):
       return rhel.rawValue
     }
@@ -66,9 +80,8 @@ public struct VersionsConfiguration: Sendable {
       string: """
         https://download.swift.org/\(
           self.swiftBranch
-        )/\(
-          subdirectory ?? computedSubdirectory
-        )/swift-\(self.swiftVersion)/\(self.swiftDistributionName(platform: platform)).\(fileExtension)
+        )/\(computedSubdirectory)/\
+        swift-\(self.swiftVersion)/\(self.swiftDistributionName(platform: computedPlatform)).\(fileExtension)
         """
     )!
   }
