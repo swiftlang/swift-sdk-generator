@@ -15,24 +15,24 @@ import Logging
 
 import struct SystemPackage.FilePath
 
-public struct WebAssemblyRecipe: SwiftSDKRecipe {
+package struct WebAssemblyRecipe: SwiftSDKRecipe {
   let hostSwiftPackage: HostToolchainPackage?
   let targetSwiftPackagePath: FilePath
   let wasiSysroot: FilePath
   let swiftVersion: String
-  public let logger: Logger
+  package let logger: Logger
 
-  public struct HostToolchainPackage: Sendable {
+  package struct HostToolchainPackage: Sendable {
     let path: FilePath
     let triple: Triple
 
-    public init(path: FilePath, triple: Triple) {
+    package init(path: FilePath, triple: Triple) {
       self.path = path
       self.triple = triple
     }
   }
 
-  public init(
+  package init(
     hostSwiftPackage: HostToolchainPackage?,
     targetSwiftPackagePath: FilePath,
     wasiSysroot: FilePath,
@@ -46,11 +46,13 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
     self.logger = logger
   }
 
-  public var defaultArtifactID: String {
+  package var defaultArtifactID: String {
     "\(self.swiftVersion)_wasm"
   }
 
-  public func applyPlatformOptions(toolset: inout Toolset, targetTriple: Triple) {
+  package let shouldSupportEmbeddedSwift = true
+
+  package func applyPlatformOptions(toolset: inout Toolset, targetTriple: Triple, isForEmbeddedSwift: Bool) {
     // We only support static linking for WebAssembly for now, so make it the default.
     toolset.swiftCompiler = Toolset.ToolProperties(extraCLIOptions: ["-static-stdlib"])
     if targetTriple.environmentName == "threads" {
@@ -82,10 +84,11 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
     }
   }
 
-  public func applyPlatformOptions(
+  package func applyPlatformOptions(
     metadata: inout SwiftSDKMetadataV4.TripleProperties,
     paths: PathsConfiguration,
-    targetTriple: Triple
+    targetTriple: Triple,
+    isForEmbeddedSwift: Bool
   ) {
     var relativeToolchainDir = paths.toolchainDirPath
     guard relativeToolchainDir.removePrefix(paths.swiftSDKRootPath) else {
@@ -98,7 +101,7 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
     metadata.swiftResourcesPath = metadata.swiftStaticResourcesPath
   }
 
-  public func makeSwiftSDK(
+  package func makeSwiftSDK(
     generator: SwiftSDKGenerator,
     engine: QueryEngine,
     httpClient: some HTTPClientProtocol

@@ -16,14 +16,14 @@ import Logging
 
 import struct SystemPackage.FilePath
 
-public struct LinuxRecipe: SwiftSDKRecipe {
-  public enum TargetSwiftSource: Sendable {
+package struct LinuxRecipe: SwiftSDKRecipe {
+  package enum TargetSwiftSource: Sendable {
     case docker(baseSwiftDockerImage: String)
     case localPackage(FilePath)
     case remoteTarball
   }
 
-  public enum HostSwiftSource: Sendable, Equatable {
+  package enum HostSwiftSource: Sendable, Equatable {
     case localPackage(FilePath)
     case remoteTarball
     case preinstalled
@@ -35,7 +35,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
   let targetSwiftSource: TargetSwiftSource
   let hostSwiftSource: HostSwiftSource
   let versionsConfiguration: VersionsConfiguration
-  public let logger: Logger
+  package let logger: Logger
 
   var shouldUseDocker: Bool {
     if case .docker = self.targetSwiftSource {
@@ -44,7 +44,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     return false
   }
 
-  public init(
+  package init(
     targetTriple: Triple,
     hostTriple: Triple,
     linuxDistribution: LinuxDistribution,
@@ -98,7 +98,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     )
   }
 
-  public init(
+  package init(
     mainTargetTriple: Triple,
     mainHostTriple: Triple,
     linuxDistribution: LinuxDistribution,
@@ -116,7 +116,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     self.logger = logger
   }
 
-  public func applyPlatformOptions(toolset: inout Toolset, targetTriple: Triple) {
+  package func applyPlatformOptions(toolset: inout Toolset, targetTriple: Triple, isForEmbeddedSwift: Bool) {
     if self.hostSwiftSource == .preinstalled {
       toolset.rootPath = nil
     }
@@ -146,10 +146,11 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     toolset.librarian = Toolset.ToolProperties(path: "llvm-ar")
   }
 
-  public func applyPlatformOptions(
+  package func applyPlatformOptions(
     metadata: inout SwiftSDKMetadataV4.TripleProperties,
     paths: PathsConfiguration,
-    targetTriple: Triple
+    targetTriple: Triple,
+    isForEmbeddedSwift: Bool
   ) {
     var relativeSDKDir = self.sdkDirPath(paths: paths)
     guard relativeSDKDir.removePrefix(paths.swiftSDKRootPath) else {
@@ -159,7 +160,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     metadata.swiftStaticResourcesPath = relativeSDKDir.appending("usr/lib/swift_static").string
   }
 
-  public var defaultArtifactID: String {
+  package var defaultArtifactID: String {
     """
     \(self.versionsConfiguration.swiftVersion)_\(self.linuxDistribution.name.rawValue)_\(
       self.linuxDistribution
@@ -219,7 +220,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     return [self.mainHostTriple]
   }
 
-  public func makeSwiftSDK(
+  package func makeSwiftSDK(
     generator: SwiftSDKGenerator,
     engine: QueryEngine,
     httpClient client: some HTTPClientProtocol

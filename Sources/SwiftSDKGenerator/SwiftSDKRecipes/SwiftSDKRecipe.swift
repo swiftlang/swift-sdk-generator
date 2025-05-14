@@ -15,23 +15,25 @@ import Logging
 
 import struct SystemPackage.FilePath
 
-public struct SwiftSDKProduct {
+package struct SwiftSDKProduct {
   let sdkDirPath: FilePath
   /// Array of supported host triples. `nil` indicates the SDK can be universally used.
   let hostTriples: [Triple]?
 }
 
 /// A protocol describing a set of platform specific instructions to make a Swift SDK
-public protocol SwiftSDKRecipe: Sendable {
+package protocol SwiftSDKRecipe: Sendable {
   /// Update the given toolset with platform specific options
   func applyPlatformOptions(
     toolset: inout Toolset,
-    targetTriple: Triple
+    targetTriple: Triple,
+    isForEmbeddedSwift: Bool
   )
   func applyPlatformOptions(
     metadata: inout SwiftSDKMetadataV4.TripleProperties,
     paths: PathsConfiguration,
-    targetTriple: Triple
+    targetTriple: Triple,
+    isForEmbeddedSwift: Bool
   )
 
   /// The default identifier of the Swift SDK
@@ -45,15 +47,18 @@ public protocol SwiftSDKRecipe: Sendable {
     generator: SwiftSDKGenerator,
     engine: QueryEngine,
     httpClient: some HTTPClientProtocol
-  ) async throws
-    -> SwiftSDKProduct
+  ) async throws -> SwiftSDKProduct
+
+  var shouldSupportEmbeddedSwift: Bool { get }
 }
 
 extension SwiftSDKRecipe {
-  public func applyPlatformOptions(toolset: inout Toolset, targetTriple: Triple) {}
-  public func applyPlatformOptions(
+  package func applyPlatformOptions(toolset: inout Toolset, targetTriple: Triple) {}
+  package func applyPlatformOptions(
     metadata: inout SwiftSDKMetadataV4.TripleProperties,
     paths: PathsConfiguration,
     targetTriple: Triple
   ) {}
+
+  package var shouldSupportEmbeddedSwift: Bool { false }
 }
