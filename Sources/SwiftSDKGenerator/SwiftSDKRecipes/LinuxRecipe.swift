@@ -147,7 +147,7 @@ package struct LinuxRecipe: SwiftSDKRecipe {
   }
 
   package func applyPlatformOptions(
-    metadata: inout SwiftSDKMetadataV4.TripleProperties,
+    metadata: inout SwiftSDKMetadataV4,
     paths: PathsConfiguration,
     targetTriple: Triple,
     isForEmbeddedSwift: Bool
@@ -156,8 +156,8 @@ package struct LinuxRecipe: SwiftSDKRecipe {
     guard relativeSDKDir.removePrefix(paths.swiftSDKRootPath) else {
       fatalError("The SDK directory path must be a subdirectory of the Swift SDK root path.")
     }
-    metadata.swiftResourcesPath = relativeSDKDir.appending("usr/lib/swift").string
-    metadata.swiftStaticResourcesPath = relativeSDKDir.appending("usr/lib/swift_static").string
+    metadata.targetTriples[targetTriple.triple]?.swiftResourcesPath = relativeSDKDir.appending("usr/lib/swift").string
+    metadata.targetTriples[targetTriple.triple]?.swiftStaticResourcesPath = relativeSDKDir.appending("usr/lib/swift_static").string
   }
 
   package var defaultArtifactID: String {

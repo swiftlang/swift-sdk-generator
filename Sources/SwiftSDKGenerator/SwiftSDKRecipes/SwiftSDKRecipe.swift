@@ -30,7 +30,7 @@ package protocol SwiftSDKRecipe: Sendable {
     isForEmbeddedSwift: Bool
   )
   func applyPlatformOptions(
-    metadata: inout SwiftSDKMetadataV4.TripleProperties,
+    metadata: inout SwiftSDKMetadataV4,
     paths: PathsConfiguration,
     targetTriple: Triple,
     isForEmbeddedSwift: Bool

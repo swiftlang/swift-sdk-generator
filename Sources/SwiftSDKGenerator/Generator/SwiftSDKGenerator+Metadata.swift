@@ -70,9 +70,13 @@ extension SwiftSDKGenerator {
       )
     }
 
-    var metadata = SwiftSDKMetadataV4.TripleProperties(
-      sdkRootPath: relativeSDKDir.string,
-      toolsetPaths: [relativeToolsetPath.string]
+    var metadata = SwiftSDKMetadataV4(
+      targetTriples: [
+        self.targetTriple.triple: .init(
+          sdkRootPath: relativeSDKDir.string,
+          toolsetPaths: [relativeToolsetPath.string]
+        )
+      ]
     )
 
     recipe.applyPlatformOptions(
@@ -84,13 +88,7 @@ extension SwiftSDKGenerator {
 
     try writeFile(
       at: destinationJSONPath,
-      encoder.encode(
-        SwiftSDKMetadataV4(
-          targetTriples: [
-            self.targetTriple.triple: metadata
-          ]
-        )
-      )
+      encoder.encode(metadata)
     )
 
     return destinationJSONPath

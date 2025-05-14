@@ -55,6 +55,26 @@ package struct WebAssemblyRecipe: SwiftSDKRecipe {
   package func applyPlatformOptions(toolset: inout Toolset, targetTriple: Triple, isForEmbeddedSwift: Bool) {
     // We only support static linking for WebAssembly for now, so make it the default.
     toolset.swiftCompiler = Toolset.ToolProperties(extraCLIOptions: ["-static-stdlib"])
+
+    if isForEmbeddedSwift {
+      let ccOptions = ["-D__EMBEDDED_SWIFT__"]
+      toolset.cCompiler = Toolset.ToolProperties(extraCLIOptions: ccOptions)
+      toolset.cxxCompiler = Toolset.ToolProperties(extraCLIOptions: ccOptions)
+
+      toolset.swiftCompiler?.extraCLIOptions?.append(
+        contentsOf: [
+          "-enable-experimental-feature", "Embedded", "-wmo",
+        ]
+      )
+
+      toolset.swiftCompiler?.extraCLIOptions?.append(
+        // libraries required for concurrency
+        contentsOf: ["-lc++", "-lswift_Concurrency", "-lswift_ConcurrencyDefaultExecutor"].flatMap {
+          ["-Xlinker", $0]
+        }
+      )
+    }
+
     if targetTriple.environmentName == "threads" {
       // Enable features required for threading support
       let ccOptions = [
@@ -85,7 +105,7 @@ package struct WebAssemblyRecipe: SwiftSDKRecipe {
   }
 
   package func applyPlatformOptions(
-    metadata: inout SwiftSDKMetadataV4.TripleProperties,
+    metadata: inout SwiftSDKMetadataV4,
     paths: PathsConfiguration,
     targetTriple: Triple,
     isForEmbeddedSwift: Bool
@@ -96,9 +116,20 @@ package struct WebAssemblyRecipe: SwiftSDKRecipe {
         "The toolchain bin directory path must be a subdirectory of the Swift SDK root path."
       )
     }
-    metadata.swiftStaticResourcesPath =
+
+    var tripleProperties = metadata.targetTriples[targetTriple.triple]!
+    tripleProperties.swiftStaticResourcesPath =
       relativeToolchainDir.appending("usr/lib/swift_static").string
-    metadata.swiftResourcesPath = metadata.swiftStaticResourcesPath
+    tripleProperties.swiftResourcesPath = isForEmbeddedSwift
+      ? relativeToolchainDir.appending("usr/lib/swift").string
+      : tripleProperties.swiftStaticResourcesPath
+
+    var finalTriple = targetTriple
+    if isForEmbeddedSwift {
+      finalTriple = Triple("wasm32-unknown-wasip1")
+    }
+
+    metadata.targetTriples[finalTriple.triple] = tripleProperties
   }
 
   package func makeSwiftSDK(
