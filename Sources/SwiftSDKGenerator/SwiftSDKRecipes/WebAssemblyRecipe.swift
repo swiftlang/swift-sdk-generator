@@ -167,8 +167,7 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
   }
 
   /// Merge the target Swift package into the Swift SDK bundle derived from the host Swift package.
-  func mergeTargetSwift(from distributionPath: FilePath, generator: SwiftSDKGenerator) async throws
-  {
+  func mergeTargetSwift(from distributionPath: FilePath, generator: SwiftSDKGenerator) async throws {
     let pathsConfiguration = generator.pathsConfiguration
     logger.info("Copying Swift core libraries for the target triple into Swift SDK bundle...")
     for (pathWithinPackage, pathWithinSwiftSDK, isOptional) in [
