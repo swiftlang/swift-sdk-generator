@@ -50,12 +50,16 @@ final class WebAssemblyRecipeTests: XCTestCase {
       targetTriple: Triple("wasm32-unknown-wasi"),
       isForEmbeddedSwift: true
     )
-    XCTAssertEqual(toolset.swiftCompiler?.extraCLIOptions, [
-      "-static-stdlib",
-      "-enable-experimental-feature", "Embedded", "-wmo",
-    ] + ["-lc++", "-lswift_Concurrency", "-lswift_ConcurrencyDefaultExecutor"].flatMap {
-      ["-Xlinker", $0]
-    })
+    XCTAssertEqual(
+      toolset.swiftCompiler?.extraCLIOptions,
+      [
+        "-static-stdlib",
+        "-enable-experimental-feature", "Embedded", "-wmo",
+      ]
+        + ["-lc++", "-lswift_Concurrency", "-lswift_ConcurrencyDefaultExecutor"].flatMap {
+          ["-Xlinker", $0]
+        }
+    )
     XCTAssertEqual(toolset.cCompiler?.extraCLIOptions, ["-D__EMBEDDED_SWIFT__"])
     XCTAssertEqual(toolset.cxxCompiler?.extraCLIOptions, ["-D__EMBEDDED_SWIFT__"])
     XCTAssertNil(toolset.linker)
