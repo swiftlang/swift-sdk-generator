@@ -15,24 +15,24 @@ import Logging
 
 import struct SystemPackage.FilePath
 
-public struct WebAssemblyRecipe: SwiftSDKRecipe {
+package struct WebAssemblyRecipe: SwiftSDKRecipe {
   let hostSwiftPackage: HostToolchainPackage?
   let targetSwiftPackagePath: FilePath
   let wasiSysroot: FilePath
   let swiftVersion: String
-  public let logger: Logger
+  package let logger: Logger
 
-  public struct HostToolchainPackage: Sendable {
+  package struct HostToolchainPackage: Sendable {
     let path: FilePath
     let triple: Triple
 
-    public init(path: FilePath, triple: Triple) {
+    package init(path: FilePath, triple: Triple) {
       self.path = path
       self.triple = triple
     }
   }
 
-  public init(
+  package init(
     hostSwiftPackage: HostToolchainPackage?,
     targetSwiftPackagePath: FilePath,
     wasiSysroot: FilePath,
@@ -46,13 +46,35 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
     self.logger = logger
   }
 
-  public var defaultArtifactID: String {
+  package var defaultArtifactID: String {
     "\(self.swiftVersion)_wasm"
   }
 
-  public func applyPlatformOptions(toolset: inout Toolset, targetTriple: Triple) {
+  package let shouldSupportEmbeddedSwift = true
+
+  package func applyPlatformOptions(toolset: inout Toolset, targetTriple: Triple, isForEmbeddedSwift: Bool) {
     // We only support static linking for WebAssembly for now, so make it the default.
     toolset.swiftCompiler = Toolset.ToolProperties(extraCLIOptions: ["-static-stdlib"])
+
+    if isForEmbeddedSwift {
+      let ccOptions = ["-D__EMBEDDED_SWIFT__"]
+      toolset.cCompiler = Toolset.ToolProperties(extraCLIOptions: ccOptions)
+      toolset.cxxCompiler = Toolset.ToolProperties(extraCLIOptions: ccOptions)
+
+      toolset.swiftCompiler?.extraCLIOptions?.append(
+        contentsOf: [
+          "-enable-experimental-feature", "Embedded", "-wmo",
+        ]
+      )
+
+      toolset.swiftCompiler?.extraCLIOptions?.append(
+        // libraries required for concurrency
+        contentsOf: ["-lc++", "-lswift_Concurrency", "-lswift_ConcurrencyDefaultExecutor"].flatMap {
+          ["-Xlinker", $0]
+        }
+      )
+    }
+
     if targetTriple.environmentName == "threads" {
       // Enable features required for threading support
       let ccOptions = [
@@ -82,10 +104,11 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
     }
   }
 
-  public func applyPlatformOptions(
-    metadata: inout SwiftSDKMetadataV4.TripleProperties,
+  package func applyPlatformOptions(
+    metadata: inout SwiftSDKMetadataV4,
     paths: PathsConfiguration,
-    targetTriple: Triple
+    targetTriple: Triple,
+    isForEmbeddedSwift: Bool
   ) {
     var relativeToolchainDir = paths.toolchainDirPath
     guard relativeToolchainDir.removePrefix(paths.swiftSDKRootPath) else {
@@ -93,12 +116,25 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
         "The toolchain bin directory path must be a subdirectory of the Swift SDK root path."
       )
     }
-    metadata.swiftStaticResourcesPath =
+
+    var tripleProperties = metadata.targetTriples[targetTriple.triple]!
+    tripleProperties.swiftStaticResourcesPath =
       relativeToolchainDir.appending("usr/lib/swift_static").string
-    metadata.swiftResourcesPath = metadata.swiftStaticResourcesPath
+    tripleProperties.swiftResourcesPath =
+      isForEmbeddedSwift
+      ? relativeToolchainDir.appending("usr/lib/swift").string
+      : tripleProperties.swiftStaticResourcesPath
+
+    var finalTriple = targetTriple
+    if isForEmbeddedSwift {
+      metadata.targetTriples.removeValue(forKey: targetTriple.triple)
+      finalTriple = Triple("wasm32-unknown-wasip1")
+    }
+
+    metadata.targetTriples[finalTriple.triple] = tripleProperties
   }
 
-  public func makeSwiftSDK(
+  package func makeSwiftSDK(
     generator: SwiftSDKGenerator,
     engine: QueryEngine,
     httpClient: some HTTPClientProtocol

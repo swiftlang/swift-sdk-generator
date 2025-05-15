@@ -85,7 +85,8 @@ final class LinuxRecipeTests: XCTestCase {
       var toolset = Toolset(rootPath: nil)
       recipe.applyPlatformOptions(
         toolset: &toolset,
-        targetTriple: testCase.targetTriple
+        targetTriple: testCase.targetTriple,
+        isForEmbeddedSwift: false
       )
       XCTAssertEqual(toolset.swiftCompiler?.extraCLIOptions, testCase.expectedSwiftCompilerOptions)
       XCTAssertEqual(toolset.linker?.path, testCase.expectedLinkerPath)
@@ -103,7 +104,8 @@ final class LinuxRecipeTests: XCTestCase {
     var toolset = Toolset(rootPath: "swift.xctoolchain")
     recipe.applyPlatformOptions(
       toolset: &toolset,
-      targetTriple: Triple("x86_64-unknown-linux-gnu")
+      targetTriple: Triple("x86_64-unknown-linux-gnu"),
+      isForEmbeddedSwift: false
     )
     XCTAssertEqual(toolset.rootPath, nil)
     XCTAssertEqual(
