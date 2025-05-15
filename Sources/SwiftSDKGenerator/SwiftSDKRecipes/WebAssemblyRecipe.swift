@@ -120,7 +120,8 @@ package struct WebAssemblyRecipe: SwiftSDKRecipe {
     var tripleProperties = metadata.targetTriples[targetTriple.triple]!
     tripleProperties.swiftStaticResourcesPath =
       relativeToolchainDir.appending("usr/lib/swift_static").string
-    tripleProperties.swiftResourcesPath = isForEmbeddedSwift
+    tripleProperties.swiftResourcesPath =
+      isForEmbeddedSwift
       ? relativeToolchainDir.appending("usr/lib/swift").string
       : tripleProperties.swiftStaticResourcesPath
 

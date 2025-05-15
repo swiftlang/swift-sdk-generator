@@ -24,7 +24,9 @@ extension SwiftSDKGenerator {
   func generateToolsetJSON(recipe: SwiftSDKRecipe, isForEmbeddedSwift: Bool = false) throws -> FilePath {
     logger.info("Generating toolset JSON file...")
 
-    let toolsetJSONPath = pathsConfiguration.swiftSDKRootPath.appending("\(isForEmbeddedSwift ? "embedded-" : "")toolset.json")
+    let toolsetJSONPath = pathsConfiguration.swiftSDKRootPath.appending(
+      "\(isForEmbeddedSwift ? "embedded-" : "")toolset.json"
+    )
 
     var relativeToolchainBinDir = pathsConfiguration.toolchainBinDirPath
 
@@ -37,7 +39,11 @@ extension SwiftSDKGenerator {
     }
 
     var toolset = Toolset(rootPath: relativeToolchainBinDir.string)
-    recipe.applyPlatformOptions(toolset: &toolset, targetTriple: self.targetTriple, isForEmbeddedSwift: isForEmbeddedSwift)
+    recipe.applyPlatformOptions(
+      toolset: &toolset,
+      targetTriple: self.targetTriple,
+      isForEmbeddedSwift: isForEmbeddedSwift
+    )
     try writeFile(at: toolsetJSONPath, encoder.encode(toolset))
 
     return toolsetJSONPath
@@ -51,7 +57,9 @@ extension SwiftSDKGenerator {
   ) throws -> FilePath {
     logger.info("Generating Swift SDK metadata JSON file...")
 
-    let destinationJSONPath = pathsConfiguration.swiftSDKRootPath.appending("\(isForEmbeddedSwift ? "embedded-" : "")swift-sdk.json")
+    let destinationJSONPath = pathsConfiguration.swiftSDKRootPath.appending(
+      "\(isForEmbeddedSwift ? "embedded-" : "")swift-sdk.json"
+    )
 
     var relativeToolchainBinDir = pathsConfiguration.toolchainBinDirPath
     var relativeSDKDir = sdkDirPath

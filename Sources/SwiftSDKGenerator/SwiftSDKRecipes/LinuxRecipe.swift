@@ -157,7 +157,8 @@ package struct LinuxRecipe: SwiftSDKRecipe {
       fatalError("The SDK directory path must be a subdirectory of the Swift SDK root path.")
     }
     metadata.targetTriples[targetTriple.triple]?.swiftResourcesPath = relativeSDKDir.appending("usr/lib/swift").string
-    metadata.targetTriples[targetTriple.triple]?.swiftStaticResourcesPath = relativeSDKDir.appending("usr/lib/swift_static").string
+    metadata.targetTriples[targetTriple.triple]?.swiftStaticResourcesPath =
+      relativeSDKDir.appending("usr/lib/swift_static").string
   }
 
   package var defaultArtifactID: String {
