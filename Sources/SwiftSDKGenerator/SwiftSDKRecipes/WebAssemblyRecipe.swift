@@ -126,6 +126,7 @@ package struct WebAssemblyRecipe: SwiftSDKRecipe {
 
     var finalTriple = targetTriple
     if isForEmbeddedSwift {
+      metadata.targetTriples.removeValue(forKey: targetTriple.triple)
       finalTriple = Triple("wasm32-unknown-wasip1")
     }
 

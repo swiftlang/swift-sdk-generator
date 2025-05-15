@@ -33,7 +33,8 @@ final class WebAssemblyRecipeTests: XCTestCase {
     var toolset = Toolset(rootPath: nil)
     recipe.applyPlatformOptions(
       toolset: &toolset,
-      targetTriple: Triple("wasm32-unknown-wasi")
+      targetTriple: Triple("wasm32-unknown-wasi"),
+      isForEmbeddedSwift: false
     )
     XCTAssertEqual(toolset.swiftCompiler?.extraCLIOptions, ["-static-stdlib"])
     XCTAssertNil(toolset.cCompiler)
@@ -46,7 +47,8 @@ final class WebAssemblyRecipeTests: XCTestCase {
     var toolset = Toolset(rootPath: nil)
     recipe.applyPlatformOptions(
       toolset: &toolset,
-      targetTriple: Triple("wasm32-unknown-wasip1-threads")
+      targetTriple: Triple("wasm32-unknown-wasip1-threads"),
+      isForEmbeddedSwift: false
     )
     XCTAssertEqual(
       toolset.swiftCompiler?.extraCLIOptions,

@@ -53,11 +53,16 @@ package protocol SwiftSDKRecipe: Sendable {
 }
 
 extension SwiftSDKRecipe {
-  package func applyPlatformOptions(toolset: inout Toolset, targetTriple: Triple) {}
+  package func applyPlatformOptions(
+    toolset: inout Toolset,
+    targetTriple: Triple,
+    isForEmbeddedSwift: Bool
+  ) {}
   package func applyPlatformOptions(
     metadata: inout SwiftSDKMetadataV4.TripleProperties,
     paths: PathsConfiguration,
-    targetTriple: Triple
+    targetTriple: Triple,
+    isForEmbeddedSwift: Bool
   ) {}
 
   package var shouldSupportEmbeddedSwift: Bool { false }
