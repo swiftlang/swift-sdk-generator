@@ -10,17 +10,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
-import Foundation
-#endif
-
 import Logging
 import SystemPackage
 import XCTest
 
 @testable import SwiftSDKGenerator
+
+#if canImport(FoundationEssentials)
+  import FoundationEssentials
+#else
+  import Foundation
+#endif
 
 final class SwiftSDKGeneratorMetadataTests: XCTestCase {
   let logger = Logger(label: "SwiftSDKGeneratorMetadataTests")
