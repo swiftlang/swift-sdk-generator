@@ -181,7 +181,7 @@ package struct WebAssemblyRecipe: SwiftSDKRecipe {
       )
     }
 
-    let autolinkExtractPath = generator.pathsConfiguration.toolchainBinDirPath.appending(
+    let autolinkExtractPath = pathsConfiguration.toolchainBinDirPath.appending(
       "swift-autolink-extract"
     )
 
@@ -194,6 +194,17 @@ package struct WebAssemblyRecipe: SwiftSDKRecipe {
       logger.info("Fixing `swift-autolink-extract` symlink...")
       try await generator.createSymlink(at: autolinkExtractPath, pointingTo: "swift")
     }
+
+    // Embedded Swift looks up clang compiler-rt in a different path.
+    let embeddedCompilerRTPath = pathsConfiguration.toolchainDirPath.appending(
+      "usr/lib/swift/clang/lib/wasm32-unknown-wasip1"
+    )
+
+    try await generator.createDirectoryIfNeeded(at: embeddedCompilerRTPath)
+    try await generator.createSymlink(
+      at: embeddedCompilerRTPath.appending("libclang_rt.builtins.a"),
+      pointingTo: "../../../../swift_static/clang/lib/wasi/libclang_rt.builtins-wasm32.a"
+    )
 
     // Copy the WASI sysroot into the SDK bundle.
     let sdkDirPath = pathsConfiguration.swiftSDKRootPath.appending("WASI.sdk")
