@@ -21,10 +21,12 @@ private let encoder: JSONEncoder = {
 }()
 
 extension SwiftSDKGenerator {
-  func generateToolsetJSON(recipe: SwiftSDKRecipe) throws -> FilePath {
+  func generateToolsetJSON(recipe: SwiftSDKRecipe, isForEmbeddedSwift: Bool = false) throws -> FilePath {
     logger.info("Generating toolset JSON file...")
 
-    let toolsetJSONPath = pathsConfiguration.swiftSDKRootPath.appending("toolset.json")
+    let toolsetJSONPath = pathsConfiguration.swiftSDKRootPath.appending(
+      "\(isForEmbeddedSwift ? "embedded-" : "")toolset.json"
+    )
 
     var relativeToolchainBinDir = pathsConfiguration.toolchainBinDirPath
 
@@ -37,18 +39,27 @@ extension SwiftSDKGenerator {
     }
 
     var toolset = Toolset(rootPath: relativeToolchainBinDir.string)
-    recipe.applyPlatformOptions(toolset: &toolset, targetTriple: self.targetTriple)
+    recipe.applyPlatformOptions(
+      toolset: &toolset,
+      targetTriple: self.targetTriple,
+      isForEmbeddedSwift: isForEmbeddedSwift
+    )
     try writeFile(at: toolsetJSONPath, encoder.encode(toolset))
 
     return toolsetJSONPath
   }
 
-  func generateDestinationJSON(toolsetPath: FilePath, sdkDirPath: FilePath, recipe: SwiftSDKRecipe)
-    throws
-  {
-    logger.info("Generating destination JSON file...")
+  func generateSwiftSDKMetadata(
+    toolsetPath: FilePath,
+    sdkDirPath: FilePath,
+    recipe: SwiftSDKRecipe,
+    isForEmbeddedSwift: Bool = false
+  ) throws -> FilePath {
+    logger.info("Generating Swift SDK metadata JSON file...")
 
-    let destinationJSONPath = pathsConfiguration.swiftSDKRootPath.appending("swift-sdk.json")
+    let destinationJSONPath = pathsConfiguration.swiftSDKRootPath.appending(
+      "\(isForEmbeddedSwift ? "embedded-" : "")swift-sdk.json"
+    )
 
     var relativeToolchainBinDir = pathsConfiguration.toolchainBinDirPath
     var relativeSDKDir = sdkDirPath
@@ -67,30 +78,31 @@ extension SwiftSDKGenerator {
       )
     }
 
-    var metadata = SwiftSDKMetadataV4.TripleProperties(
-      sdkRootPath: relativeSDKDir.string,
-      toolsetPaths: [relativeToolsetPath.string]
+    var metadata = SwiftSDKMetadataV4(
+      targetTriples: [
+        self.targetTriple.triple: .init(
+          sdkRootPath: relativeSDKDir.string,
+          toolsetPaths: [relativeToolsetPath.string]
+        )
+      ]
     )
 
     recipe.applyPlatformOptions(
       metadata: &metadata,
       paths: pathsConfiguration,
-      targetTriple: self.targetTriple
+      targetTriple: self.targetTriple,
+      isForEmbeddedSwift: isForEmbeddedSwift
     )
 
     try writeFile(
       at: destinationJSONPath,
-      encoder.encode(
-        SwiftSDKMetadataV4(
-          targetTriples: [
-            self.targetTriple.triple: metadata
-          ]
-        )
-      )
+      encoder.encode(metadata)
     )
+
+    return destinationJSONPath
   }
 
-  func generateArtifactBundleManifest(hostTriples: [Triple]?) throws {
+  func generateArtifactBundleManifest(hostTriples: [Triple]?, artifacts: [String: FilePath]) throws {
     logger.info("Generating .artifactbundle info JSON file...")
 
     let artifactBundleManifestPath = pathsConfiguration.artifactBundlePath.appending("info.json")
@@ -100,18 +112,22 @@ extension SwiftSDKGenerator {
       encoder.encode(
         ArtifactsArchiveMetadata(
           schemaVersion: "1.0",
-          artifacts: [
-            artifactID: .init(
+          artifacts: artifacts.mapValues {
+            var relativePath = $0
+            let prefixRemoved = relativePath.removePrefix(pathsConfiguration.artifactBundlePath)
+            assert(prefixRemoved)
+
+            return .init(
               type: .swiftSDK,
               version: self.bundleVersion,
               variants: [
                 .init(
-                  path: FilePath(artifactID).appending(self.targetTriple.triple).string,
+                  path: relativePath.string,
                   supportedTriples: hostTriples.map { $0.map(\.triple) }
                 )
               ]
             )
-          ]
+          }
         )
       )
     )

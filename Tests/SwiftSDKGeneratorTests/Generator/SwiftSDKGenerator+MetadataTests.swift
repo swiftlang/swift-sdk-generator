@@ -16,6 +16,12 @@ import XCTest
 
 @testable import SwiftSDKGenerator
 
+#if canImport(FoundationEssentials)
+  import FoundationEssentials
+#else
+  import Foundation
+#endif
+
 final class SwiftSDKGeneratorMetadataTests: XCTestCase {
   let logger = Logger(label: "SwiftSDKGeneratorMetadataTests")
 
@@ -54,19 +60,44 @@ final class SwiftSDKGeneratorMetadataTests: XCTestCase {
 
       // Make sure the file exists
       let sdkSettingsFile = sdkDirPath.appending("SDKSettings.json")
-      let fileExists = await sdk.doesFileExist(at: sdkSettingsFile)
+      var fileExists = await sdk.doesFileExist(at: sdkSettingsFile)
       XCTAssertTrue(fileExists)
 
       // Read back file, make sure it contains the expected data
-      let data = String(data: try await sdk.readFile(at: sdkSettingsFile), encoding: .utf8)
-      XCTAssertNotNil(data)
-      XCTAssertTrue(data!.contains(testCase.bundleVersion))
-      XCTAssertTrue(data!.contains("(\(testCase.targetTriple.archName))"))
-      XCTAssertTrue(data!.contains(linuxDistribution.description))
-      XCTAssertTrue(data!.contains(testCase.expectedCanonicalName))
+      let maybeString = String(data: try await sdk.readFile(at: sdkSettingsFile), encoding: .utf8)
+      let string = try XCTUnwrap(maybeString)
+      XCTAssertTrue(string.contains(testCase.bundleVersion))
+      XCTAssertTrue(string.contains("(\(testCase.targetTriple.archName))"))
+      XCTAssertTrue(string.contains(linuxDistribution.description))
+      XCTAssertTrue(string.contains(testCase.expectedCanonicalName))
 
       // Cleanup
       try await sdk.removeFile(at: sdkSettingsFile)
+
+      try await sdk.createDirectoryIfNeeded(at: sdk.pathsConfiguration.artifactBundlePath)
+
+      // Generate bundle metadata
+      try await sdk.generateArtifactBundleManifest(
+        hostTriples: [sdk.targetTriple],
+        artifacts: ["foo": sdk.pathsConfiguration.artifactBundlePath.appending("bar.json")]
+      )
+
+      // Make sure the file exists
+      let archiveMetadataFile = await sdk.pathsConfiguration.artifactBundlePath.appending("info.json")
+      fileExists = await sdk.doesFileExist(at: archiveMetadataFile)
+      XCTAssertTrue(fileExists)
+
+      // Read back file, make sure it contains the expected data
+      let data = try await sdk.readFile(at: archiveMetadataFile)
+      let decodedMetadata = try JSONDecoder().decode(ArtifactsArchiveMetadata.self, from: data)
+      XCTAssertEqual(decodedMetadata.artifacts.count, 1)
+      for (id, artifact) in decodedMetadata.artifacts {
+        XCTAssertEqual(id, "foo")
+        XCTAssertEqual(artifact.variants, [.init(path: "bar.json", supportedTriples: [testCase.targetTriple.triple])])
+      }
+
+      // Cleanup
+      try await sdk.removeFile(at: archiveMetadataFile)
     }
   }
 }
