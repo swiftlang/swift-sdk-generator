@@ -113,12 +113,16 @@ extension SwiftSDKGenerator {
         ArtifactsArchiveMetadata(
           schemaVersion: "1.0",
           artifacts: artifacts.mapValues {
-            .init(
+            var relativePath = $0
+            let prefixRemoved = relativePath.removePrefix(pathsConfiguration.artifactBundlePath)
+            assert(prefixRemoved)
+
+            return .init(
               type: .swiftSDK,
               version: self.bundleVersion,
               variants: [
                 .init(
-                  path: $0.string,
+                  path: relativePath.string,
                   supportedTriples: hostTriples.map { $0.map(\.triple) }
                 )
               ]
