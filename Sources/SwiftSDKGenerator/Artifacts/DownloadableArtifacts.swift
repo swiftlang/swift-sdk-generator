@@ -10,12 +10,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-import struct Foundation.URL
 import Helpers
+
+import struct Foundation.URL
 import struct SystemPackage.FilePath
 
-private extension Triple {
-  var llvmBinaryURLSuffix: String {
+extension Triple {
+  fileprivate var llvmBinaryURLSuffix: String {
     switch (self.os, self.arch) {
     case (.linux, .aarch64): return "aarch64-linux-gnu"
     case (.linux, .x86_64): return "x86_64-linux-gnu-ubuntu-22.04"
@@ -53,11 +54,12 @@ struct DownloadableArtifacts: Sendable {
 
     if hostTriple.os == .linux {
       // Amazon Linux 2 is chosen for its best compatibility with all Swift-supported Linux hosts
-      let linuxArchSuffix = hostTriple.arch == .aarch64 ? "-\(Triple.Arch.aarch64.linuxConventionName)" : ""
+      let hostArchSuffix =
+        hostTriple.arch == .aarch64 ? "-\(Triple.Arch.aarch64.linuxConventionName)" : ""
       self.hostSwift = .init(
         remoteURL: versions.swiftDownloadURL(
-          subdirectory: "amazonlinux2\(linuxArchSuffix)",
-          platform: "amazonlinux2\(linuxArchSuffix)",
+          subdirectory: "amazonlinux2\(hostArchSuffix)",
+          platform: "amazonlinux2\(hostArchSuffix)",
           fileExtension: "tar.gz"
         ),
         localPath: paths.artifactsCachePath
@@ -80,12 +82,12 @@ struct DownloadableArtifacts: Sendable {
     self.hostLLVM = .init(
       remoteURL: URL(
         string: """
-        https://github.com/llvm/llvm-project/releases/download/llvmorg-\(
-          versions.lldVersion
-        )/clang+llvm-\(
-          versions.lldVersion
-        )-\(hostTriple.llvmBinaryURLSuffix).tar.xz
-        """
+          https://github.com/llvm/llvm-project/releases/download/llvmorg-\(
+            versions.lldVersion
+          )/clang+llvm-\(
+            versions.lldVersion
+          )-\(hostTriple.llvmBinaryURLSuffix).tar.xz
+          """
       )!,
       localPath: paths.artifactsCachePath
         .appending("host_llvm_\(versions.lldVersion)_\(hostTriple.triple).tar.xz"),
@@ -95,7 +97,9 @@ struct DownloadableArtifacts: Sendable {
     self.targetSwift = .init(
       remoteURL: versions.swiftDownloadURL(),
       localPath: paths.artifactsCachePath
-        .appending("target_swift_\(versions.swiftVersion)_\(targetTriple.triple).tar.gz"),
+        .appending(
+          "target_swift_\(versions.swiftVersion)_\(versions.swiftPlatform)_\(targetTriple.archName).tar.gz"
+        ),
       isPrebuilt: true
     )
   }
@@ -104,12 +108,12 @@ struct DownloadableArtifacts: Sendable {
     self.hostLLVM = .init(
       remoteURL: URL(
         string: """
-        https://github.com/llvm/llvm-project/releases/download/llvmorg-\(
-          self.versions.lldVersion
-        )/llvm-project-\(
-          self.versions.lldVersion
-        ).src.tar.xz
-        """
+          https://github.com/llvm/llvm-project/releases/download/llvmorg-\(
+            self.versions.lldVersion
+          )/llvm-project-\(
+            self.versions.lldVersion
+          ).src.tar.xz
+          """
       )!,
       localPath: self.paths.artifactsCachePath
         .appending("llvm_\(self.versions.lldVersion).src.tar.xz"),

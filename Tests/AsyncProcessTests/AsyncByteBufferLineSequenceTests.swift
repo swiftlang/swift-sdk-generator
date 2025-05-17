@@ -43,7 +43,9 @@ final class AsyncByteBufferLineSequenceTests: XCTestCase {
   func testManyChunksNoNewlineNotDeliveringLastChunk() async throws {
     for n in 0..<100 {
       let inputs: [ByteBuffer] = [ByteBuffer(repeating: 0, count: n)]
-      let lines = try await Array(inputs.async.splitIntoLines(dropLastChunkIfNoNewline: true).strings)
+      let lines = try await Array(
+        inputs.async.splitIntoLines(dropLastChunkIfNoNewline: true).strings
+      )
       XCTAssertEqual([], lines)
     }
   }
@@ -61,11 +63,11 @@ final class AsyncByteBufferLineSequenceTests: XCTestCase {
   }
 
   func testOverlyLongLineIsSplitByDefault() async throws {
-    var inputs = [ByteBuffer(repeating: UInt8(0), count: 1024 * 1024 - 2)] // almost at the limit
+    var inputs = [ByteBuffer(repeating: UInt8(0), count: 1024 * 1024 - 2)]  // almost at the limit
     inputs.append(ByteBuffer(integer: UInt8(ascii: "\0")))
-    inputs.append(ByteBuffer(integer: UInt8(ascii: "\0"))) // hitting the limit
-    inputs.append(ByteBuffer(integer: UInt8(ascii: "\0"))) // over the limit
-    inputs.append(ByteBuffer(integer: UInt8(ascii: "\n"))) // too late
+    inputs.append(ByteBuffer(integer: UInt8(ascii: "\0")))  // hitting the limit
+    inputs.append(ByteBuffer(integer: UInt8(ascii: "\0")))  // over the limit
+    inputs.append(ByteBuffer(integer: UInt8(ascii: "\n")))  // too late
     let lines = try await Array(
       inputs.async.splitIntoLines(
         dropTerminator: false,

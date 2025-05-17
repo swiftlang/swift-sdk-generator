@@ -10,28 +10,29 @@
 //
 //===----------------------------------------------------------------------===//
 
-import Logging
 import Helpers
+import Logging
+
 import struct SystemPackage.FilePath
 
-public struct WebAssemblyRecipe: SwiftSDKRecipe {
+package struct WebAssemblyRecipe: SwiftSDKRecipe {
   let hostSwiftPackage: HostToolchainPackage?
   let targetSwiftPackagePath: FilePath
   let wasiSysroot: FilePath
   let swiftVersion: String
-  public let logger: Logger
+  package let logger: Logger
 
-  public struct HostToolchainPackage: Sendable {
+  package struct HostToolchainPackage: Sendable {
     let path: FilePath
     let triple: Triple
 
-    public init(path: FilePath, triple: Triple) {
+    package init(path: FilePath, triple: Triple) {
       self.path = path
       self.triple = triple
     }
   }
 
-  public init(
+  package init(
     hostSwiftPackage: HostToolchainPackage?,
     targetSwiftPackagePath: FilePath,
     wasiSysroot: FilePath,
@@ -45,13 +46,35 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
     self.logger = logger
   }
 
-  public var defaultArtifactID: String {
+  package var defaultArtifactID: String {
     "\(self.swiftVersion)_wasm"
   }
 
-  public func applyPlatformOptions(toolset: inout Toolset, targetTriple: Triple) {
+  package let shouldSupportEmbeddedSwift = true
+
+  package func applyPlatformOptions(toolset: inout Toolset, targetTriple: Triple, isForEmbeddedSwift: Bool) {
     // We only support static linking for WebAssembly for now, so make it the default.
     toolset.swiftCompiler = Toolset.ToolProperties(extraCLIOptions: ["-static-stdlib"])
+
+    if isForEmbeddedSwift {
+      let ccOptions = ["-D__EMBEDDED_SWIFT__"]
+      toolset.cCompiler = Toolset.ToolProperties(extraCLIOptions: ccOptions)
+      toolset.cxxCompiler = Toolset.ToolProperties(extraCLIOptions: ccOptions)
+
+      toolset.swiftCompiler?.extraCLIOptions?.append(
+        contentsOf: [
+          "-enable-experimental-feature", "Embedded", "-wmo",
+        ]
+      )
+
+      toolset.swiftCompiler?.extraCLIOptions?.append(
+        // libraries required for concurrency
+        contentsOf: ["-lc++", "-lswift_Concurrency", "-lswift_ConcurrencyDefaultExecutor"].flatMap {
+          ["-Xlinker", $0]
+        }
+      )
+    }
+
     if targetTriple.environmentName == "threads" {
       // Enable features required for threading support
       let ccOptions = [
@@ -59,9 +82,11 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
         "-pthread", "-ftls-model=local-exec",
       ]
       // Tell LLVM codegen in swiftc to enable those features via clang options
-      toolset.swiftCompiler?.extraCLIOptions?.append(contentsOf: ccOptions.flatMap {
-        ["-Xcc", $0]
-      })
+      toolset.swiftCompiler?.extraCLIOptions?.append(
+        contentsOf: ccOptions.flatMap {
+          ["-Xcc", $0]
+        }
+      )
       // Tell the C and C++ compilers to enable those features
       toolset.cCompiler = Toolset.ToolProperties(extraCLIOptions: ccOptions)
       toolset.cxxCompiler = Toolset.ToolProperties(extraCLIOptions: ccOptions)
@@ -79,20 +104,37 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
     }
   }
 
-  public func applyPlatformOptions(
-    metadata: inout SwiftSDKMetadataV4.TripleProperties,
+  package func applyPlatformOptions(
+    metadata: inout SwiftSDKMetadataV4,
     paths: PathsConfiguration,
-    targetTriple: Triple
+    targetTriple: Triple,
+    isForEmbeddedSwift: Bool
   ) {
     var relativeToolchainDir = paths.toolchainDirPath
     guard relativeToolchainDir.removePrefix(paths.swiftSDKRootPath) else {
-      fatalError("The toolchain bin directory path must be a subdirectory of the Swift SDK root path.")
+      fatalError(
+        "The toolchain bin directory path must be a subdirectory of the Swift SDK root path."
+      )
     }
-    metadata.swiftStaticResourcesPath = relativeToolchainDir.appending("usr/lib/swift_static").string
-    metadata.swiftResourcesPath = metadata.swiftStaticResourcesPath
+
+    var tripleProperties = metadata.targetTriples[targetTriple.triple]!
+    tripleProperties.swiftStaticResourcesPath =
+      relativeToolchainDir.appending("usr/lib/swift_static").string
+    tripleProperties.swiftResourcesPath =
+      isForEmbeddedSwift
+      ? relativeToolchainDir.appending("usr/lib/swift").string
+      : tripleProperties.swiftStaticResourcesPath
+
+    var finalTriple = targetTriple
+    if isForEmbeddedSwift {
+      metadata.targetTriples.removeValue(forKey: targetTriple.triple)
+      finalTriple = Triple("wasm32-unknown-wasip1")
+    }
+
+    metadata.targetTriples[finalTriple.triple] = tripleProperties
   }
 
-  public func makeSwiftSDK(
+  package func makeSwiftSDK(
     generator: SwiftSDKGenerator,
     engine: QueryEngine,
     httpClient: some HTTPClientProtocol
@@ -104,7 +146,10 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
     var hostTriples: [Triple]? = nil
     if let hostSwiftPackage {
       hostTriples = [hostSwiftPackage.triple]
-      try await generator.rsync(from: hostSwiftPackage.path.appending("usr"), to: pathsConfiguration.toolchainDirPath)
+      try await generator.rsync(
+        from: hostSwiftPackage.path.appending("usr"),
+        to: pathsConfiguration.toolchainDirPath
+      )
 
       logger.info("Removing unused toolchain components...")
       let liblldbNames: [String] = try await {
@@ -127,19 +172,35 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
       try await self.mergeTargetSwift(from: targetSwiftLibPath, generator: generator)
     } else {
       // Simply copy the target Swift package into the SDK bundle when building host-agnostic SDK.
-      try await generator.createDirectoryIfNeeded(at: pathsConfiguration.toolchainDirPath.appending("usr"))
-      try await generator.copy(from: targetSwiftLibPath, to: pathsConfiguration.toolchainDirPath.appending("usr/lib"))
+      try await generator.createDirectoryIfNeeded(
+        at: pathsConfiguration.toolchainDirPath.appending("usr")
+      )
+      try await generator.copy(
+        from: targetSwiftLibPath,
+        to: pathsConfiguration.toolchainDirPath.appending("usr/lib")
+      )
     }
 
-    let autolinkExtractPath = generator.pathsConfiguration.toolchainBinDirPath.appending("swift-autolink-extract")
+    let autolinkExtractPath = pathsConfiguration.toolchainBinDirPath.appending(
+      "swift-autolink-extract"
+    )
 
     // WebAssembly object file requires `swift-autolink-extract`
     if await !generator.doesFileExist(at: autolinkExtractPath),
-       await generator.doesFileExist(at: generator.pathsConfiguration.toolchainBinDirPath.appending("swift"))
+      await generator.doesFileExist(
+        at: generator.pathsConfiguration.toolchainBinDirPath.appending("swift")
+      )
     {
       logger.info("Fixing `swift-autolink-extract` symlink...")
       try await generator.createSymlink(at: autolinkExtractPath, pointingTo: "swift")
     }
+
+    // Embedded Swift looks up clang compiler-rt in a different path.
+    let embeddedCompilerRTPath = pathsConfiguration.toolchainDirPath.appending(
+      "usr/lib/swift/clang/lib/wasip1"
+    )
+
+    try await generator.createSymlink(at: embeddedCompilerRTPath, pointingTo: "wasi")
 
     // Copy the WASI sysroot into the SDK bundle.
     let sdkDirPath = pathsConfiguration.swiftSDKRootPath.appending("WASI.sdk")
@@ -156,17 +217,34 @@ public struct WebAssemblyRecipe: SwiftSDKRecipe {
       ("clang", pathsConfiguration.toolchainDirPath.appending("usr/lib"), false),
       ("swift/clang", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift"), false),
       ("swift/wasi", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift"), false),
-      ("swift_static/clang", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static"), false),
-      ("swift_static/wasi", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static"), false),
-      ("swift_static/shims", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static"), false),
+      (
+        "swift_static/clang", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static"),
+        false
+      ),
+      (
+        "swift_static/wasi", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static"),
+        false
+      ),
+      (
+        "swift_static/shims", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static"),
+        false
+      ),
       // Mark CoreFoundation as optional until we set up build system to build it for WebAssembly
-      ("swift_static/CoreFoundation", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static"), true),
+      (
+        "swift_static/CoreFoundation",
+        pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static"), true
+      ),
     ] {
-      if isOptional, await !(generator.doesFileExist(at: distributionPath.appending(pathWithinPackage))) {
+      if isOptional,
+        await !(generator.doesFileExist(at: distributionPath.appending(pathWithinPackage)))
+      {
         logger.debug("Skipping optional path \(pathWithinPackage)")
         continue
       }
-      try await generator.rsync(from: distributionPath.appending(pathWithinPackage), to: pathWithinSwiftSDK)
+      try await generator.rsync(
+        from: distributionPath.appending(pathWithinPackage),
+        to: pathWithinSwiftSDK
+      )
     }
   }
 }

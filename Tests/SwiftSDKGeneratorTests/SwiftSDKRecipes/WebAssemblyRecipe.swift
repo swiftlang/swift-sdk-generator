@@ -17,7 +17,7 @@ import XCTest
 
 final class WebAssemblyRecipeTests: XCTestCase {
   let logger = Logger(label: "WebAssemblyRecipeTests")
-  
+
   func createRecipe() -> WebAssemblyRecipe {
     WebAssemblyRecipe(
       hostSwiftPackage: nil,
@@ -32,7 +32,9 @@ final class WebAssemblyRecipeTests: XCTestCase {
     let recipe = self.createRecipe()
     var toolset = Toolset(rootPath: nil)
     recipe.applyPlatformOptions(
-      toolset: &toolset, targetTriple: Triple("wasm32-unknown-wasi")
+      toolset: &toolset,
+      targetTriple: Triple("wasm32-unknown-wasi"),
+      isForEmbeddedSwift: false
     )
     XCTAssertEqual(toolset.swiftCompiler?.extraCLIOptions, ["-static-stdlib"])
     XCTAssertNil(toolset.cCompiler)
@@ -40,11 +42,36 @@ final class WebAssemblyRecipeTests: XCTestCase {
     XCTAssertNil(toolset.linker)
   }
 
+  func testEmbeddedToolOptions() {
+    let recipe = self.createRecipe()
+    var toolset = Toolset(rootPath: nil)
+    recipe.applyPlatformOptions(
+      toolset: &toolset,
+      targetTriple: Triple("wasm32-unknown-wasi"),
+      isForEmbeddedSwift: true
+    )
+    XCTAssertEqual(
+      toolset.swiftCompiler?.extraCLIOptions,
+      [
+        "-static-stdlib",
+        "-enable-experimental-feature", "Embedded", "-wmo",
+      ]
+        + ["-lc++", "-lswift_Concurrency", "-lswift_ConcurrencyDefaultExecutor"].flatMap {
+          ["-Xlinker", $0]
+        }
+    )
+    XCTAssertEqual(toolset.cCompiler?.extraCLIOptions, ["-D__EMBEDDED_SWIFT__"])
+    XCTAssertEqual(toolset.cxxCompiler?.extraCLIOptions, ["-D__EMBEDDED_SWIFT__"])
+    XCTAssertNil(toolset.linker)
+  }
+
   func testToolOptionsWithThreads() {
     let recipe = self.createRecipe()
     var toolset = Toolset(rootPath: nil)
     recipe.applyPlatformOptions(
-      toolset: &toolset, targetTriple: Triple("wasm32-unknown-wasip1-threads")
+      toolset: &toolset,
+      targetTriple: Triple("wasm32-unknown-wasip1-threads"),
+      isForEmbeddedSwift: false
     )
     XCTAssertEqual(
       toolset.swiftCompiler?.extraCLIOptions,
@@ -65,8 +92,11 @@ final class WebAssemblyRecipeTests: XCTestCase {
     ]
     XCTAssertEqual(toolset.cCompiler?.extraCLIOptions, ccOptions)
     XCTAssertEqual(toolset.cxxCompiler?.extraCLIOptions, ccOptions)
-    XCTAssertEqual(toolset.linker?.extraCLIOptions, [
-      "--import-memory", "--export-memory", "--shared-memory", "--max-memory=1073741824",
-    ])
+    XCTAssertEqual(
+      toolset.linker?.extraCLIOptions,
+      [
+        "--import-memory", "--export-memory", "--shared-memory", "--max-memory=1073741824",
+      ]
+    )
   }
 }

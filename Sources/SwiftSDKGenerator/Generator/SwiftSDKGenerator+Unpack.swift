@@ -51,10 +51,10 @@ extension SwiftSDKGenerator {
     try self.createDirectoryIfNeeded(at: pathsConfiguration.toolchainDirPath)
 
     let excludes =
-      unusedTargetPlatforms.map { "--exclude usr/lib/swift/\($0)" } +
-      unusedTargetPlatforms.map { "--exclude usr/lib/swift_static/\($0)" } +
-      unusedHostBinaries.map { "--exclude usr/bin/\($0)" } +
-      unusedHostLibraries.map { "--exclude usr/lib/\($0)" }
+      unusedTargetPlatforms.map { "--exclude usr/lib/swift/\($0)" }
+      + unusedTargetPlatforms.map { "--exclude usr/lib/swift_static/\($0)" }
+      + unusedHostBinaries.map { "--exclude usr/bin/\($0)" }
+      + unusedHostLibraries.map { "--exclude usr/lib/\($0)" }
 
     if hostSwiftPackagePath.string.contains("tar.gz") {
       try await Shell.run(
@@ -103,12 +103,15 @@ extension SwiftSDKGenerator {
     try await inTemporaryDirectory { fs, tmpDir in
       try await fs.unpack(file: targetSwiftPackagePath, into: tmpDir)
       try await fs.copyTargetSwift(
-        from: tmpDir.appending(relativePathToRoot).appending("usr"), sdkDirPath: sdkDirPath
+        from: tmpDir.appending(relativePathToRoot).appending("usr"),
+        sdkDirPath: sdkDirPath
       )
     }
   }
 
-  func prepareLLDLinker(_ engine: QueryEngine, llvmArtifact: DownloadableArtifacts.Item) async throws {
+  func prepareLLDLinker(_ engine: QueryEngine, llvmArtifact: DownloadableArtifacts.Item)
+    async throws
+  {
     logger.info("Unpacking and copying `lld` linker...")
     let pathsConfiguration = self.pathsConfiguration
     let targetOS = self.targetTriple.os
@@ -120,23 +123,27 @@ extension SwiftSDKGenerator {
 
     let unpackedLLDPath: FilePath
     if llvmArtifact.isPrebuilt {
-      unpackedLLDPath = try await engine[TarExtractQuery(
-        file: llvmArtifact.localPath,
-        into: untarDestination,
-        outputBinarySubpath: ["bin", "lld"],
-        stripComponents: 1
-      )].path
+      unpackedLLDPath = try await engine[
+        TarExtractQuery(
+          file: llvmArtifact.localPath,
+          into: untarDestination,
+          outputBinarySubpath: ["bin", "lld"],
+          stripComponents: 1
+        )
+      ].path
     } else {
       try await self.untar(
         file: llvmArtifact.localPath,
         into: untarDestination,
         stripComponents: 1
       )
-      unpackedLLDPath = try await engine[CMakeBuildQuery(
-        sourcesDirectory: untarDestination,
-        outputBinarySubpath: ["bin", "lld"],
-        options: "-DLLVM_ENABLE_PROJECTS=lld -DLLVM_TARGETS_TO_BUILD=''"
-      )].path
+      unpackedLLDPath = try await engine[
+        CMakeBuildQuery(
+          sourcesDirectory: untarDestination,
+          outputBinarySubpath: ["bin", "lld"],
+          options: "-DLLVM_ENABLE_PROJECTS=lld -DLLVM_TARGETS_TO_BUILD=''"
+        )
+      ].path
     }
 
     let toolchainLLDPath: FilePath

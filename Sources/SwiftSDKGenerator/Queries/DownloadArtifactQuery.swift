@@ -10,9 +10,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-import class Foundation.ByteCountFormatter
-import Logging
 import Helpers
+import Logging
+
+import class Foundation.ByteCountFormatter
 import struct SystemPackage.FilePath
 
 struct DownloadArtifactQuery: Query {
@@ -22,9 +23,13 @@ struct DownloadArtifactQuery: Query {
   let logger: Logger
 
   func run(engine: QueryEngine) async throws -> FilePath {
-    logger.info("Downloading remote artifact not available in local cache", metadata: ["remoteUrl": .string(self.artifact.remoteURL.absoluteString)])
+    logger.info(
+      "Downloading remote artifact not available in local cache",
+      metadata: ["remoteUrl": .string(self.artifact.remoteURL.absoluteString)]
+    )
     let stream = self.httpClient.streamDownloadProgress(
-      from: self.artifact.remoteURL, to: self.artifact.localPath
+      from: self.artifact.remoteURL,
+      to: self.artifact.localPath
     )
     .removeDuplicates(by: didProgressChangeSignificantly)
     ._throttle(for: .seconds(1))
@@ -39,15 +44,17 @@ struct DownloadArtifactQuery: Query {
     let byteCountFormatter = ByteCountFormatter()
 
     if let total = progress.totalBytes {
-      logger.debug("""
-      \(artifact.remoteURL.lastPathComponent) \(
-        byteCountFormatter
-          .string(fromByteCount: Int64(progress.receivedBytes))
-      )/\(
-        byteCountFormatter
-          .string(fromByteCount: Int64(total))
+      logger.debug(
+        """
+        \(artifact.remoteURL.lastPathComponent) \(
+          byteCountFormatter
+            .string(fromByteCount: Int64(progress.receivedBytes))
+        )/\(
+          byteCountFormatter
+            .string(fromByteCount: Int64(total))
+        )
+        """
       )
-      """)
     } else {
       logger.debug(
         "\(artifact.remoteURL.lastPathComponent) \(byteCountFormatter.string(fromByteCount: Int64(progress.receivedBytes)))"

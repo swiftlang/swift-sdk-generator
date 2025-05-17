@@ -53,7 +53,7 @@ public struct OutputLoggingSettings: Sendable {
   }
 }
 
-public extension ProcessExecutor {
+extension ProcessExecutor {
   /// Run child process, discarding all its output.
   ///
   /// - note: The `environment` defaults to the empty environment.
@@ -69,7 +69,7 @@ public extension ProcessExecutor {
   /// don't want to
   ///                    provide input.
   ///   - logger: Where to log diagnostic messages to (default to no where)
-  static func run<StandardInput: AsyncSequence & Sendable>(
+  public static func run<StandardInput: AsyncSequence & Sendable>(
     group: EventLoopGroup = ProcessExecutor.defaultEventLoopGroup,
     executable: String,
     _ arguments: [String],
@@ -106,7 +106,7 @@ public extension ProcessExecutor {
   ///                    provide input.
   ///   - logger: Where to log diagnostic and output messages to
   ///   - logConfiguration: How to log the output lines
-  static func runLogOutput<StandardInput: AsyncSequence & Sendable>(
+  public static func runLogOutput<StandardInput: AsyncSequence & Sendable>(
     group: EventLoopGroup = ProcessExecutor.defaultEventLoopGroup,
     executable: String,
     _ arguments: [String],
@@ -128,7 +128,9 @@ public extension ProcessExecutor {
     return try await withThrowingTaskGroup(of: ProcessExitReason?.self) { group in
       group.addTask {
         for try await (stream, line) in await merge(
-          exe.standardOutput.splitIntoLines().strings.map { (ProcessOutputStream.standardOutput, $0) },
+          exe.standardOutput.splitIntoLines().strings.map {
+            (ProcessOutputStream.standardOutput, $0)
+          },
           exe.standardError.splitIntoLines().strings.map { (ProcessOutputStream.standardError, $0) }
         ) {
           logger.log(
@@ -171,12 +173,12 @@ public extension ProcessExecutor {
   ///   - splitOutputIntoLines: Whether to call the closure with full lines (`true`) or arbitrary chunks of output
   /// (`false`)
   ///   - logger: Where to log diagnostic and output messages to
-  static func runProcessingOutput<StandardInput: AsyncSequence & Sendable>(
+  public static func runProcessingOutput<StandardInput: AsyncSequence & Sendable>(
     group: EventLoopGroup = ProcessExecutor.defaultEventLoopGroup,
     executable: String,
     _ arguments: [String],
     standardInput: StandardInput,
-    outputProcessor: @escaping @Sendable (ProcessOutputStream, ByteBuffer) async throws -> (),
+    outputProcessor: @escaping @Sendable (ProcessOutputStream, ByteBuffer) async throws -> Void,
     splitOutputIntoLines: Bool = false,
     environment: [String: String] = [:],
     logger: Logger = ProcessExecutor.disableLogging
@@ -225,11 +227,11 @@ public extension ProcessExecutor {
     }
   }
 
-  struct TooMuchProcessOutputError: Error, Sendable & Hashable {
+  public struct TooMuchProcessOutputError: Error, Sendable & Hashable {
     public var stream: ProcessOutputStream
   }
 
-  struct ProcessExitReasonAndOutput: Sendable & Hashable {
+  public struct ProcessExitReasonAndOutput: Sendable & Hashable {
     public var exitReason: ProcessExitReason
     public var standardOutput: ByteBuffer?
     public var standardError: ByteBuffer?
@@ -260,7 +262,7 @@ public extension ProcessExecutor {
   ///   - collectStandardError: If `true`, collect all of the child process' standard error into memory, discard if
   /// `false`
   ///   - logger: Where to log diagnostic and output messages to
-  static func runCollectingOutput<StandardInput: AsyncSequence & Sendable>(
+  public static func runCollectingOutput<StandardInput: AsyncSequence & Sendable>(
     group: EventLoopGroup = ProcessExecutor.defaultEventLoopGroup,
     executable: String,
     _ arguments: [String],
@@ -287,7 +289,9 @@ public extension ProcessExecutor {
         if collectStandardOutput {
           var output: ByteBuffer? = nil
           for try await chunk in await exe.standardOutput {
-            guard (output?.readableBytes ?? 0) + chunk.readableBytes <= perStreamCollectionLimitBytes else {
+            guard
+              (output?.readableBytes ?? 0) + chunk.readableBytes <= perStreamCollectionLimitBytes
+            else {
               throw TooMuchProcessOutputError(stream: .standardOutput)
             }
             output.setOrWriteImmutableBuffer(chunk)
@@ -302,7 +306,9 @@ public extension ProcessExecutor {
         if collectStandardError {
           var output: ByteBuffer? = nil
           for try await chunk in await exe.standardError {
-            guard (output?.readableBytes ?? 0) + chunk.readableBytes <= perStreamCollectionLimitBytes else {
+            guard
+              (output?.readableBytes ?? 0) + chunk.readableBytes <= perStreamCollectionLimitBytes
+            else {
               throw TooMuchProcessOutputError(stream: .standardError)
             }
             output.setOrWriteImmutableBuffer(chunk)
@@ -317,7 +323,11 @@ public extension ProcessExecutor {
         try await .exitReason(exe.run())
       }
 
-      var allInfo = ProcessExitReasonAndOutput(exitReason: .exit(-1), standardOutput: nil, standardError: nil)
+      var allInfo = ProcessExitReasonAndOutput(
+        exitReason: .exit(-1),
+        standardOutput: nil,
+        standardError: nil
+      )
       while let next = try await group.next() {
         switch next {
         case let .exitReason(exitReason):
@@ -333,7 +343,7 @@ public extension ProcessExecutor {
   }
 }
 
-public extension ProcessExecutor {
+extension ProcessExecutor {
   /// Run child process, discarding all its output.
   ///
   /// - note: The `environment` defaults to the empty environment.
@@ -346,7 +356,7 @@ public extension ProcessExecutor {
   ///                  If you want to inherit the calling process' environment into the child, specify
   /// `ProcessInfo.processInfo.environment`
   ///   - logger: Where to log diagnostic messages to (default to no where)
-  static func run(
+  public static func run(
     group: EventLoopGroup = ProcessExecutor.defaultEventLoopGroup,
     executable: String,
     _ arguments: [String],
@@ -376,7 +386,7 @@ public extension ProcessExecutor {
   /// `ProcessInfo.processInfo.environment`
   ///   - logger: Where to log diagnostic and output messages to
   ///   - logConfiguration: How to log the output lines
-  static func runLogOutput(
+  public static func runLogOutput(
     group: EventLoopGroup = ProcessExecutor.defaultEventLoopGroup,
     executable: String,
     _ arguments: [String],
@@ -410,11 +420,11 @@ public extension ProcessExecutor {
   ///   - splitOutputIntoLines: Whether to call the closure with full lines (`true`) or arbitrary chunks of output
   /// (`false`)
   ///   - logger: Where to log diagnostic and output messages to
-  static func runProcessingOutput(
+  public static func runProcessingOutput(
     group: EventLoopGroup = ProcessExecutor.defaultEventLoopGroup,
     executable: String,
     _ arguments: [String],
-    outputProcessor: @escaping @Sendable (ProcessOutputStream, ByteBuffer) async throws -> (),
+    outputProcessor: @escaping @Sendable (ProcessOutputStream, ByteBuffer) async throws -> Void,
     splitOutputIntoLines: Bool = false,
     environment: [String: String] = [:],
     logger: Logger = ProcessExecutor.disableLogging
@@ -447,7 +457,7 @@ public extension ProcessExecutor {
   ///   - collectStandardError: If `true`, collect all of the child process' standard error into memory, discard if
   /// `false`
   ///   - logger: Where to log diagnostic and output messages to
-  static func runCollectingOutput(
+  public static func runCollectingOutput(
     group: EventLoopGroup = ProcessExecutor.defaultEventLoopGroup,
     executable: String,
     _ arguments: [String],
@@ -460,7 +470,8 @@ public extension ProcessExecutor {
     try await self.runCollectingOutput(
       group: group,
       executable: executable,
-      arguments, standardInput: EOFSequence(),
+      arguments,
+      standardInput: EOFSequence(),
       collectStandardOutput: collectStandardOutput,
       collectStandardError: collectStandardError,
       perStreamCollectionLimitBytes: perStreamCollectionLimitBytes,

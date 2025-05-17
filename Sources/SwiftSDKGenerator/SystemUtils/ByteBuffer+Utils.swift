@@ -12,16 +12,19 @@
 
 import AsyncProcess
 import Foundation
+import Logging
 import NIOCore
 
-public extension ByteBuffer {
-  func unzip(zipPath: String, isVerbose: Bool) async throws -> ByteBuffer? {
+extension ByteBuffer {
+  public func unzip(zipPath: String, logger: Logger) async throws -> ByteBuffer? {
     let result = try await ProcessExecutor.runCollectingOutput(
-      executable: zipPath, ["-cd"],
+      executable: zipPath,
+      ["-cd"],
       standardInput: [self].async,
       collectStandardOutput: true,
       collectStandardError: false,
-      perStreamCollectionLimitBytes: 20 * 1024 * 1024
+      perStreamCollectionLimitBytes: 100 * 1024 * 1024,
+      logger: logger
     )
 
     try result.exitReason.throwIfNonZero()

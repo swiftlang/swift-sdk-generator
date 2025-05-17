@@ -16,6 +16,14 @@ import SystemPackage
 import struct Foundation.Data
 
 extension SwiftSDKGenerator {
+  func createLibSymlink(sdkDirPath: FilePath) throws {
+    let libPath = sdkDirPath.appending("lib")
+    if !doesFileExist(at: libPath) {
+      logger.info("Adding lib symlink to usr/lib...")
+      try createSymlink(at: libPath, pointingTo: "usr/lib")
+    }
+  }
+
   func fixAbsoluteSymlinks(sdkDirPath: FilePath) throws {
     logger.info("Fixing up absolute symlinks...")
 
@@ -49,7 +57,9 @@ extension SwiftSDKGenerator {
   }
 
   func symlinkClangHeaders() throws {
-    let swiftStaticClangPath = self.pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static/clang")
+    let swiftStaticClangPath = self.pathsConfiguration.toolchainDirPath.appending(
+      "usr/lib/swift_static/clang"
+    )
     if !doesFileExist(at: swiftStaticClangPath) {
       logger.info("Symlinking clang headers...")
       try self.createSymlink(
