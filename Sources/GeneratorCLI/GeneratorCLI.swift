@@ -11,8 +11,10 @@
 //===----------------------------------------------------------------------===//
 
 import ArgumentParser
+import Foundation
 import Logging
 import SwiftSDKGenerator
+
 import struct SystemPackage.FilePath
 
 @main
@@ -54,10 +56,10 @@ struct GeneratorCLI: AsyncParsableCommand {
       }
 
       #if canImport(Darwin)
-      // On Darwin platforms Dispatch's signal source uses kqueue and EVFILT_SIGNAL for
-      // delivering signals. This exists alongside but with lower precedence than signal and
-      // sigaction: ignore signal handling here to kqueue can deliver signals.
-      signal(SIGINT, SIG_IGN)
+        // On Darwin platforms Dispatch's signal source uses kqueue and EVFILT_SIGNAL for
+        // delivering signals. This exists alongside but with lower precedence than signal and
+        // sigaction: ignore signal handling here to kqueue can deliver signals.
+        signal(SIGINT, SIG_IGN)
       #endif
       let signalSource = DispatchSource.makeSignalSource(signal: SIGINT)
       signalSource.setEventHandler {
@@ -67,7 +69,10 @@ struct GeneratorCLI: AsyncParsableCommand {
       try await generatorTask.value
     }
 
-    logger.info("Generator run finished successfully.", metadata: ["elapsedTime": .string(elapsed.intervalString)])
+    logger.info(
+      "Generator run finished successfully.",
+      metadata: ["elapsedTime": .string(elapsed.intervalString)]
+    )
   }
 }
 
@@ -85,14 +90,15 @@ extension GeneratorCLI {
 
     @Option(
       help: """
-      Name of the SDK bundle. Defaults to a string composed of Swift version, Linux distribution, Linux release \
-      and target CPU architecture.
-      """
+        Name of the SDK bundle. Defaults to a string composed of Swift version, Linux distribution, Linux release \
+        and target CPU architecture.
+        """
     )
     var sdkName: String? = nil
 
     @Flag(
-      help: "Experimental: avoid cleaning up toolchain and SDK directories and regenerate the SDK bundle incrementally."
+      help:
+        "Experimental: avoid cleaning up toolchain and SDK directories and regenerate the SDK bundle incrementally."
     )
     var incremental: Bool = false
 
@@ -101,51 +107,51 @@ extension GeneratorCLI {
 
     @Option(
       help: """
-      Branch of Swift to use when downloading nightly snapshots. Specify `development` for snapshots off the `main` \
-      branch of Swift open source project repositories.
-      """
+        Branch of Swift to use when downloading nightly snapshots. Specify `development` for snapshots off the `main` \
+        branch of Swift open source project repositories.
+        """
     )
     var swiftBranch: String? = nil
 
     @Option(help: "Version of Swift to supply in the bundle.")
-    var swiftVersion = "6.0.3-RELEASE"
+    var swiftVersion = "6.1-RELEASE"
 
     @Option(
       help: """
-      Path to the Swift toolchain package containing the Swift compiler that runs on the host platform.
-      """
+        Path to the Swift toolchain package containing the Swift compiler that runs on the host platform.
+        """
     )
     var hostSwiftPackagePath: String? = nil
 
     @Flag(
       inversion: .prefixedNo,
       help: """
-      Whether or not to include the host toolchain in the Swift SDK.
-      If the host toolchain is not included, this makes the Swift SDK compatible with any host, \
-      but requires exactly the same version of the swift.org toolchain to be installed for it to work.
-      """
+        Whether or not to include the host toolchain in the Swift SDK.
+        If the host toolchain is not included, this makes the Swift SDK compatible with any host, \
+        but requires exactly the same version of the swift.org toolchain to be installed for it to work.
+        """
     )
     var hostToolchain: Bool = false
 
     @Option(
       help: """
-      Path to the Swift toolchain package containing the Swift standard library that runs on the target platform.
-      """
+        Path to the Swift toolchain package containing the Swift standard library that runs on the target platform.
+        """
     )
     var targetSwiftPackagePath: String? = nil
 
     @Option(
       help: """
-      The host triple of the bundle. Defaults to a triple of the machine this generator is \
-      running on if unspecified.
-      """
+        The host triple of the bundle. Defaults to a triple of the machine this generator is \
+        running on if unspecified.
+        """
     )
     var host: Triple? = nil
 
     @Option(
       help: """
-      The target triple of the bundle. The default depends on a recipe used for SDK generation. Pass `--help` to a specific recipe subcommand for more details.
-      """
+        The target triple of the bundle. The default depends on a recipe used for SDK generation. Pass `--help` to a specific recipe subcommand for more details.
+        """
     )
     var target: Triple? = nil
 
@@ -161,7 +167,9 @@ extension GeneratorCLI {
       let current = try SwiftSDKGenerator.getCurrentTriple(isVerbose: self.verbose)
       if let arch = hostArch {
         let target = Triple(arch: arch, vendor: current.vendor!, os: current.os!)
-        appLogger.warning("deprecated: Please use `--host \(target.triple)` instead of `--host-arch \(arch)`")
+        appLogger.warning(
+          "deprecated: Please use `--host \(target.triple)` instead of `--host-arch \(arch)`"
+        )
         return target
       }
       return current
@@ -173,8 +181,8 @@ extension GeneratorCLI {
       commandName: "make-linux-sdk",
       abstract: "Generate a Swift SDK bundle for Linux.",
       discussion: """
-      The default `--target` triple is Linux with the same CPU architecture with host triple
-      """
+        The default `--target` triple is Linux with the same CPU architecture with host triple
+        """
     )
 
     @OptionGroup
@@ -191,18 +199,20 @@ extension GeneratorCLI {
 
     @Option(
       help: """
-      Linux distribution to use if the target platform is Linux. Available options: `ubuntu`, `rhel`. Default is `ubuntu`.
-      """,
+        Linux distribution to use if the target platform is Linux.
+        - Available options: `ubuntu`, `debian`, `rhel`. Default is `ubuntu`.
+        """,
       transform: LinuxDistribution.Name.init(nameString:)
     )
     var linuxDistributionName = LinuxDistribution.Name.ubuntu
 
     @Option(
       help: """
-      Version of the Linux distribution used as a target platform.
-      Available options for Ubuntu: `20.04`, `22.04` (default when `--linux-distribution-name` is `ubuntu`), `24.04`.
-      Available options for RHEL: `ubi9` (default when `--linux-distribution-name` is `rhel`).
-      """
+        Version of the Linux distribution used as a target platform.
+        - Available options for Ubuntu: `20.04`, `22.04` (default when `--distribution-name` is `ubuntu`), `24.04`.
+        - Available options for Debian: `11`, `12` (default when `--distribution-name` is `debian`).
+        - Available options for RHEL: `ubi9` (default when `--distribution-name` is `rhel`).
+        """
     )
     var linuxDistributionVersion: String?
 
@@ -212,7 +222,9 @@ extension GeneratorCLI {
       }
       if let arch = generatorOptions.targetArch {
         let target = Triple(arch: arch, vendor: nil, os: .linux, environment: .gnu)
-        appLogger.warning("deprecated: Please use `--target \(target.triple)` instead of `--target-arch \(arch)`")
+        appLogger.warning(
+          "deprecated: Please use `--target \(target.triple)` instead of `--target-arch \(arch)`"
+        )
       }
       return Triple(arch: hostTriple.arch!, vendor: nil, os: .linux, environment: .gnu)
     }
@@ -229,9 +241,15 @@ extension GeneratorCLI {
         linuxDistributionDefaultVersion = "ubi9"
       case .ubuntu:
         linuxDistributionDefaultVersion = "22.04"
+      case .debian:
+        linuxDistributionDefaultVersion = "12"
       }
-      let linuxDistributionVersion = self.linuxDistributionVersion ?? linuxDistributionDefaultVersion
-      let linuxDistribution = try LinuxDistribution(name: linuxDistributionName, version: linuxDistributionVersion)
+      let linuxDistributionVersion =
+        self.linuxDistributionVersion ?? linuxDistributionDefaultVersion
+      let linuxDistribution = try LinuxDistribution(
+        name: linuxDistributionName,
+        version: linuxDistributionVersion
+      )
       let hostTriple = try self.generatorOptions.deriveHostTriple()
       let targetTriple = self.deriveTargetTriple(hostTriple: hostTriple)
 
@@ -249,7 +267,11 @@ extension GeneratorCLI {
         includeHostToolchain: self.generatorOptions.hostToolchain,
         logger: loggerWithLevel(from: self.generatorOptions)
       )
-      try await GeneratorCLI.run(recipe: recipe, targetTriple: targetTriple, options: self.generatorOptions)
+      try await GeneratorCLI.run(
+        recipe: recipe,
+        targetTriple: targetTriple,
+        options: self.generatorOptions
+      )
     }
 
     func isInvokedAsDefaultSubcommand() -> Bool {
@@ -272,8 +294,8 @@ extension GeneratorCLI {
       commandName: "make-wasm-sdk",
       abstract: "Experimental: Generate a Swift SDK bundle for WebAssembly.",
       discussion: """
-      The default `--target` triple is wasm32-unknown-wasi
-      """
+        The default `--target` triple is wasm32-unknown-wasi
+        """
     )
 
     @OptionGroup
@@ -281,8 +303,8 @@ extension GeneratorCLI {
 
     @Option(
       help: """
-      Path to the WASI sysroot directory containing the WASI libc headers and libraries.
-      """
+        Path to the WASI sysroot directory containing the WASI libc headers and libraries.
+        """
     )
     var wasiSysroot: String
 
@@ -305,32 +327,44 @@ extension GeneratorCLI {
         logger: loggerWithLevel(from: self.generatorOptions)
       )
       let targetTriple = self.deriveTargetTriple()
-      try await GeneratorCLI.run(recipe: recipe, targetTriple: targetTriple, options: self.generatorOptions)
+      try await GeneratorCLI.run(
+        recipe: recipe,
+        targetTriple: targetTriple,
+        options: self.generatorOptions
+      )
     }
   }
 }
-
-import Foundation
 
 extension Duration {
   var intervalString: String {
     let reference = Date()
     let date = Date(timeInterval: TimeInterval(self.components.seconds), since: reference)
 
-    let components = Calendar.current.dateComponents([.hour, .minute, .second], from: reference, to: date)
+    let components = Calendar.current.dateComponents(
+      [.hour, .minute, .second],
+      from: reference,
+      to: date
+    )
 
     if let hours = components.hour, hours > 0 {
       #if !canImport(Darwin) && compiler(<6.0)
-      return String(format: "%02d:%02d:%02d", hours, components.minute ?? 0, components.second ?? 0)
+        return String(
+          format: "%02d:%02d:%02d",
+          hours,
+          components.minute ?? 0,
+          components.second ?? 0
+        )
       #else
-      return self.formatted()
+        return self.formatted()
       #endif
     } else if let minutes = components.minute, minutes > 0 {
       #if !canImport(Darwin) && compiler(<6.0)
-      let seconds = components.second ?? 0
-      return "\(minutes) minute\(minutes != 1 ? "s" : "") \(seconds) second\(seconds != 1 ? "s" : "")"
+        let seconds = components.second ?? 0
+        return
+          "\(minutes) minute\(minutes != 1 ? "s" : "") \(seconds) second\(seconds != 1 ? "s" : "")"
       #else
-      return "\(self.formatted(.time(pattern: .minuteSecond))) seconds"
+        return "\(self.formatted(.time(pattern: .minuteSecond))) seconds"
       #endif
     } else {
       return "\(components.second ?? 0) seconds"

@@ -10,26 +10,30 @@
 //
 //===----------------------------------------------------------------------===//
 
-import Logging
 import Helpers
+import Logging
+
 import struct SystemPackage.FilePath
 
-public struct SwiftSDKProduct {
+package struct SwiftSDKProduct {
   let sdkDirPath: FilePath
   /// Array of supported host triples. `nil` indicates the SDK can be universally used.
   let hostTriples: [Triple]?
 }
 
 /// A protocol describing a set of platform specific instructions to make a Swift SDK
-public protocol SwiftSDKRecipe: Sendable {
+package protocol SwiftSDKRecipe: Sendable {
   /// Update the given toolset with platform specific options
   func applyPlatformOptions(
-    toolset: inout Toolset, targetTriple: Triple
+    toolset: inout Toolset,
+    targetTriple: Triple,
+    isForEmbeddedSwift: Bool
   )
   func applyPlatformOptions(
-    metadata: inout SwiftSDKMetadataV4.TripleProperties,
+    metadata: inout SwiftSDKMetadataV4,
     paths: PathsConfiguration,
-    targetTriple: Triple
+    targetTriple: Triple,
+    isForEmbeddedSwift: Bool
   )
 
   /// The default identifier of the Swift SDK
@@ -39,15 +43,27 @@ public protocol SwiftSDKRecipe: Sendable {
   var logger: Logger { get }
 
   /// The main entrypoint of the recipe to make a Swift SDK
-  func makeSwiftSDK(generator: SwiftSDKGenerator, engine: QueryEngine, httpClient: some HTTPClientProtocol) async throws
-    -> SwiftSDKProduct
+  func makeSwiftSDK(
+    generator: SwiftSDKGenerator,
+    engine: QueryEngine,
+    httpClient: some HTTPClientProtocol
+  ) async throws -> SwiftSDKProduct
+
+  var shouldSupportEmbeddedSwift: Bool { get }
 }
 
-public extension SwiftSDKRecipe {
-  func applyPlatformOptions(toolset: inout Toolset, targetTriple: Triple) {}
-  func applyPlatformOptions(
+extension SwiftSDKRecipe {
+  package func applyPlatformOptions(
+    toolset: inout Toolset,
+    targetTriple: Triple,
+    isForEmbeddedSwift: Bool
+  ) {}
+  package func applyPlatformOptions(
     metadata: inout SwiftSDKMetadataV4.TripleProperties,
     paths: PathsConfiguration,
-    targetTriple: Triple
+    targetTriple: Triple,
+    isForEmbeddedSwift: Bool
   ) {}
+
+  package var shouldSupportEmbeddedSwift: Bool { false }
 }

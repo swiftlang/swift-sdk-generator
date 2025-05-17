@@ -11,12 +11,11 @@
 //===----------------------------------------------------------------------===//
 
 import Atomics
+import Foundation
 import Logging
 import NIO
 
 @_exported import struct SystemPackage.FileDescriptor
-
-import Foundation
 
 public struct ProcessOutputStream: Sendable & Hashable & CustomStringConvertible {
   enum Backing {
@@ -159,7 +158,9 @@ public final actor ProcessExecutor {
   private let standardErrorWriteHandle: FileHandle?
   private let _standardOutput: ChunkSequence
   private let _standardError: ChunkSequence
-  private let processIsRunningApproximation = ManagedAtomic(RunningStateApproximation.neverStarted.rawValue)
+  private let processIsRunningApproximation = ManagedAtomic(
+    RunningStateApproximation.neverStarted.rawValue
+  )
   private let processOutputConsumptionApproximation = ManagedAtomic(UInt8(0))
   private let processPid = ManagedAtomic(pid_t(0))
   private let ownsStandardOutputWriteHandle: Bool
@@ -388,14 +389,14 @@ public final actor ProcessExecutor {
       { () -> Bool in
         guard
           outputConsumptionState.contains([.stdoutConsumed])
-          || outputConsumptionState.contains([.stdoutNotStreamed])
+            || outputConsumptionState.contains([.stdoutNotStreamed])
         else {
           return false
         }
 
         guard
           outputConsumptionState.contains([.stderrConsumed])
-          || outputConsumptionState.contains([.stderrNotStreamed])
+            || outputConsumptionState.contains([.stderrNotStreamed])
         else {
           return false
         }
@@ -459,7 +460,7 @@ public final actor ProcessExecutor {
         case .processHasExited, .killedTheProcess:
           break loop
         case .processStillAlive:
-          () // gotta continue
+          ()  // gotta continue
         }
       } else {
         logger.debug("child process already dead")
@@ -482,13 +483,13 @@ public final actor ProcessExecutor {
   public func run() async throws -> ProcessExitReason {
     let p = Process()
     #if canImport(Darwin)
-    if #available(macOS 13.0, *) {
-      p.executableURL = URL(filePath: self.executable)
-    } else {
-      p.launchPath = self.executable
-    }
+      if #available(macOS 13.0, *) {
+        p.executableURL = URL(filePath: self.executable)
+      } else {
+        p.launchPath = self.executable
+      }
     #else
-    p.executableURL = URL(fileURLWithPath: self.executable)
+      p.executableURL = URL(fileURLWithPath: self.executable)
     #endif
     p.arguments = self.arguments
     p.environment = self.environment
@@ -559,15 +560,19 @@ public final actor ProcessExecutor {
         desired: RunningStateApproximation.finishedExecuting.rawValue,
         ordering: .relaxed
       )
-      terminationStreamProducer.finish() // The termination handler will never have fired.
-      assert(worked) // We just set it to running above, shouldn't be able to race (no `await`).
-      assert(original == RunningStateApproximation.running.rawValue) // We compare-and-exchange it.
+      terminationStreamProducer.finish()  // The termination handler will never have fired.
+      assert(worked)  // We just set it to running above, shouldn't be able to race (no `await`).
+      assert(original == RunningStateApproximation.running.rawValue)  // We compare-and-exchange it.
       throw error
     }
 
     // At this point, the process is running, we should therefore have a process ID (unless we're already dead).
     let childPid = p.processIdentifier
-    _ = self.processPid.compareExchange(expected: 0, desired: childPid, ordering: .sequentiallyConsistent)
+    _ = self.processPid.compareExchange(
+      expected: 0,
+      desired: childPid,
+      ordering: .sequentiallyConsistent
+    )
     assert(childPid != 0 || !p.isRunning)
     self.logger.debug(
       "running command",
@@ -578,12 +583,12 @@ public final actor ProcessExecutor {
       ]
     )
 
-    try! self.standardInputPipe?.fileHandleForReading.close() // Must work.
+    try! self.standardInputPipe?.fileHandleForReading.close()  // Must work.
     if self.ownsStandardOutputWriteHandle {
-      try! self.standardOutputWriteHandle?.close() // Must work.
+      try! self.standardOutputWriteHandle?.close()  // Must work.
     }
     if self.ownsStandardErrorWriteHandle {
-      try! self.standardErrorWriteHandle?.close() // Must work.
+      try! self.standardErrorWriteHandle?.close()  // Must work.
     }
 
     @Sendable
@@ -611,9 +616,11 @@ public final actor ProcessExecutor {
         await withTaskGroup(of: Void.self) { triggerTeardownGroup in
           triggerTeardownGroup.addTask {
             // wait until cancelled
-            do { while true {
-              try await Task.sleep(nanoseconds: 1_000_000_000)
-            } } catch {}
+            do {
+              while true {
+                try await Task.sleep(nanoseconds: 1_000_000_000)
+              }
+            } catch {}
 
             let isRunning = self.processIsRunningApproximation.load(ordering: .relaxed)
             guard isRunning != RunningStateApproximation.finishedExecuting.rawValue else {
@@ -639,7 +646,7 @@ public final actor ProcessExecutor {
           }
 
           let result = await waitForChildToExit()
-          triggerTeardownGroup.cancelAll() // This triggers the teardown
+          triggerTeardownGroup.cancelAll()  // This triggers the teardown
           return result
         }
       }
@@ -663,7 +670,7 @@ public final actor ProcessExecutor {
           exitReason = result
         }
       }
-      return exitReason! // must work because the real task will return a reason (or throw)
+      return exitReason!  // must work because the real task will return a reason (or throw)
     }
   }
 
@@ -679,21 +686,21 @@ public final actor ProcessExecutor {
   }
 }
 
-public extension ProcessExecutor {
+extension ProcessExecutor {
   /// A globally shared, singleton `EventLoopGroup` that's suitable for ``ProcessExecutor``.
   ///
   /// At present this is always `MultiThreadedEventLoopGroup.singleton`.
-  static var defaultEventLoopGroup: any EventLoopGroup {
+  public static var defaultEventLoopGroup: any EventLoopGroup {
     globalDefaultEventLoopGroup
   }
 
   /// The default `Logger` for ``ProcessExecutor`` that's used if you do not override it. It won't log anything.
-  static var disableLogging: Logger {
+  public static var disableLogging: Logger {
     globalDisableLoggingLogger
   }
 }
 
-public extension ProcessExecutor {
+extension ProcessExecutor {
   /// Create a ``ProcessExecutor`` to spawn a single child process.
   ///
   /// - note: The `environment` defaults to the empty environment.
@@ -712,7 +719,7 @@ public extension ProcessExecutor {
   /// ``ProcessOutput/stream``
   ///                    which requires to consume it via ``ProcessExecutor/standardError``.
   ///   - logger: Where to log diagnostic messages to (default to no where)
-  init(
+  public init(
     group: EventLoopGroup = ProcessExecutor.defaultEventLoopGroup,
     executable: String,
     _ arguments: [String],

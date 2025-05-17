@@ -255,7 +255,10 @@ private final class ReadIntoAsyncChannelHandler: ChannelDuplexHandler {
 
 extension FileHandle {
   func fileContentStream(eventLoop: EventLoop) throws -> FileContentStream {
-    let asyncBytes = try FileContentStream(fileDescriptor: self.fileDescriptor, eventLoop: eventLoop)
+    let asyncBytes = try FileContentStream(
+      fileDescriptor: self.fileDescriptor,
+      eventLoop: eventLoop
+    )
     try self.close()
     return asyncBytes
   }
@@ -272,8 +275,8 @@ extension FileContentStream {
   }
 }
 
-public extension AsyncSequence where Element == ByteBuffer, Self: Sendable {
-  func splitIntoLines(
+extension AsyncSequence where Element == ByteBuffer, Self: Sendable {
+  public func splitIntoLines(
     dropTerminator: Bool = true,
     maximumAllowableBufferSize: Int = 1024 * 1024,
     dropLastChunkIfNoNewline: Bool = false
@@ -286,14 +289,13 @@ public extension AsyncSequence where Element == ByteBuffer, Self: Sendable {
     )
   }
 
-  var strings: AsyncMapSequence<Self, String> {
+  public var strings: AsyncMapSequence<Self, String> {
     self.map { String(buffer: $0) }
   }
 }
 
 public struct AsyncByteBufferLineSequence<Base: Sendable>: AsyncSequence & Sendable
-  where Base: AsyncSequence, Base.Element == ByteBuffer
-{
+where Base: AsyncSequence, Base.Element == ByteBuffer {
   public typealias Element = ByteBuffer
   private let underlying: Base
   private let dropTerminator: Bool
@@ -329,7 +331,9 @@ public struct AsyncByteBufferLineSequence<Base: Sendable>: AsyncSequence & Senda
         self.buffer.last?.readableBytesView
       }
 
-      mutating func concatenateEverything(upToLastChunkLengthToConsume lastLength: Int) -> ByteBuffer {
+      mutating func concatenateEverything(upToLastChunkLengthToConsume lastLength: Int)
+        -> ByteBuffer
+      {
         var output = ByteBuffer()
         output.reserveCapacity(lastLength + self.byteCountButLast)
 
@@ -430,7 +434,8 @@ public struct AsyncByteBufferLineSequence<Base: Sendable>: AsyncSequence & Senda
   }
 
   public init(
-    _ underlying: Base, dropTerminator: Bool,
+    _ underlying: Base,
+    dropTerminator: Bool,
     maximumAllowableBufferSize: Int,
     dropLastChunkIfNoNewline: Bool
   ) {

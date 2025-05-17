@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 import AsyncProcess
+
 import class Foundation.ProcessInfo
 import struct SystemPackage.FilePath
 
@@ -125,7 +126,9 @@ struct Shell {
 
     try result.exitReason.throwIfNonZero()
 
-    guard let stdOutBuffer = result.standardOutput else { throw GeneratorError.noProcessOutput(command) }
+    guard let stdOutBuffer = result.standardOutput else {
+      throw GeneratorError.noProcessOutput(command)
+    }
 
     return String(buffer: stdOutBuffer)
   }

@@ -11,17 +11,18 @@
 //===----------------------------------------------------------------------===//
 
 import AsyncAlgorithms
-#if canImport(AsyncHTTPClient)
-import AsyncHTTPClient
-#endif
 import Foundation
 import Helpers
 import RegexBuilder
 import SystemPackage
 
-public extension Triple.Arch {
+#if canImport(AsyncHTTPClient)
+  import AsyncHTTPClient
+#endif
+
+extension Triple.Arch {
   /// Returns the value of `cpu` converted to a convention used in Debian package names
-  var debianConventionName: String {
+  public var debianConventionName: String {
     switch self {
     case .aarch64: return "arm64"
     case .x86_64: return "amd64"
@@ -32,14 +33,15 @@ public extension Triple.Arch {
   }
 }
 
-public extension SwiftSDKGenerator {
-  func run(recipe: SwiftSDKRecipe) async throws {
-    try await withQueryEngine(OSFileSystem(), self.logger, cacheLocation: self.engineCachePath) { engine in
+extension SwiftSDKGenerator {
+  package func run(recipe: SwiftSDKRecipe) async throws {
+    try await withQueryEngine(OSFileSystem(), self.logger, cacheLocation: self.engineCachePath) {
+      engine in
       let httpClientType: HTTPClientProtocol.Type
       #if canImport(AsyncHTTPClient)
-      httpClientType = HTTPClient.self
+        httpClientType = HTTPClient.self
       #else
-      httpClientType = OfflineHTTPClient.self
+        httpClientType = OfflineHTTPClient.self
       #endif
       try await httpClientType.with { client in
         if !self.isIncremental {
@@ -48,27 +50,53 @@ public extension SwiftSDKGenerator {
 
         try await self.createDirectoryIfNeeded(at: pathsConfiguration.artifactsCachePath)
 
-        let swiftSDKProduct = try await recipe.makeSwiftSDK(generator: self, engine: engine, httpClient: client)
+        let swiftSDKProduct = try await recipe.makeSwiftSDK(
+          generator: self,
+          engine: engine,
+          httpClient: client
+        )
 
         let toolsetJSONPath = try await self.generateToolsetJSON(recipe: recipe)
 
-        try await generateDestinationJSON(
-          toolsetPath: toolsetJSONPath,
-          sdkDirPath: swiftSDKProduct.sdkDirPath,
-          recipe: recipe
+        var artifacts = try await [
+          self.artifactID: generateSwiftSDKMetadata(
+            toolsetPath: toolsetJSONPath,
+            sdkDirPath: swiftSDKProduct.sdkDirPath,
+            recipe: recipe
+          )
+        ]
+
+        if recipe.shouldSupportEmbeddedSwift {
+          let toolsetJSONPath = try await self.generateToolsetJSON(recipe: recipe, isForEmbeddedSwift: true)
+
+          artifacts["\(self.artifactID)-embedded"] = try await generateSwiftSDKMetadata(
+            toolsetPath: toolsetJSONPath,
+            sdkDirPath: swiftSDKProduct.sdkDirPath,
+            recipe: recipe,
+            isForEmbeddedSwift: true
+          )
+        }
+
+        try await generateArtifactBundleManifest(
+          hostTriples: swiftSDKProduct.hostTriples,
+          artifacts: artifacts
         )
 
-        try await generateArtifactBundleManifest(hostTriples: swiftSDKProduct.hostTriples)
+        #if compiler(>=6.0)
+          let sdkCommandPrefix = ""
+        #else
+          let sdkCommandPrefix = "experimental-"
+        #endif
 
         // Extra spaces added for readability for the user
         print(
           """
 
           All done! Install the newly generated SDK with this command:
-          swift experimental-sdk install \(pathsConfiguration.artifactBundlePath)
+          swift \(sdkCommandPrefix)sdk install \(pathsConfiguration.artifactBundlePath)
 
           After that, use the newly installed SDK when building with this command:
-          swift build --experimental-swift-sdk \(artifactID)
+          swift build --\(sdkCommandPrefix)swift-sdk \(artifactID)
 
           """
         )

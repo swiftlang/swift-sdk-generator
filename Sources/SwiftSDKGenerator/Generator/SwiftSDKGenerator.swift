@@ -58,19 +58,22 @@ public actor SwiftSDKGenerator {
   }
 
   private let fileManager = FileManager.default
-  private static let dockerCommand = ProcessInfo.processInfo.environment["SWIFT_SDK_GENERATOR_CONTAINER_RUNTIME"] ?? "docker"
+  private static let dockerCommand =
+    ProcessInfo.processInfo.environment["SWIFT_SDK_GENERATOR_CONTAINER_RUNTIME"] ?? "docker"
 
   public static func getCurrentTriple(isVerbose: Bool) throws -> Triple {
     let current = UnixName.current!
     let cpu = current.machine
     #if os(macOS)
-    let darwinVersion = current.release
-    let darwinTriple = Triple("\(cpu)-apple-darwin\(darwinVersion)")
-    return Triple("\(cpu)-apple-macos\(darwinTriple._macOSVersion?.description ?? "")")
+      let darwinVersion = current.release
+      let darwinTriple = Triple("\(cpu)-apple-darwin\(darwinVersion)")
+      return Triple("\(cpu)-apple-macos\(darwinTriple._macOSVersion?.description ?? "")")
     #elseif os(Linux)
-    return Triple("\(cpu)-unknown-linux-gnu")
+      return Triple("\(cpu)-unknown-linux-gnu")
     #else
-    fatalError("Triple detection not implemented for the platform that this generator was built on.")
+      fatalError(
+        "Triple detection not implemented for the platform that this generator was built on."
+      )
     #endif
   }
 
@@ -132,7 +135,7 @@ public actor SwiftSDKGenerator {
 
   func withDockerContainer(
     fromImage imageName: String,
-    _ body: @Sendable (String) async throws -> ()
+    _ body: @Sendable (String) async throws -> Void
   ) async throws {
     let containerID = try await launchDockerContainer(imageName: imageName)
     try await withAsyncThrowing {
@@ -176,19 +179,25 @@ public actor SwiftSDKGenerator {
   }
 
   func findSymlinks(at directory: FilePath) throws -> [(FilePath, FilePath)] {
-    guard let enumerator = fileManager.enumerator(
-      at: URL(fileURLWithPath: directory.string),
-      includingPropertiesForKeys: [.isSymbolicLinkKey]
-    ) else { return [] }
+    guard
+      let enumerator = fileManager.enumerator(
+        at: URL(fileURLWithPath: directory.string),
+        includingPropertiesForKeys: [.isSymbolicLinkKey]
+      )
+    else { return [] }
 
     var result = [(FilePath, FilePath)]()
     for case let url as URL in enumerator {
-      guard let isSymlink = try url.resourceValues(forKeys: [.isSymbolicLinkKey])
-        .isSymbolicLink else { continue }
+      guard
+        let isSymlink = try url.resourceValues(forKeys: [.isSymbolicLinkKey])
+          .isSymbolicLink
+      else { continue }
 
       if isSymlink {
         let path = url.path
-        try result.append((FilePath(path), FilePath(self.fileManager.destinationOfSymbolicLink(atPath: url.path))))
+        try result.append(
+          (FilePath(path), FilePath(self.fileManager.destinationOfSymbolicLink(atPath: url.path)))
+        )
       }
     }
 
@@ -227,7 +236,10 @@ public actor SwiftSDKGenerator {
   }
 
   func gunzip(file: FilePath, into directoryPath: FilePath) async throws {
-    try await Shell.run(#"cd "\#(directoryPath)" && gzip -d "\#(file)""#, shouldLogCommands: self.isVerbose)
+    try await Shell.run(
+      #"cd "\#(directoryPath)" && gzip -d "\#(file)""#,
+      shouldLogCommands: self.isVerbose
+    )
   }
 
   func untar(
@@ -254,7 +266,10 @@ public actor SwiftSDKGenerator {
       if isVerbose {
         let cmd = "ls \(tmp)"
         let lsOutput = try await Shell.readStdout(cmd)
-        logger.debug("Files unpacked from deb file", metadata: ["cmd": .string(cmd), "output": .string(lsOutput)])
+        logger.debug(
+          "Files unpacked from deb file",
+          metadata: ["cmd": .string(cmd), "output": .string(lsOutput)]
+        )
       }
 
       try await Shell.run(

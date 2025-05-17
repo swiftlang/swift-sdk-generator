@@ -11,18 +11,19 @@
 //===----------------------------------------------------------------------===//
 
 import Foundation
-import Logging
 import Helpers
+import Logging
+
 import struct SystemPackage.FilePath
 
-public struct LinuxRecipe: SwiftSDKRecipe {
-  public enum TargetSwiftSource: Sendable {
+package struct LinuxRecipe: SwiftSDKRecipe {
+  package enum TargetSwiftSource: Sendable {
     case docker(baseSwiftDockerImage: String)
     case localPackage(FilePath)
     case remoteTarball
   }
 
-  public enum HostSwiftSource: Sendable, Equatable {
+  package enum HostSwiftSource: Sendable, Equatable {
     case localPackage(FilePath)
     case remoteTarball
     case preinstalled
@@ -34,7 +35,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
   let targetSwiftSource: TargetSwiftSource
   let hostSwiftSource: HostSwiftSource
   let versionsConfiguration: VersionsConfiguration
-  public let logger: Logger
+  package let logger: Logger
 
   var shouldUseDocker: Bool {
     if case .docker = self.targetSwiftSource {
@@ -43,7 +44,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     return false
   }
 
-  public init(
+  package init(
     targetTriple: Triple,
     hostTriple: Triple,
     linuxDistribution: LinuxDistribution,
@@ -62,7 +63,8 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       swiftBranch: swiftBranch,
       lldVersion: lldVersion,
       linuxDistribution: linuxDistribution,
-      targetTriple: targetTriple
+      targetTriple: targetTriple,
+      logger: logger
     )
 
     let targetSwiftSource: LinuxRecipe.TargetSwiftSource
@@ -96,7 +98,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     )
   }
 
-  public init(
+  package init(
     mainTargetTriple: Triple,
     mainHostTriple: Triple,
     linuxDistribution: LinuxDistribution,
@@ -114,7 +116,7 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     self.logger = logger
   }
 
-  public func applyPlatformOptions(toolset: inout Toolset, targetTriple: Triple) {
+  package func applyPlatformOptions(toolset: inout Toolset, targetTriple: Triple, isForEmbeddedSwift: Bool) {
     if self.hostSwiftSource == .preinstalled {
       toolset.rootPath = nil
     }
@@ -128,6 +130,11 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     } else {
       swiftCompilerOptions.append("-use-ld=lld")
 
+      // 32-bit architectures require libatomic
+      if let arch = targetTriple.arch, arch.is32Bit {
+        swiftCompilerOptions.append("-latomic")
+      }
+
       if self.hostSwiftSource != .preinstalled {
         toolset.linker = Toolset.ToolProperties(path: "ld.lld")
       }
@@ -139,20 +146,22 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     toolset.librarian = Toolset.ToolProperties(path: "llvm-ar")
   }
 
-  public func applyPlatformOptions(
-    metadata: inout SwiftSDKMetadataV4.TripleProperties,
+  package func applyPlatformOptions(
+    metadata: inout SwiftSDKMetadataV4,
     paths: PathsConfiguration,
-    targetTriple: Triple
+    targetTriple: Triple,
+    isForEmbeddedSwift: Bool
   ) {
     var relativeSDKDir = self.sdkDirPath(paths: paths)
     guard relativeSDKDir.removePrefix(paths.swiftSDKRootPath) else {
       fatalError("The SDK directory path must be a subdirectory of the Swift SDK root path.")
     }
-    metadata.swiftResourcesPath = relativeSDKDir.appending("usr/lib/swift").string
-    metadata.swiftStaticResourcesPath = relativeSDKDir.appending("usr/lib/swift_static").string
+    metadata.targetTriples[targetTriple.triple]?.swiftResourcesPath = relativeSDKDir.appending("usr/lib/swift").string
+    metadata.targetTriples[targetTriple.triple]?.swiftStaticResourcesPath =
+      relativeSDKDir.appending("usr/lib/swift_static").string
   }
 
-  public var defaultArtifactID: String {
+  package var defaultArtifactID: String {
     """
     \(self.versionsConfiguration.swiftVersion)_\(self.linuxDistribution.name.rawValue)_\(
       self.linuxDistribution
@@ -172,7 +181,8 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     var items: [DownloadableArtifacts.Item] = []
     if self.hostSwiftSource != .preinstalled
       && self.mainHostTriple.os != .linux
-      && !self.versionsConfiguration.swiftVersion.hasPrefix("6.0") {
+      && !self.versionsConfiguration.swiftVersion.hasPrefix("6.")
+    {
       items.append(artifacts.hostLLVM)
     }
 
@@ -211,17 +221,18 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     return [self.mainHostTriple]
   }
 
-  public func makeSwiftSDK(
+  package func makeSwiftSDK(
     generator: SwiftSDKGenerator,
     engine: QueryEngine,
     httpClient client: some HTTPClientProtocol
   ) async throws -> SwiftSDKProduct {
     if self.linuxDistribution.name == .rhel && self.mainTargetTriple.archName == "armv7" {
       throw GeneratorError.distributionDoesNotSupportArchitecture(
-        self.linuxDistribution, targetArchName: self.mainTargetTriple.archName
+        self.linuxDistribution,
+        targetArchName: self.mainTargetTriple.archName
       )
     }
-  
+
     let sdkDirPath = self.sdkDirPath(paths: generator.pathsConfiguration)
     if !generator.isIncremental {
       try await generator.removeRecursively(at: sdkDirPath)
@@ -243,24 +254,35 @@ public struct LinuxRecipe: SwiftSDKRecipe {
     )
 
     if !self.shouldUseDocker {
-      guard case let .ubuntu(version) = linuxDistribution else {
-        throw GeneratorError
+      switch linuxDistribution {
+      case .ubuntu(let version):
+        try await generator.downloadDebianPackages(
+          client,
+          engine,
+          requiredPackages: version.requiredPackages,
+          versionsConfiguration: self.versionsConfiguration,
+          sdkDirPath: sdkDirPath
+        )
+      case .debian(let version):
+        try await generator.downloadDebianPackages(
+          client,
+          engine,
+          requiredPackages: version.requiredPackages,
+          versionsConfiguration: self.versionsConfiguration,
+          sdkDirPath: sdkDirPath
+        )
+      default:
+        throw
+          GeneratorError
           .distributionSupportsOnlyDockerGenerator(self.linuxDistribution)
       }
-
-      try await generator.downloadUbuntuPackages(
-        client,
-        engine,
-        requiredPackages: version.requiredPackages,
-        versionsConfiguration: self.versionsConfiguration,
-        sdkDirPath: sdkDirPath
-      )
     }
 
     switch self.hostSwiftSource {
     case let .localPackage(filePath):
       try await generator.rsync(
-        from: filePath.appending("usr"), to: generator.pathsConfiguration.toolchainDirPath
+        from: filePath.appending("usr"),
+        to: generator.pathsConfiguration.toolchainDirPath
       )
     case .remoteTarball:
       try await generator.unpackHostSwift(
@@ -279,26 +301,43 @@ public struct LinuxRecipe: SwiftSDKRecipe {
       )
     case let .localPackage(filePath):
       try await generator.copyTargetSwift(
-        from: filePath.appending("usr"), sdkDirPath: sdkDirPath
+        from: filePath.appending("usr"),
+        sdkDirPath: sdkDirPath
       )
     case .remoteTarball:
       try await generator.unpackTargetSwiftPackage(
         targetSwiftPackagePath: downloadableArtifacts.targetSwift.localPath,
-        relativePathToRoot: [FilePath.Component(self.versionsConfiguration.swiftDistributionName())!],
+        relativePathToRoot: [
+          FilePath.Component(self.versionsConfiguration.swiftDistributionName())!
+        ],
         sdkDirPath: sdkDirPath
       )
     }
 
+    logger.info("Removing unused toolchain components from target SDK...")
+    try await generator.removeToolchainComponents(
+      sdkDirPath,
+      platforms: unusedTargetPlatforms,
+      libraries: unusedHostLibraries,
+      binaries: unusedHostBinaries
+    )
+
+    try await generator.createLibSymlink(sdkDirPath: sdkDirPath)
     try await generator.fixAbsoluteSymlinks(sdkDirPath: sdkDirPath)
 
     // Swift 6.1 and later do not throw warnings about the SDKSettings.json file missing,
     // so they don't need this file.
     if self.versionsConfiguration.swiftVersion.hasAnyPrefix(from: ["5.9", "5.10", "6.0"]) {
-      try await generator.generateSDKSettingsFile(sdkDirPath: sdkDirPath, distribution: linuxDistribution)
+      try await generator.generateSDKSettingsFile(
+        sdkDirPath: sdkDirPath,
+        distribution: linuxDistribution
+      )
     }
 
     if self.hostSwiftSource != .preinstalled {
-      if self.mainHostTriple.os != .linux && !self.versionsConfiguration.swiftVersion.hasPrefix("6.0") {
+      if self.mainHostTriple.os != .linux
+        && !self.versionsConfiguration.swiftVersion.hasPrefix("6.")
+      {
         try await generator.prepareLLDLinker(engine, llvmArtifact: downloadableArtifacts.hostLLVM)
       }
 
@@ -306,7 +345,9 @@ public struct LinuxRecipe: SwiftSDKRecipe {
         try await generator.symlinkClangHeaders()
       }
 
-      let autolinkExtractPath = generator.pathsConfiguration.toolchainBinDirPath.appending("swift-autolink-extract")
+      let autolinkExtractPath = generator.pathsConfiguration.toolchainBinDirPath.appending(
+        "swift-autolink-extract"
+      )
 
       if await !generator.doesFileExist(at: autolinkExtractPath) {
         logger.info("Fixing `swift-autolink-extract` symlink...")

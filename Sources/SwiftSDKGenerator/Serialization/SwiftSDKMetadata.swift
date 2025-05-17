@@ -73,8 +73,8 @@ struct DestinationV3: Encodable {
 }
 
 /// Represents v4 schema of `swift-sdk.json` (previously `destination.json`) files used for cross-compilation.
-public struct SwiftSDKMetadataV4: Encodable {
-  public struct TripleProperties: Encodable {
+package struct SwiftSDKMetadataV4: Encodable {
+  package struct TripleProperties: Encodable {
     /// Path relative to `swift-sdk.json` containing SDK root.
     var sdkRootPath: String
 
@@ -98,5 +98,5 @@ public struct SwiftSDKMetadataV4: Encodable {
   let schemaVersion = "4.0"
 
   /// Mapping of triple strings to corresponding properties of such target triple.
-  let targetTriples: [String: TripleProperties]
+  var targetTriples: [String: TripleProperties]
 }

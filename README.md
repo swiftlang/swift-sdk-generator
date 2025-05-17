@@ -54,14 +54,14 @@ The generator also allows cross-compiling between any Linux distributions offici
 | macOS (arm64)  | ✅ macOS 13.0+            | ❌                         |
 | macOS (x86_64) | ✅ macOS 13.0+[^1]        | ❌                         |
 | Ubuntu         | ✅ 20.04+                 | ✅ 20.04+                  |
-| RHEL           | ✅ Fedora 39[^2], UBI 9   | ✅ UBI 9                   |
+| Debian         | ✅ 11, 12[^2]             | ✅ 11, 12[^2]              |
+| RHEL           | ✅ Fedora 39, UBI 9       | ✅ Fedora 39, UBI 9[^3]    |
 | Amazon Linux 2 | ✅ Supported              | ✅ Supported[^3]           |
-| Debian 12      | ✅ Supported[^2]          | ✅ Supported[^2][^3]       |
 
 [^1]: Since LLVM project doesn't provide pre-built binaries of `lld` for macOS on x86_64, it will be automatically built
 from sources by the generator, which will increase its run by at least 15 minutes on recent hardware. You will also
 need CMake and Ninja preinstalled (e.g. via `brew install cmake ninja`).
-[^2]: These distributions are only supported by Swift 5.10.1 and later as both host and target platforms.
+[^2]: Swift does not officially support Debian 11 or Debian 12 with Swift versions before 5.10.1. However, the Ubuntu 20.04/22.04 toolchains can be used with Debian 11 and 12 (respectively) since they are binary compatible.
 [^3]: These versions are technically supported but require custom commands and a Docker container to build the Swift SDK, as the generator will not download dependencies for these distributions automatically. See [issue #138](https://github.com/swiftlang/swift-sdk-generator/issues/138).
 
 ## How to use it
@@ -94,7 +94,7 @@ subsequently as `<generated_sdk_id>`.
 Create a new project to verify that the SDK works:
 
 ```
-mkdir cross-compilation test
+mkdir cross-compilation-test
 cd cross-compilation-test
 swift package init --type executable
 ```
@@ -185,6 +185,19 @@ The `.artifactbundle` directory produced in the previous section can be packaged
 in this form. Users of such Swift SDK bundle archive can easily install it with `swift sdk install`
 command, which supports both local file system paths and public `http://` and `https://` URLs as an argument.
 
+To make an `.artifactbundle.tar.gz` archive installable directly from `http://` and `https://` URLs, a checksum must be
+generated. This can be done using the `swift package compute-checksum` command, like this:
+
+```console
+swift package compute-checksum ./Bundles/6.1-RELEASE_ubuntu_jammy_x86_64.artifactbundle.tar.gz
+<checksum>
+```
+
+This checksum should be provided along with the artifact bundles to be included with the sdk install invocation:
+
+```console
+swift sdk install https://my-public-site/sdks/6.1-RELEASE_ubuntu_jammy_x86_64.artifactbundle.tar.gz --checksum <checksum>
+```
 
 ## Contributing
 
