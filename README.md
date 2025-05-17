@@ -185,6 +185,19 @@ The `.artifactbundle` directory produced in the previous section can be packaged
 in this form. Users of such Swift SDK bundle archive can easily install it with `swift sdk install`
 command, which supports both local file system paths and public `http://` and `https://` URLs as an argument.
 
+To make an `.artifactbundle.tar.gz` archive installable directly from `http://` and `https://` URLs, a checksum must be
+generated. This can be done using the `swift package compute-checksum` command, like this:
+
+```console
+swift package compute-checksum ./Bundles/6.1-RELEASE_ubuntu_jammy_x86_64.artifactbundle.tar.gz
+<checksum>
+```
+
+This checksum should be provided along with the artifact bundles to be included with the sdk install invocation:
+
+```console
+swift sdk install https://my-public-site/sdks/6.1-RELEASE_ubuntu_jammy_x86_64.artifactbundle.tar.gz --checksum <checksum>
+```
 
 ## Contributing
 
