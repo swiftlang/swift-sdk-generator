@@ -82,15 +82,21 @@ extension SwiftSDKGenerator {
           artifacts: artifacts
         )
 
+        #if compiler(>=6.0)
+          let sdkCommandPrefix = ""
+        #else
+          let sdkCommandPrefix = "experimental-"
+        #endif
+
         // Extra spaces added for readability for the user
         print(
           """
 
           All done! Install the newly generated SDK with this command:
-          swift experimental-sdk install \(pathsConfiguration.artifactBundlePath)
+          swift \(sdkCommandPrefix)sdk install \(pathsConfiguration.artifactBundlePath)
 
           After that, use the newly installed SDK when building with this command:
-          swift build --experimental-swift-sdk \(artifactID)
+          swift build --\(sdkCommandPrefix)swift-sdk \(artifactID)
 
           """
         )
