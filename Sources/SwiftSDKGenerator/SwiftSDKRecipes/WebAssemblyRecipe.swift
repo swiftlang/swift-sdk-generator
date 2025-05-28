@@ -201,7 +201,7 @@ package struct WebAssemblyRecipe: SwiftSDKRecipe {
     )
 
     try await generator.createSymlink(
-      at: embeddedCompilerRTPath, 
+      at: embeddedCompilerRTPath,
       pointingTo: "../../../swift_static/clang/lib/wasi"
     )
 
