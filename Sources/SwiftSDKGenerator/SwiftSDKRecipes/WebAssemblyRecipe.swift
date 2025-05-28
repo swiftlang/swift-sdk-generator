@@ -200,7 +200,10 @@ package struct WebAssemblyRecipe: SwiftSDKRecipe {
       "usr/lib/swift/clang/lib/wasip1"
     )
 
-    try await generator.createSymlink(at: embeddedCompilerRTPath, pointingTo: "wasi")
+    try await generator.createSymlink(
+      at: embeddedCompilerRTPath,
+      pointingTo: "../../../swift_static/clang/lib/wasi"
+    )
 
     // Copy the WASI sysroot into the SDK bundle.
     let sdkDirPath = pathsConfiguration.swiftSDKRootPath.appending("WASI.sdk")
