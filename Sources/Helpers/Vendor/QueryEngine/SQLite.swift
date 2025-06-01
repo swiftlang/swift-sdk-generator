@@ -12,7 +12,7 @@
 
 import struct Foundation.Data
 import SystemPackage
-import SystemSQLite
+import SwiftToolchainCSQLite
 
 extension FilePath: @unchecked Sendable {}
 extension FilePath.Component: @unchecked Sendable {}
