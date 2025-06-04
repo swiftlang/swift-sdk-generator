@@ -34,7 +34,7 @@ extension Triple.Arch {
 }
 
 extension SwiftSDKGenerator {
-  package func run(recipe: SwiftSDKRecipe) async throws {
+  package func run(recipe: some SwiftSDKRecipe) async throws {
     try await withQueryEngine(OSFileSystem(), self.logger, cacheLocation: self.engineCachePath) {
       engine in
       let httpClientType: HTTPClientProtocol.Type
@@ -79,7 +79,8 @@ extension SwiftSDKGenerator {
 
         try await generateArtifactBundleManifest(
           hostTriples: swiftSDKProduct.hostTriples,
-          artifacts: artifacts
+          artifacts: artifacts,
+          shouldUseFullPaths: recipe.shouldSupportEmbeddedSwift
         )
 
         // Extra spaces added for readability for the user

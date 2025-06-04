@@ -49,6 +49,7 @@ extension SwiftSDKGenerator {
     return toolsetJSONPath
   }
 
+  /// Generates `swift-sdk.json` metadata file.
   func generateSwiftSDKMetadata(
     toolsetPath: FilePath,
     sdkDirPath: FilePath,
@@ -57,7 +58,7 @@ extension SwiftSDKGenerator {
   ) throws -> FilePath {
     logger.info("Generating Swift SDK metadata JSON file...")
 
-    let destinationJSONPath = pathsConfiguration.swiftSDKRootPath.appending(
+    let swiftSDKMetadataPath = pathsConfiguration.swiftSDKRootPath.appending(
       "\(isForEmbeddedSwift ? "embedded-" : "")swift-sdk.json"
     )
 
@@ -95,14 +96,14 @@ extension SwiftSDKGenerator {
     )
 
     try writeFile(
-      at: destinationJSONPath,
+      at: swiftSDKMetadataPath,
       encoder.encode(metadata)
     )
 
-    return destinationJSONPath
+    return swiftSDKMetadataPath
   }
 
-  func generateArtifactBundleManifest(hostTriples: [Triple]?, artifacts: [String: FilePath]) throws {
+  func generateArtifactBundleManifest(hostTriples: [Triple]?, artifacts: [String: FilePath], shouldUseFullPaths: Bool) throws {
     logger.info("Generating .artifactbundle info JSON file...")
 
     let artifactBundleManifestPath = pathsConfiguration.artifactBundlePath.appending("info.json")
@@ -116,6 +117,9 @@ extension SwiftSDKGenerator {
             var relativePath = $0
             let prefixRemoved = relativePath.removePrefix(pathsConfiguration.artifactBundlePath)
             assert(prefixRemoved)
+            if !shouldUseFullPaths {
+              relativePath.removeLastComponent()
+            }
 
             return .init(
               type: .swiftSDK,
