@@ -103,7 +103,11 @@ extension SwiftSDKGenerator {
     return swiftSDKMetadataPath
   }
 
-  func generateArtifactBundleManifest(hostTriples: [Triple]?, artifacts: [String: FilePath], shouldUseFullPaths: Bool) throws {
+  func generateArtifactBundleManifest(
+    hostTriples: [Triple]?,
+    artifacts: [String: FilePath],
+    shouldUseFullPaths: Bool
+  ) throws {
     logger.info("Generating .artifactbundle info JSON file...")
 
     let artifactBundleManifestPath = pathsConfiguration.artifactBundlePath.appending("info.json")
