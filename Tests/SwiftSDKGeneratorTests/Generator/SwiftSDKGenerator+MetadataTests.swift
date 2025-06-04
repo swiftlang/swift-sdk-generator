@@ -76,28 +76,38 @@ final class SwiftSDKGeneratorMetadataTests: XCTestCase {
 
       try await sdk.createDirectoryIfNeeded(at: sdk.pathsConfiguration.artifactBundlePath)
 
-      // Generate bundle metadata
-      try await sdk.generateArtifactBundleManifest(
-        hostTriples: [sdk.targetTriple],
-        artifacts: ["foo": sdk.pathsConfiguration.artifactBundlePath.appending("bar.json")]
-      )
+      for shouldUseFullPaths in [true, false] {
+        // Generate bundle metadata
+        try await sdk.generateArtifactBundleManifest(
+          hostTriples: [sdk.targetTriple],
+          artifacts: ["foo": sdk.pathsConfiguration.artifactBundlePath.appending("foo").appending("bar.json")],
+          shouldUseFullPaths: shouldUseFullPaths
+        )
 
-      // Make sure the file exists
-      let archiveMetadataFile = await sdk.pathsConfiguration.artifactBundlePath.appending("info.json")
-      fileExists = await sdk.doesFileExist(at: archiveMetadataFile)
-      XCTAssertTrue(fileExists)
+        // Make sure the file exists
+        let archiveMetadataFile = await sdk.pathsConfiguration.artifactBundlePath.appending("info.json")
+        fileExists = await sdk.doesFileExist(at: archiveMetadataFile)
+        XCTAssertTrue(fileExists)
 
-      // Read back file, make sure it contains the expected data
-      let data = try await sdk.readFile(at: archiveMetadataFile)
-      let decodedMetadata = try JSONDecoder().decode(ArtifactsArchiveMetadata.self, from: data)
-      XCTAssertEqual(decodedMetadata.artifacts.count, 1)
-      for (id, artifact) in decodedMetadata.artifacts {
-        XCTAssertEqual(id, "foo")
-        XCTAssertEqual(artifact.variants, [.init(path: "bar.json", supportedTriples: [testCase.targetTriple.triple])])
+        // Read back file, make sure it contains the expected data
+        let data = try await sdk.readFile(at: archiveMetadataFile)
+        let decodedMetadata = try JSONDecoder().decode(ArtifactsArchiveMetadata.self, from: data)
+        XCTAssertEqual(decodedMetadata.artifacts.count, 1)
+        let variant: ArtifactsArchiveMetadata.Variant
+        if shouldUseFullPaths {
+          variant = .init(path: "foo/bar.json", supportedTriples: [testCase.targetTriple.triple])
+        } else {
+          variant = .init(path: "foo", supportedTriples: [testCase.targetTriple.triple])
+        }
+
+        for (id, artifact) in decodedMetadata.artifacts {
+          XCTAssertEqual(id, "foo")
+          XCTAssertEqual(artifact.variants, [variant])
+        }
+
+        // Cleanup
+        try await sdk.removeFile(at: archiveMetadataFile)
       }
-
-      // Cleanup
-      try await sdk.removeFile(at: archiveMetadataFile)
     }
   }
 }
