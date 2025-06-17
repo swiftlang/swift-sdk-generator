@@ -163,12 +163,12 @@ public actor SwiftSDKGenerator {
 
   func rsync(from source: FilePath, to destination: FilePath) async throws {
     try self.createDirectoryIfNeeded(at: destination)
-    try await Shell.run("rsync -a \(source) \(destination)", shouldLogCommands: self.isVerbose)
+    try await Shell.run(#"rsync -a "\#(source)" "\#(destination)""#, shouldLogCommands: self.isVerbose)
   }
 
   func rsyncContents(from source: FilePath, to destination: FilePath) async throws {
     try self.createDirectoryIfNeeded(at: destination)
-    try await Shell.run("rsync -a \(source)/ \(destination)", shouldLogCommands: self.isVerbose)
+    try await Shell.run(#"rsync -a "\#(source)/" "\#(destination)""#, shouldLogCommands: self.isVerbose)
   }
 
   func createSymlink(at source: FilePath, pointingTo destination: FilePath) throws {
@@ -254,7 +254,7 @@ public actor SwiftSDKGenerator {
       stripComponentsOption = ""
     }
     try await Shell.run(
-      #"tar -C "\#(directoryPath)" \#(stripComponentsOption) -xf \#(file)"#,
+      #"tar -C "\#(directoryPath)" \#(stripComponentsOption) -xf "\#(file)""#,
       shouldLogCommands: self.isVerbose
     )
   }
