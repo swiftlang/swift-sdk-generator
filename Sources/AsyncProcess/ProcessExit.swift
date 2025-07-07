@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift open source project
 //
-// Copyright (c) 2022-2023 Apple Inc. and the Swift project authors
+// Copyright (c) 2022-2025 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See https://swift.org/LICENSE.txt for license information
@@ -24,6 +24,34 @@ public enum ProcessExitReason: Hashable & Sendable {
   }
 }
 
+extension ProcessExitReason {
+  /// Turn into an integer like `$?` works in shells.
+  ///
+  /// Concretely, this means if the program exits normally with exit code `N`, `asShellExitCode == N`. But if the program exits because of a signal, then
+  /// `asShellExitCode == N + 128`, so 128 gets added to the signal number.
+  public var asShellExitCode: Int {
+    switch self {
+    case .exit(let code):
+      return Int(code)
+    case .signal(let code):
+      return 128 + Int(code)
+    }
+  }
+
+  /// Turn into an integer like Python's subprocess does.
+  ///
+  /// Concretely, this means if the program exits normally with exit code `N`, `asShellExitCode == N`. But if the program exits because of a signal, then
+  /// `asShellExitCode == -N`, so the negative signal number gets returned.
+  public var asPythonExitCode: Int {
+    switch self {
+    case .exit(let code):
+      return Int(code)
+    case .signal(let code):
+      return -Int(code)
+    }
+  }
+}
+
 public struct ProcessExecutionError: Error & Hashable & Sendable {
   public var exitReason: ProcessExitReason
 
@@ -34,6 +62,6 @@ public struct ProcessExecutionError: Error & Hashable & Sendable {
 
 extension ProcessExecutionError: CustomStringConvertible {
   public var description: String {
-    "process exited non-zero: \(self.exitReason)"
+    return "process exited non-zero: \(self.exitReason)"
   }
 }

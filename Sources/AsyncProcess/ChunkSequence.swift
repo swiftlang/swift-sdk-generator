@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift open source project
 //
-// Copyright (c) 2022-2023 Apple Inc. and the Swift project authors
+// Copyright (c) 2022-2025 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See https://swift.org/LICENSE.txt for license information
@@ -33,17 +33,17 @@ public struct ChunkSequence: AsyncSequence & Sendable {
 
   public func makeAsyncIterator() -> AsyncIterator {
     // This will close the file handle.
-    AsyncIterator(try! self.fileHandle?.fileContentStream(eventLoop: self.group.any()))
+    return AsyncIterator(try! self.fileHandle?.fileContentStream(eventLoop: group.any()))
   }
 
   public typealias Element = ByteBuffer
   public struct AsyncIterator: AsyncIteratorProtocol {
     public typealias Element = ByteBuffer
-    typealias UnderlyingSequence = FileContentStream
+    internal typealias UnderlyingSequence = FileContentStream
 
     private var underlyingIterator: UnderlyingSequence.AsyncIterator?
 
-    init(_ underlyingSequence: UnderlyingSequence?) {
+    internal init(_ underlyingSequence: UnderlyingSequence?) {
       self.underlyingIterator = underlyingSequence?.makeAsyncIterator()
     }
 

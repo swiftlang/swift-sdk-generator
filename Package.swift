@@ -76,9 +76,22 @@ let package = Package(
       ]
     ),
     .systemLibrary(name: "SystemSQLite", pkgConfig: "sqlite3"),
+
+    // `AsyncProcess` modules and dependencies
+
+    .target(name: "CProcessSpawnSync"),
+    .target(
+      name: "ProcessSpawnSync",
+      dependencies: [
+        "CProcessSpawnSync",
+        .product(name: "Atomics", package: "swift-atomics"),
+        .product(name: "NIOConcurrencyHelpers", package: "swift-nio"),
+      ]
+    ),
     .target(
       name: "AsyncProcess",
       dependencies: [
+        "ProcessSpawnSync",
         .product(name: "Atomics", package: "swift-atomics"),
         .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
         .product(name: "Logging", package: "swift-log"),
