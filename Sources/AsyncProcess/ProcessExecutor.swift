@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift open source project
 //
-// Copyright (c) 2022-2023 Apple Inc. and the Swift project authors
+// Copyright (c) 2022-2025 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See https://swift.org/LICENSE.txt for license information
@@ -10,20 +10,40 @@
 //
 //===----------------------------------------------------------------------===//
 
+import AsyncAlgorithms
 import Atomics
-import Foundation
 import Logging
 import NIO
+import ProcessSpawnSync
 
 @_exported import struct SystemPackage.FileDescriptor
 
+#if os(Linux) || ASYNC_PROCESS_FORCE_PS_PROCESS
+  // Foundation.Process is too buggy on Linux
+  //
+  // - Foundation.Process on Linux throws error Error Domain=NSCocoaErrorDomain Code=256 "(null)" if executable not found
+  //   https://github.com/swiftlang/swift-corelibs-foundation/issues/4810
+  // - Foundation.Process on Linux doesn't correctly detect when child process dies (creating zombie processes)
+  //   https://github.com/swiftlang/swift-corelibs-foundation/issues/4795
+  // - Foundation.Process on Linux seems to inherit the Process.run()-calling thread's signal mask, even SIGTERM blocked
+  //   https://github.com/swiftlang/swift-corelibs-foundation/issues/4772
+  typealias Process = PSProcess
+#endif
+
+#if os(iOS) || os(tvOS) || os(watchOS)
+  // Note: Process() in iOS/tvOS/watchOS is available in internal builds only under Foundation Private/headers
+  import Foundation_Private.NSTask
+#else
+  import Foundation
+#endif
+
 public struct ProcessOutputStream: Sendable & Hashable & CustomStringConvertible {
-  enum Backing {
+  internal enum Backing {
     case standardOutput
     case standardError
   }
 
-  var backing: Backing
+  internal var backing: Backing
 
   public static let standardOutput: Self = .init(backing: .standardOutput)
 
@@ -41,15 +61,14 @@ public struct ProcessOutputStream: Sendable & Hashable & CustomStringConvertible
 
 /// What to do with a given stream (`stdout`/`stderr`) in the spawned child process.
 public struct ProcessOutput: Sendable {
-  enum Backing {
+  internal enum Backing {
     case discard
     case inherit
     case fileDescriptorOwned(FileDescriptor)
     case fileDescriptorShared(FileDescriptor)
     case stream
   }
-
-  var backing: Backing
+  internal var backing: Backing
 
   /// Discard the child process' output.
   ///
@@ -66,7 +85,7 @@ public struct ProcessOutput: Sendable {
   ///
   /// - warning: After passing a `FileDescriptor` to this method you _must not_ perform _any_ other operations on it.
   public static func fileDescriptor(takingOwnershipOf fd: FileDescriptor) -> Self {
-    .init(backing: .fileDescriptorOwned(fd))
+    return .init(backing: .fileDescriptorOwned(fd))
   }
 
   /// Install `fd` as the child process' file descriptor, leaving the fd ownership with the user.
@@ -76,7 +95,7 @@ public struct ProcessOutput: Sendable {
   ///
   /// - note: `fd` is required to be closed by the user after the process has started running (and _not_ before).
   public static func fileDescriptor(sharing fd: FileDescriptor) -> Self {
-    .init(backing: .fileDescriptorShared(fd))
+    return .init(backing: .fileDescriptorShared(fd))
   }
 
   /// Stream this using the ``ProcessExecutor.standardOutput`` / ``ProcessExecutor.standardError`` ``AsyncStream``s.
@@ -101,19 +120,19 @@ private struct OutputConsumptionState: OptionSet {
   static let stderrNotStreamed: Self = .init(rawValue: 0b1000)
 
   var hasStandardOutputBeenConsumed: Bool {
-    self.contains([.stdoutConsumed])
+    return self.contains([.stdoutConsumed])
   }
 
   var hasStandardErrorBeenConsumed: Bool {
-    self.contains([.stderrConsumed])
+    return self.contains([.stderrConsumed])
   }
 
   var isStandardOutputStremed: Bool {
-    !self.contains([.stdoutNotStreamed])
+    return !self.contains([.stdoutNotStreamed])
   }
 
   var isStandardErrorStremed: Bool {
-    !self.contains([.stderrNotStreamed])
+    return !self.contains([.stderrNotStreamed])
   }
 }
 
@@ -158,14 +177,47 @@ public final actor ProcessExecutor {
   private let standardErrorWriteHandle: FileHandle?
   private let _standardOutput: ChunkSequence
   private let _standardError: ChunkSequence
-  private let processIsRunningApproximation = ManagedAtomic(
-    RunningStateApproximation.neverStarted.rawValue
-  )
+  private let processIsRunningApproximation = ManagedAtomic(RunningStateApproximation.neverStarted.rawValue)
   private let processOutputConsumptionApproximation = ManagedAtomic(UInt8(0))
   private let processPid = ManagedAtomic(pid_t(0))
   private let ownsStandardOutputWriteHandle: Bool
   private let ownsStandardErrorWriteHandle: Bool
   private let teardownSequence: TeardownSequence
+  private let spawnOptions: SpawnOptions
+
+  public static var isBackedByPSProcess: Bool {
+    return Process.self == PSProcess.self
+  }
+
+  public struct SpawnOptions: Sendable {
+    /// Should we close all non-stdin/out/err file descriptors in the child?
+    ///
+    /// The default and safe option is `true` but on Linux this incurs a performance penalty unless you have
+    /// a new-enough Glibc & Linux that support the
+    /// [`close_range`](https://man7.org/linux/man-pages/man2/close_range.2.html) syscall.
+    ///
+    /// On Darwin, `false` is only supported if you compile with `-Xswiftc -DASYNC_PROCESS_FORCE_PS_PROCESS`,
+    /// otherwise it will be silently ignored (and the other file descriptors will be closed anyway.).
+    public var closeOtherFileDescriptors: Bool
+
+    /// Change the working directory of the child process to this directory.
+    public var changedWorkingDirectory: Optional<String>
+
+    /// Should we call `setsid()` in the child process?
+    ///
+    /// Not supported on Darwin, unless you compile with `-Xswiftc -DASYNC_PROCESS_FORCE_PS_PROCESS`, otherwise
+    /// it will be silently ignored (and no new session will be created).
+    public var createNewSession: Bool
+
+    /// Safe & sensible default options.
+    public static var `default`: SpawnOptions {
+      return SpawnOptions(
+        closeOtherFileDescriptors: true,
+        changedWorkingDirectory: nil,
+        createNewSession: false
+      )
+    }
+  }
 
   public struct OSError: Error & Sendable & Hashable {
     public var errnoNumber: CInt
@@ -179,13 +231,13 @@ public final actor ProcessExecutor {
     public typealias ArrayLiteralElement = TeardownStep
 
     public init(arrayLiteral elements: TeardownStep...) {
-      self.steps = (elements.map(\.backing)) + [.kill]
+      self.steps = (elements.map { $0.backing }) + [.kill]
     }
 
     public struct TeardownStep: Sendable {
       var backing: Backing
 
-      enum Backing {
+      internal enum Backing {
         case sendSignal(CInt, allowedTimeNS: UInt64)
         case kill
       }
@@ -193,14 +245,13 @@ public final actor ProcessExecutor {
       /// Send `signal` to process and give it `allowedTimeToExitNS` nanoseconds to exit before progressing
       /// to the next teardown step. The final teardown step is always sending a `SIGKILL`.
       public static func sendSignal(_ signal: CInt, allowedTimeToExitNS: UInt64) -> Self {
-        Self(backing: .sendSignal(signal, allowedTimeNS: allowedTimeToExitNS))
+        return Self(backing: .sendSignal(signal, allowedTimeNS: allowedTimeToExitNS))
       }
     }
-
     var steps: [TeardownStep.Backing] = [.kill]
 
     public var description: String {
-      self.steps.map { "\($0)" }.joined(separator: ", ")
+      return self.steps.map { "\($0)" }.joined(separator: ", ")
     }
   }
 
@@ -243,16 +294,12 @@ public final actor ProcessExecutor {
   ///   - executable: The full path to the executable to spawn
   ///   - arguments: The arguments to the executable (not including `argv[0]`)
   ///   - environment: The environment variables to pass to the child process.
-  ///                  If you want to inherit the calling process' environment into the child, specify
-  /// `ProcessInfo.processInfo.environment`
-  ///   - standardInput: An `AsyncSequence` providing the standard input, pass `EOFSequence(of: ByteBuffer.self)` if you
-  /// don't want to
+  ///                  If you want to inherit the calling process' environment into the child, specify `ProcessInfo.processInfo.environment`
+  ///   - standardInput: An `AsyncSequence` providing the standard input, pass `EOFSequence(of: ByteBuffer.self)` if you don't want to
   ///                    provide input.
-  ///   - standardOutput: A description of what to do with the standard output of the child process (defaults to
-  /// ``ProcessOutput/stream``
+  ///   - standardOutput: A description of what to do with the standard output of the child process (defaults to ``ProcessOutput/stream``
   ///                     which requires to consume it via ``ProcessExecutor/standardOutput``.
-  ///   - standardError: A description of what to do with the standard output of the child process (defaults to
-  /// ``ProcessOutput/stream``
+  ///   - standardError: A description of what to do with the standard output of the child process (defaults to ``ProcessOutput/stream``
   ///                    which requires to consume it via ``ProcessExecutor/standardError``.
   ///   - teardownSequence: What to do if ``ProcessExecutor`` needs to tear down the process abruptly
   ///                       (usually because of Swift Concurrency cancellation)
@@ -262,6 +309,7 @@ public final actor ProcessExecutor {
     executable: String,
     _ arguments: [String],
     environment: [String: String] = [:],
+    spawnOptions: SpawnOptions = .default,
     standardInput: StandardInput,
     standardOutput: ProcessOutput = .stream,
     standardError: ProcessOutput = .stream,
@@ -275,6 +323,7 @@ public final actor ProcessExecutor {
     self.standardInput = AnyAsyncSequence(standardInput)
     self.logger = logger
     self.teardownSequence = teardownSequence
+    self.spawnOptions = spawnOptions
 
     self.standardInputPipe = StandardInput.self == EOFSequence<ByteBuffer>.self ? nil : Pipe()
 
@@ -287,7 +336,7 @@ public final actor ProcessExecutor {
       self.ownsStandardOutputWriteHandle = true
       self.standardOutputWriteHandle = FileHandle(forWritingAtPath: "/dev/null")
       self._standardOutput = ChunkSequence(takingOwnershipOfFileHandle: nil, group: group)
-    case let .fileDescriptorOwned(fd):
+    case .fileDescriptorOwned(let fd):
       _ = self.processOutputConsumptionApproximation.bitwiseXorThenLoad(
         with: OutputConsumptionState.stdoutNotStreamed.rawValue,
         ordering: .relaxed
@@ -295,7 +344,7 @@ public final actor ProcessExecutor {
       self.ownsStandardOutputWriteHandle = true
       self.standardOutputWriteHandle = FileHandle(fileDescriptor: fd.rawValue)
       self._standardOutput = ChunkSequence(takingOwnershipOfFileHandle: nil, group: group)
-    case let .fileDescriptorShared(fd):
+    case .fileDescriptorShared(let fd):
       _ = self.processOutputConsumptionApproximation.bitwiseXorThenLoad(
         with: OutputConsumptionState.stdoutNotStreamed.rawValue,
         ordering: .relaxed
@@ -327,7 +376,7 @@ public final actor ProcessExecutor {
       self.ownsStandardErrorWriteHandle = true
       self.standardErrorWriteHandle = FileHandle(forWritingAtPath: "/dev/null")
       self._standardError = ChunkSequence(takingOwnershipOfFileHandle: nil, group: group)
-    case let .fileDescriptorOwned(fd):
+    case .fileDescriptorOwned(let fd):
       _ = self.processOutputConsumptionApproximation.bitwiseXorThenLoad(
         with: OutputConsumptionState.stderrNotStreamed.rawValue,
         ordering: .relaxed
@@ -335,7 +384,7 @@ public final actor ProcessExecutor {
       self.ownsStandardErrorWriteHandle = true
       self.standardErrorWriteHandle = FileHandle(fileDescriptor: fd.rawValue)
       self._standardError = ChunkSequence(takingOwnershipOfFileHandle: nil, group: group)
-    case let .fileDescriptorShared(fd):
+    case .fileDescriptorShared(let fd):
       _ = self.processOutputConsumptionApproximation.bitwiseXorThenLoad(
         with: OutputConsumptionState.stderrNotStreamed.rawValue,
         ordering: .relaxed
@@ -434,7 +483,7 @@ public final actor ProcessExecutor {
         }
         let stepCompletion: TeardownStepCompletion
         switch step {
-        case let .sendSignal(signal, allowedTimeNS):
+        case .sendSignal(let signal, let allowedTimeNS):
           stepCompletion = await withTaskGroup(of: TeardownStepCompletion.self) { group in
             group.addTask {
               do {
@@ -473,12 +522,10 @@ public final actor ProcessExecutor {
   ///
   /// Calling `run()` will run the (sub-)process and return its ``ProcessExitReason`` when the execution completes.
   /// Unless `standardOutput` and `standardError` were both set to ``ProcessOutput/discard``,
-  /// ``ProcessOutput/fileDescriptor(takingOwnershipOf:)`` or ``ProcessOutput/inherit`` you must consume the
-  /// `AsyncSequence`s
+  /// ``ProcessOutput/fileDescriptor(takingOwnershipOf:)`` or ``ProcessOutput/inherit`` you must consume the `AsyncSequence`s
   /// ``ProcessExecutor/standardOutput`` and ``ProcessExecutor/standardError`` concurrently to ``run()``ing the process.
   ///
-  /// If you prefer to get the standard output and error in one (non-stremed) piece upon exit, consider the `static`
-  /// methods such as
+  /// If you prefer to get the standard output and error in one (non-stremed) piece upon exit, consider the `static` methods such as
   /// ``ProcessExecutor/runCollectingOutput(group:executable:_:standardInput:collectStandardOutput:collectStandardError:perStreamCollectionLimitBytes:environment:logger:)``.
   public func run() async throws -> ProcessExitReason {
     let p = Process()
@@ -494,6 +541,19 @@ public final actor ProcessExecutor {
     p.arguments = self.arguments
     p.environment = self.environment
     p.standardInput = nil
+    func isTypeOf<Existing, New>(_ existing: Existing, type: New.Type) -> New? {
+      return existing as? New
+    }
+    if let newCWD = self.spawnOptions.changedWorkingDirectory {
+      p.currentDirectoryURL = URL.init(fileURLWithPath: newCWD)
+    }
+    if let pSpecial = isTypeOf(p, type: PSProcess.self) {
+      assert(Self.isBackedByPSProcess)
+      pSpecial._closeOtherFileDescriptors = self.spawnOptions.closeOtherFileDescriptors
+      pSpecial._createNewSession = self.spawnOptions.createNewSession
+    } else {
+      assert(!Self.isBackedByPSProcess)
+    }
 
     if let standardOutputWriteHandle = self.standardOutputWriteHandle {
       // NOTE: Do _NOT_ remove this if. Setting this to `nil` is different to not setting it at all!
@@ -510,12 +570,22 @@ public final actor ProcessExecutor {
     )
 
     p.terminationHandler = { p in
-      let pidExchangeWorked = self.processPid.compareExchange(
-        expected: p.processIdentifier,
-        desired: -1,
-        ordering: .sequentiallyConsistent
-      ).exchanged
-      assert(pidExchangeWorked)
+      let pProcessID = p.processIdentifier
+      var terminationPidExchange: (exchanged: Bool, original: pid_t) = (false, -1)
+      while !terminationPidExchange.exchanged {
+        terminationPidExchange = self.processPid.compareExchange(
+          expected: pProcessID,
+          desired: -1,
+          ordering: .sequentiallyConsistent
+        )
+        if !terminationPidExchange.exchanged {
+          precondition(
+            terminationPidExchange.original == 0,
+            "termination pid exchange failed: \(terminationPidExchange)"
+          )
+          Thread.sleep(forTimeInterval: 0.01)
+        }
+      }
       self.logger.debug(
         "finished running command",
         metadata: [
@@ -552,34 +622,46 @@ public final actor ProcessExecutor {
       worked,
       "Did you run() twice? That's currently not allowed: illegal running state \(original)"
     )
-    do {
-      try p.run()
-    } catch {
-      let (worked, original) = self.processIsRunningApproximation.compareExchange(
-        expected: RunningStateApproximation.running.rawValue,
-        desired: RunningStateApproximation.finishedExecuting.rawValue,
-        ordering: .relaxed
-      )
-      terminationStreamProducer.finish()  // The termination handler will never have fired.
-      assert(worked)  // We just set it to running above, shouldn't be able to race (no `await`).
-      assert(original == RunningStateApproximation.running.rawValue)  // We compare-and-exchange it.
-      throw error
+    let childPid: pid_t = try await withCheckedThrowingContinuation { continuation in
+      DispatchQueue.global().async {
+        do {
+          try p.run()
+          let childPid = p.processIdentifier
+          assert(childPid > 0)
+          continuation.resume(returning: childPid)
+        } catch {
+          let (worked, original) = self.processIsRunningApproximation.compareExchange(
+            expected: RunningStateApproximation.running.rawValue,
+            desired: RunningStateApproximation.finishedExecuting.rawValue,
+            ordering: .relaxed
+          )
+          terminationStreamProducer.finish()  // The termination handler will never have fired.
+          if self.ownsStandardOutputWriteHandle {
+            try! self.standardOutputWriteHandle?.close()
+          }
+          if self.ownsStandardErrorWriteHandle {
+            try! self.standardErrorWriteHandle?.close()
+          }
+          assert(worked)  // We just set it to running above, shouldn't be able to race (no `await`).
+          assert(original == RunningStateApproximation.running.rawValue)  // We compare-and-exchange it.
+          continuation.resume(throwing: error)
+        }
+      }
     }
 
     // At this point, the process is running, we should therefore have a process ID (unless we're already dead).
-    let childPid = p.processIdentifier
-    _ = self.processPid.compareExchange(
+    let runPidExchange = self.processPid.compareExchange(
       expected: 0,
       desired: childPid,
       ordering: .sequentiallyConsistent
     )
-    assert(childPid != 0 || !p.isRunning)
+    precondition(runPidExchange.exchanged, "run pid exchange failed: \(runPidExchange)")
     self.logger.debug(
       "running command",
       metadata: [
         "executable": "\(self.executable)",
         "arguments": "\(self.arguments)",
-        "pid": "\(p.processIdentifier)",
+        "pid": "\(childPid)",
       ]
     )
 
@@ -591,13 +673,12 @@ public final actor ProcessExecutor {
       try! self.standardErrorWriteHandle?.close()  // Must work.
     }
 
-    @Sendable
-    func waitForChildToExit() async -> ProcessExitReason {
+    @Sendable func waitForChildToExit() async -> ProcessExitReason {
       // Please note, we're invoking this function multiple times concurrently, so we're relying on AsyncStream
       // supporting this.
 
       // We do need for the child to exit (and it will, we'll eventually SIGKILL it)
-      await withUncancelledTask(returning: ProcessExitReason.self) {
+      return await withUncancelledTask(returning: ProcessExitReason.self) {
         var iterator = terminationStreamConsumer.makeAsyncIterator()
 
         // Let's wait for the process to finish (it will)
@@ -616,11 +697,7 @@ public final actor ProcessExecutor {
         await withTaskGroup(of: Void.self) { triggerTeardownGroup in
           triggerTeardownGroup.addTask {
             // wait until cancelled
-            do {
-              while true {
-                try await Task.sleep(nanoseconds: 1_000_000_000)
-              }
-            } catch {}
+            do { while true { try await Task.sleep(nanoseconds: 1_000_000_000) } } catch {}
 
             let isRunning = self.processIsRunningApproximation.load(ordering: .relaxed)
             guard isRunning != RunningStateApproximation.finishedExecuting.rawValue else {
@@ -665,8 +742,9 @@ public final actor ProcessExecutor {
       }
 
       var exitReason: ProcessExitReason? = nil
+      // cannot fix this warning yet (rdar://113844171)
       while let result = try await runProcessGroup.next() {
-        if let result {
+        if let result = result {
           exitReason = result
         }
       }
@@ -674,9 +752,21 @@ public final actor ProcessExecutor {
     }
   }
 
-  public func sendSignal(_ signal: CInt) async throws {
+  /// The processes's process identifier (pid). Please note that most use cases of this are racy because UNIX systems recycle pids after process exit.
+  ///
+  /// Best effort way to return the process identifier whilst the process is running and `nil` when it's not running.
+  /// This may however return the process identifier for some time after the process has already exited.
+  public nonisolated var bestEffortProcessIdentifier: pid_t? {
     let pid = self.processPid.load(ordering: .sequentiallyConsistent)
-    if pid == 0 || pid == -1 {
+    guard pid > 0 else {
+      assert(pid == 0 || pid == -1)  // we never assign other values
+      return nil
+    }
+    return pid
+  }
+
+  public func sendSignal(_ signal: CInt) async throws {
+    guard let pid = self.bestEffortProcessIdentifier else {
       throw OSError(errnoNumber: ESRCH, function: "sendSignal")
     }
     let ret = kill(pid, signal)
@@ -691,12 +781,12 @@ extension ProcessExecutor {
   ///
   /// At present this is always `MultiThreadedEventLoopGroup.singleton`.
   public static var defaultEventLoopGroup: any EventLoopGroup {
-    globalDefaultEventLoopGroup
+    return globalDefaultEventLoopGroup
   }
 
   /// The default `Logger` for ``ProcessExecutor`` that's used if you do not override it. It won't log anything.
   public static var disableLogging: Logger {
-    globalDisableLoggingLogger
+    return globalDisableLoggingLogger
   }
 }
 
@@ -710,13 +800,10 @@ extension ProcessExecutor {
   ///   - executable: The full path to the executable to spawn
   ///   - arguments: The arguments to the executable (not including `argv[0]`)
   ///   - environment: The environment variables to pass to the child process.
-  ///                  If you want to inherit the calling process' environment into the child, specify
-  /// `ProcessInfo.processInfo.environment`
-  ///   - standardOutput: A description of what to do with the standard output of the child process (defaults to
-  /// ``ProcessOutput/stream``
+  ///                  If you want to inherit the calling process' environment into the child, specify `ProcessInfo.processInfo.environment`
+  ///   - standardOutput: A description of what to do with the standard output of the child process (defaults to ``ProcessOutput/stream``
   ///                     which requires to consume it via ``ProcessExecutor/standardOutput``.
-  ///   - standardError: A description of what to do with the standard output of the child process (defaults to
-  /// ``ProcessOutput/stream``
+  ///   - standardError: A description of what to do with the standard output of the child process (defaults to ``ProcessOutput/stream``
   ///                    which requires to consume it via ``ProcessExecutor/standardError``.
   ///   - logger: Where to log diagnostic messages to (default to no where)
   public init(
@@ -724,6 +811,7 @@ extension ProcessExecutor {
     executable: String,
     _ arguments: [String],
     environment: [String: String] = [:],
+    spawnOptions: SpawnOptions = .default,
     standardOutput: ProcessOutput = .stream,
     standardError: ProcessOutput = .stream,
     teardownSequence: TeardownSequence = TeardownSequence(),
@@ -734,6 +822,7 @@ extension ProcessExecutor {
       executable: executable,
       arguments,
       environment: environment,
+      spawnOptions: spawnOptions,
       standardInput: EOFSequence(),
       standardOutput: standardOutput,
       standardError: standardError,
@@ -744,10 +833,9 @@ extension ProcessExecutor {
 }
 
 private let globalDefaultEventLoopGroup: MultiThreadedEventLoopGroup = .singleton
-private let globalDisableLoggingLogger: Logger = .init(
-  label: "swift-async-process -- never logs",
-  factory: { _ in SwiftLogNoOpLogHandler() }
-)
+private let globalDisableLoggingLogger: Logger = {
+  return Logger(label: "swift-async-process -- never logs", factory: { _ in SwiftLogNoOpLogHandler() })
+}()
 
 extension AsyncStream {
   static func justMakeIt(elementType: Element.Type = Element.self) -> (
