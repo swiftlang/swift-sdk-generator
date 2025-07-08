@@ -12,14 +12,8 @@
 
 import Atomics
 import CProcessSpawnSync
+import Foundation
 import NIOConcurrencyHelpers
-
-#if os(iOS) || os(tvOS) || os(watchOS)
-  // Note: Process in iOS/tvOS/watchOS is available in internal builds only under Foundation Private/headers
-  import Foundation_Private.NSTask
-#else
-  import Foundation
-#endif
 
 extension ps_error_s {
   private func makeDescription() -> String {

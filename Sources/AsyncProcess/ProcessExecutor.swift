@@ -12,6 +12,7 @@
 
 import AsyncAlgorithms
 import Atomics
+import Foundation
 import Logging
 import NIO
 import ProcessSpawnSync
@@ -28,13 +29,6 @@ import ProcessSpawnSync
   // - Foundation.Process on Linux seems to inherit the Process.run()-calling thread's signal mask, even SIGTERM blocked
   //   https://github.com/swiftlang/swift-corelibs-foundation/issues/4772
   typealias Process = PSProcess
-#endif
-
-#if os(iOS) || os(tvOS) || os(watchOS)
-  // Note: Process() in iOS/tvOS/watchOS is available in internal builds only under Foundation Private/headers
-  import Foundation_Private.NSTask
-#else
-  import Foundation
 #endif
 
 public struct ProcessOutputStream: Sendable & Hashable & CustomStringConvertible {
