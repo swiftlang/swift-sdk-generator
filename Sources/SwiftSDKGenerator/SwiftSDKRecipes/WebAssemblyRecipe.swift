@@ -69,7 +69,7 @@ package struct WebAssemblyRecipe: SwiftSDKRecipe {
 
       toolset.swiftCompiler?.extraCLIOptions?.append(
         // libraries required for concurrency
-        contentsOf: ["-lc++", "-lswift_Concurrency", "-lswift_ConcurrencyDefaultExecutor"].flatMap {
+        contentsOf: ["-lc++", "-lswift_Concurrency"].flatMap {
           ["-Xlinker", $0]
         }
       )
