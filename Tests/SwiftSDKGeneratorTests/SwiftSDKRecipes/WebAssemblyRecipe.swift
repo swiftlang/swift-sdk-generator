@@ -56,7 +56,7 @@ final class WebAssemblyRecipeTests: XCTestCase {
         "-static-stdlib",
         "-enable-experimental-feature", "Embedded", "-wmo",
       ]
-        + ["-lc++", "-lswift_Concurrency", "-lswift_ConcurrencyDefaultExecutor"].flatMap {
+        + ["-lc++", "-lswift_Concurrency"].flatMap {
           ["-Xlinker", $0]
         }
     )
