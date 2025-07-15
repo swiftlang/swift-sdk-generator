@@ -24,16 +24,25 @@ public struct _FileContentStream: AsyncSequence & Sendable {
   public typealias Element = ByteBuffer
   typealias Underlying = AsyncThrowingChannel<Element, Error>
 
-  public func makeAsyncIterator() -> AsyncIterator {
-    return AsyncIterator(underlying: self.asyncChannel.makeAsyncIterator())
-  }
-
-  public struct AsyncIterator: AsyncIteratorProtocol {
+  public final class AsyncIterator: AsyncIteratorProtocol {
     public typealias Element = ByteBuffer
 
-    var underlying: Underlying.AsyncIterator
+    deinit {
+      // This is painful and so wrong but unfortunately, our iterators don't have a cancel signal, so the only
+      // thing we can do is hope for `deinit` to be invoked :(.
+      // AsyncIteratorProtocol also doesn't support `~Copyable` so we also have to make this a class.
+      self.channel?.close(promise: nil)
+    }
 
-    public mutating func next() async throws -> ByteBuffer? {
+    init(underlying: Underlying.AsyncIterator, channel: (any Channel)?) {
+      self.underlying = underlying
+      self.channel = channel
+    }
+
+    var underlying: Underlying.AsyncIterator
+    let channel: (any Channel)?
+
+    public func next() async throws -> ByteBuffer? {
       return try await self.underlying.next()
     }
   }
@@ -47,22 +56,41 @@ public struct _FileContentStream: AsyncSequence & Sendable {
   }
 
   private let asyncChannel: AsyncThrowingChannel<ByteBuffer, Error>
+  private let channel: (any Channel)?
+
+  internal func isSameAs(_ other: FileContentStream) -> Bool {
+    return (self.asyncChannel === other.asyncChannel) && (self.channel === other.channel)
+  }
+
+  public func makeAsyncIterator() -> AsyncIterator {
+    return AsyncIterator(
+      underlying: self.asyncChannel.makeAsyncIterator(),
+      channel: self.channel
+    )
+  }
+
+  public func close() async throws {
+    self.asyncChannel.finish()
+    do {
+      try await self.channel?.close().get()
+    } catch ChannelError.alreadyClosed {
+      // That's okay
+    }
+  }
 
   public static func makeReader(
     fileDescriptor: CInt,
     eventLoop: EventLoop = MultiThreadedEventLoopGroup.singleton.any(),
     blockingPool: NIOThreadPool = .singleton
   ) async throws -> _FileContentStream {
-    return try await eventLoop.submit {
-      try FileContentStream(fileDescriptor: fileDescriptor, eventLoop: eventLoop, blockingPool: blockingPool)
-    }.get()
+    try await FileContentStream(fileDescriptor: fileDescriptor, eventLoop: eventLoop, blockingPool: blockingPool)
   }
 
   internal init(
     fileDescriptor: CInt,
     eventLoop: EventLoop,
     blockingPool: NIOThreadPool? = nil
-  ) throws {
+  ) async throws {
     var statInfo: stat = .init()
     let statError = fstat(fileDescriptor, &statInfo)
     if statError != 0 {
@@ -103,23 +131,36 @@ public struct _FileContentStream: AsyncSequence & Sendable {
             asyncChannel.finish()
           }
         }
+      self.channel = nil
     case S_IFSOCK:
-      _ = ClientBootstrap(group: eventLoop)
+      self.channel = try await ClientBootstrap(group: eventLoop)
         .channelInitializer { channel in
-          channel.pipeline.addHandler(ReadIntoAsyncChannelHandler(sink: asyncChannel))
+          do {
+            try channel.pipeline.syncOperations.addHandler(ReadIntoAsyncChannelHandler(sink: asyncChannel))
+            return channel.eventLoop.makeSucceededFuture(())
+          } catch {
+            return channel.eventLoop.makeFailedFuture(error)
+          }
         }
         .withConnectedSocket(dupedFD)
+        .get()
     case S_IFIFO:
-      NIOPipeBootstrap(group: eventLoop)
+      self.channel = try await NIOPipeBootstrap(group: eventLoop)
         .channelInitializer { channel in
-          channel.pipeline.addHandler(ReadIntoAsyncChannelHandler(sink: asyncChannel))
+          do {
+            try channel.pipeline.syncOperations.addHandler(ReadIntoAsyncChannelHandler(sink: asyncChannel))
+            return channel.eventLoop.makeSucceededFuture(())
+          } catch {
+            return channel.eventLoop.makeFailedFuture(error)
+          }
         }
         .takingOwnershipOfDescriptor(
           input: dupedFD
         )
-        .whenSuccess { channel in
+        .map { channel in
           channel.close(mode: .output, promise: nil)
-        }
+          return channel
+        }.get()
     case S_IFDIR:
       throw IOError(errnoValue: EISDIR)
     case S_IFBLK, S_IFCHR, S_IFLNK:
@@ -265,8 +306,8 @@ private final class ReadIntoAsyncChannelHandler: ChannelDuplexHandler {
 }
 
 extension FileHandle {
-  func fileContentStream(eventLoop: EventLoop) throws -> FileContentStream {
-    let asyncBytes = try FileContentStream(fileDescriptor: self.fileDescriptor, eventLoop: eventLoop)
+  func fileContentStream(eventLoop: EventLoop) async throws -> FileContentStream {
+    let asyncBytes = try await FileContentStream(fileDescriptor: self.fileDescriptor, eventLoop: eventLoop)
     try self.close()
     return asyncBytes
   }
