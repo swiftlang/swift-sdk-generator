@@ -23,17 +23,41 @@ public struct IllegalStreamConsumptionError: Error {
 }
 
 public struct ChunkSequence: AsyncSequence & Sendable {
-  private let fileHandle: FileHandle?
-  private let group: EventLoopGroup
+  private let contentStream: FileContentStream?
 
-  public init(takingOwnershipOfFileHandle fileHandle: FileHandle?, group: EventLoopGroup) {
-    self.group = group
-    self.fileHandle = fileHandle
+  public init(
+    takingOwnershipOfFileHandle fileHandle: FileHandle,
+    group: EventLoopGroup
+  ) async throws {
+    // This will close the fileHandle
+    let contentStream = try await fileHandle.fileContentStream(eventLoop: group.any())
+    self.init(contentStream: contentStream)
+  }
+
+  internal func isSameAs(_ other: ChunkSequence) -> Bool {
+    guard let myContentStream = self.contentStream else {
+      return other.contentStream == nil
+    }
+    guard let otherContentStream = other.contentStream else {
+      return self.contentStream == nil
+    }
+    return myContentStream.isSameAs(otherContentStream)
+  }
+
+  public func close() async throws {
+    try await self.contentStream?.close()
+  }
+
+  private init(contentStream: FileContentStream?) {
+    self.contentStream = contentStream
+  }
+
+  public static func makeEmptyStream() -> Self {
+    return Self.init(contentStream: nil)
   }
 
   public func makeAsyncIterator() -> AsyncIterator {
-    // This will close the file handle.
-    return AsyncIterator(try! self.fileHandle?.fileContentStream(eventLoop: group.any()))
+    return AsyncIterator(self.contentStream)
   }
 
   public typealias Element = ByteBuffer

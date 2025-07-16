@@ -12,7 +12,6 @@
 
 import AsyncAlgorithms
 import Atomics
-import Foundation
 import Logging
 import NIO
 import ProcessSpawnSync
@@ -29,6 +28,13 @@ import ProcessSpawnSync
   // - Foundation.Process on Linux seems to inherit the Process.run()-calling thread's signal mask, even SIGTERM blocked
   //   https://github.com/swiftlang/swift-corelibs-foundation/issues/4772
   typealias Process = PSProcess
+#endif
+
+#if os(iOS) || os(tvOS) || os(watchOS)
+  // Process & fork/exec unavailable
+  #error("Process and fork() unavailable")
+#else
+  import Foundation
 #endif
 
 public struct ProcessOutputStream: Sendable & Hashable & CustomStringConvertible {
@@ -154,6 +160,28 @@ private struct AnyAsyncSequence<Element>: AsyncSequence & Sendable where Element
   }
 }
 
+internal enum ChildFileState<FileHandle: Sendable>: Sendable {
+  case inherit
+  case devNull
+  case ownedHandle(FileHandle)
+  case unownedHandle(FileHandle)
+
+  var handleIfOwned: FileHandle? {
+    switch self {
+    case .inherit, .devNull, .unownedHandle:
+      return nil
+    case .ownedHandle(let handle):
+      return handle
+    }
+  }
+}
+
+enum Streaming {
+  case toBeStreamed(FileHandle, EventLoopPromise<ChunkSequence>)
+  case preparing(EventLoopFuture<ChunkSequence>)
+  case streaming(ChunkSequence)
+}
+
 /// Execute a sub-process.
 ///
 /// - warning: Currently, the default for `standardOutput` & `standardError` is ``ProcessOutput.stream`` which means
@@ -166,16 +194,14 @@ public final actor ProcessExecutor {
   private let arguments: [String]
   private let environment: [String: String]
   private let standardInput: AnyAsyncSequence<ByteBuffer>
-  private let standardInputPipe: Pipe?
-  private let standardOutputWriteHandle: FileHandle?
-  private let standardErrorWriteHandle: FileHandle?
-  private let _standardOutput: ChunkSequence
-  private let _standardError: ChunkSequence
+  private let standardInputPipe: ChildFileState<Pipe>
+  private let standardOutputWriteHandle: ChildFileState<FileHandle>
+  private let standardErrorWriteHandle: ChildFileState<FileHandle>
+  private var _standardOutput: Streaming
+  private var _standardError: Streaming
   private let processIsRunningApproximation = ManagedAtomic(RunningStateApproximation.neverStarted.rawValue)
   private let processOutputConsumptionApproximation = ManagedAtomic(UInt8(0))
   private let processPid = ManagedAtomic(pid_t(0))
-  private let ownsStandardOutputWriteHandle: Bool
-  private let ownsStandardErrorWriteHandle: Bool
   private let teardownSequence: TeardownSequence
   private let spawnOptions: SpawnOptions
 
@@ -203,12 +229,34 @@ public final actor ProcessExecutor {
     /// it will be silently ignored (and no new session will be created).
     public var createNewSession: Bool
 
+    /// If an `AsyncSequence` to write is provided to `standardInput`, should we ignore all write errors?
+    ///
+    /// The default is `false` and write errors to the child process's standard input are thrown like process spawn errors. If set to `true`, these errors
+    /// are silently ignored. This option can be useful if we need to capture the child process' output even if writing into its standard input fails
+    public var ignoreStdinStreamWriteErrors: Bool
+
+    /// If an error is hit whilst writing into the child process's standard input, should we cancel the process (making it terminate)
+    ///
+    /// Default is `true`.
+    public var cancelProcessOnStandardInputWriteFailure: Bool
+
+    /// Should we cancel the standard input writing when the process has exited?
+    ///
+    /// Default is `true`.
+    ///
+    /// - warning: Disabling this is rather dangerous if the child process had interited its standard input into another process. If that is the case, we will
+    ///            not return from `run(WithExtendedInfo)` until we streamed our full standard input (or it failed).
+    public var cancelStandardInputWritingWhenProcessExits: Bool
+
     /// Safe & sensible default options.
     public static var `default`: SpawnOptions {
       return SpawnOptions(
         closeOtherFileDescriptors: true,
         changedWorkingDirectory: nil,
-        createNewSession: false
+        createNewSession: false,
+        ignoreStdinStreamWriteErrors: false,
+        cancelProcessOnStandardInputWriteFailure: true,
+        cancelStandardInputWritingWhenProcessExits: true
       )
     }
   }
@@ -249,28 +297,97 @@ public final actor ProcessExecutor {
     }
   }
 
-  public var standardOutput: ChunkSequence {
+  enum StreamingKickOff: Sendable {
+    case make(FileHandle, EventLoopPromise<ChunkSequence>)
+    case wait(EventLoopFuture<ChunkSequence>)
+    case take(ChunkSequence)
+  }
+
+  private static func kickOffStreaming(
+    stream: inout Streaming
+  ) -> StreamingKickOff {
+    switch stream {
+    case .toBeStreamed(let fileHandle, let promise):
+      stream = .preparing(promise.futureResult)
+      return .make(fileHandle, promise)
+    case .preparing(let future):
+      return .wait(future)
+    case .streaming(let chunkSequence):
+      return .take(chunkSequence)
+    }
+  }
+
+  private static func streamingSetupDone(
+    stream: inout Streaming,
+    _ chunkSequence: ChunkSequence
+  ) {
+    switch stream {
+    case .toBeStreamed, .streaming:
+      fatalError("impossible state: \(stream)")
+    case .preparing:
+      stream = .streaming(chunkSequence)
+    }
+  }
+
+  private func assureSingleStreamConsumption(streamBit: OutputConsumptionState, name: String) {
     let afterValue = self.processOutputConsumptionApproximation.bitwiseXorThenLoad(
-      with: OutputConsumptionState.stdoutConsumed.rawValue,
+      with: streamBit.rawValue,
       ordering: .relaxed
     )
     precondition(
-      OutputConsumptionState(rawValue: afterValue).contains([.stdoutConsumed]),
-      "Double-consumption of stdandardOutput"
+      OutputConsumptionState(rawValue: afterValue).contains([streamBit]),
+      "Double-consumption of \(name)"
     )
-    return self._standardOutput
+  }
+
+  @discardableResult
+  private func setupStandardOutput() async throws -> ChunkSequence {
+    switch Self.kickOffStreaming(stream: &self._standardOutput) {
+    case .make(let fileHandle, let promise):
+      let chunkSequence = try! await ChunkSequence(
+        takingOwnershipOfFileHandle: fileHandle,
+        group: self.group.any()
+      )
+      Self.streamingSetupDone(stream: &self._standardOutput, chunkSequence)
+      promise.succeed(chunkSequence)
+      return chunkSequence
+    case .wait(let chunkSequence):
+      return try await chunkSequence.get()
+    case .take(let chunkSequence):
+      return chunkSequence
+    }
+  }
+
+  @discardableResult
+  private func setupStandardError() async throws -> ChunkSequence {
+    switch Self.kickOffStreaming(stream: &self._standardError) {
+    case .make(let fileHandle, let promise):
+      let chunkSequence = try! await ChunkSequence(
+        takingOwnershipOfFileHandle: fileHandle,
+        group: self.group.any()
+      )
+      Self.streamingSetupDone(stream: &self._standardError, chunkSequence)
+      promise.succeed(chunkSequence)
+      return chunkSequence
+    case .wait(let chunkSequence):
+      return try await chunkSequence.get()
+    case .take(let chunkSequence):
+      return chunkSequence
+    }
+  }
+
+  public var standardOutput: ChunkSequence {
+    get async {
+      self.assureSingleStreamConsumption(streamBit: .stdoutConsumed, name: #function)
+      return try! await self.setupStandardOutput()
+    }
   }
 
   public var standardError: ChunkSequence {
-    let afterValue = self.processOutputConsumptionApproximation.bitwiseXorThenLoad(
-      with: OutputConsumptionState.stderrConsumed.rawValue,
-      ordering: .relaxed
-    )
-    precondition(
-      OutputConsumptionState(rawValue: afterValue).contains([.stderrConsumed]),
-      "Double-consumption of stdandardEror"
-    )
-    return self._standardError
+    get async {
+      self.assureSingleStreamConsumption(streamBit: .stderrConsumed, name: #function)
+      return try! await self.setupStandardError()
+    }
   }
 
   private enum RunningStateApproximation: Int {
@@ -319,7 +436,12 @@ public final actor ProcessExecutor {
     self.teardownSequence = teardownSequence
     self.spawnOptions = spawnOptions
 
-    self.standardInputPipe = StandardInput.self == EOFSequence<ByteBuffer>.self ? nil : Pipe()
+    self.standardInputPipe = StandardInput.self == EOFSequence<ByteBuffer>.self ? .devNull : .ownedHandle(Pipe())
+
+    let standardOutputWriteHandle: ChildFileState<FileHandle>
+    let standardErrorWriteHandle: ChildFileState<FileHandle>
+    let _standardOutput: Streaming
+    let _standardError: Streaming
 
     switch standardOutput.backing {
     case .discard:
@@ -327,38 +449,33 @@ public final actor ProcessExecutor {
         with: OutputConsumptionState.stdoutNotStreamed.rawValue,
         ordering: .relaxed
       )
-      self.ownsStandardOutputWriteHandle = true
-      self.standardOutputWriteHandle = FileHandle(forWritingAtPath: "/dev/null")
-      self._standardOutput = ChunkSequence(takingOwnershipOfFileHandle: nil, group: group)
+      standardOutputWriteHandle = .devNull
+      _standardOutput = .streaming(ChunkSequence.makeEmptyStream())
     case .fileDescriptorOwned(let fd):
       _ = self.processOutputConsumptionApproximation.bitwiseXorThenLoad(
         with: OutputConsumptionState.stdoutNotStreamed.rawValue,
         ordering: .relaxed
       )
-      self.ownsStandardOutputWriteHandle = true
-      self.standardOutputWriteHandle = FileHandle(fileDescriptor: fd.rawValue)
-      self._standardOutput = ChunkSequence(takingOwnershipOfFileHandle: nil, group: group)
+      standardOutputWriteHandle = .ownedHandle(FileHandle(fileDescriptor: fd.rawValue))
+      _standardOutput = .streaming(ChunkSequence.makeEmptyStream())
     case .fileDescriptorShared(let fd):
       _ = self.processOutputConsumptionApproximation.bitwiseXorThenLoad(
         with: OutputConsumptionState.stdoutNotStreamed.rawValue,
         ordering: .relaxed
       )
-      self.ownsStandardOutputWriteHandle = false
-      self.standardOutputWriteHandle = FileHandle(fileDescriptor: fd.rawValue)
-      self._standardOutput = ChunkSequence(takingOwnershipOfFileHandle: nil, group: group)
+      standardOutputWriteHandle = .unownedHandle(FileHandle(fileDescriptor: fd.rawValue))
+      _standardOutput = .streaming(ChunkSequence.makeEmptyStream())
     case .inherit:
       _ = self.processOutputConsumptionApproximation.bitwiseXorThenLoad(
         with: OutputConsumptionState.stdoutNotStreamed.rawValue,
         ordering: .relaxed
       )
-      self.ownsStandardOutputWriteHandle = true
-      self.standardOutputWriteHandle = nil
-      self._standardOutput = ChunkSequence(takingOwnershipOfFileHandle: nil, group: group)
+      standardOutputWriteHandle = .inherit
+      _standardOutput = .streaming(ChunkSequence.makeEmptyStream())
     case .stream:
-      let (stdoutSequence, stdoutWriteHandle) = Self.makeWriteStream(group: group)
-      self.ownsStandardOutputWriteHandle = true
-      self._standardOutput = stdoutSequence
-      self.standardOutputWriteHandle = stdoutWriteHandle
+      let handles = Self.makeWriteStream(group: group)
+      _standardOutput = .toBeStreamed(handles.parentHandle, self.group.any().makePromise())
+      standardOutputWriteHandle = .ownedHandle(handles.childHandle)
     }
 
     switch standardError.backing {
@@ -367,49 +484,44 @@ public final actor ProcessExecutor {
         with: OutputConsumptionState.stderrNotStreamed.rawValue,
         ordering: .relaxed
       )
-      self.ownsStandardErrorWriteHandle = true
-      self.standardErrorWriteHandle = FileHandle(forWritingAtPath: "/dev/null")
-      self._standardError = ChunkSequence(takingOwnershipOfFileHandle: nil, group: group)
+      standardErrorWriteHandle = .devNull
+      _standardError = .streaming(ChunkSequence.makeEmptyStream())
     case .fileDescriptorOwned(let fd):
       _ = self.processOutputConsumptionApproximation.bitwiseXorThenLoad(
         with: OutputConsumptionState.stderrNotStreamed.rawValue,
         ordering: .relaxed
       )
-      self.ownsStandardErrorWriteHandle = true
-      self.standardErrorWriteHandle = FileHandle(fileDescriptor: fd.rawValue)
-      self._standardError = ChunkSequence(takingOwnershipOfFileHandle: nil, group: group)
+      standardErrorWriteHandle = .ownedHandle(FileHandle(fileDescriptor: fd.rawValue))
+      _standardError = .streaming(ChunkSequence.makeEmptyStream())
     case .fileDescriptorShared(let fd):
       _ = self.processOutputConsumptionApproximation.bitwiseXorThenLoad(
         with: OutputConsumptionState.stderrNotStreamed.rawValue,
         ordering: .relaxed
       )
-      self.ownsStandardErrorWriteHandle = false
-      self.standardErrorWriteHandle = FileHandle(fileDescriptor: fd.rawValue)
-      self._standardError = ChunkSequence(takingOwnershipOfFileHandle: nil, group: group)
+      standardErrorWriteHandle = .unownedHandle(FileHandle(fileDescriptor: fd.rawValue))
+      _standardError = .streaming(ChunkSequence.makeEmptyStream())
     case .inherit:
       _ = self.processOutputConsumptionApproximation.bitwiseXorThenLoad(
         with: OutputConsumptionState.stderrNotStreamed.rawValue,
         ordering: .relaxed
       )
-      self.ownsStandardErrorWriteHandle = true
-      self.standardErrorWriteHandle = nil
-      self._standardError = ChunkSequence(takingOwnershipOfFileHandle: nil, group: group)
+      standardErrorWriteHandle = .inherit
+      _standardError = .streaming(ChunkSequence.makeEmptyStream())
     case .stream:
-      let (stdoutSequence, stdoutWriteHandle) = Self.makeWriteStream(group: group)
-      self.ownsStandardErrorWriteHandle = true
-      self._standardError = stdoutSequence
-      self.standardErrorWriteHandle = stdoutWriteHandle
+      let handles = Self.makeWriteStream(group: group)
+      _standardError = .toBeStreamed(handles.parentHandle, self.group.any().makePromise())
+      standardErrorWriteHandle = .ownedHandle(handles.childHandle)
     }
+
+    self._standardError = _standardError
+    self._standardOutput = _standardOutput
+    self.standardOutputWriteHandle = standardOutputWriteHandle
+    self.standardErrorWriteHandle = standardErrorWriteHandle
   }
 
-  private static func makeWriteStream(group: EventLoopGroup) -> (ChunkSequence, FileHandle) {
+  private static func makeWriteStream(group: EventLoopGroup) -> (parentHandle: FileHandle, childHandle: FileHandle) {
     let pipe = Pipe()
-    let chunkSequence = ChunkSequence(
-      takingOwnershipOfFileHandle: pipe.fileHandleForReading,
-      group: group
-    )
-    let writeHandle = pipe.fileHandleForWriting
-    return (chunkSequence, writeHandle)
+    return (parentHandle: pipe.fileHandleForReading, childHandle: pipe.fileHandleForWriting)
   }
 
   deinit {
@@ -522,6 +634,31 @@ public final actor ProcessExecutor {
   /// If you prefer to get the standard output and error in one (non-stremed) piece upon exit, consider the `static` methods such as
   /// ``ProcessExecutor/runCollectingOutput(group:executable:_:standardInput:collectStandardOutput:collectStandardError:perStreamCollectionLimitBytes:environment:logger:)``.
   public func run() async throws -> ProcessExitReason {
+    let result = try await self.runWithExtendedInfo()
+    if let error = result.standardInputWriteError {
+      throw error
+    }
+    return result.exitReason
+  }
+
+  enum WhoReturned: Sendable {
+    case process(ProcessExitReason)
+    case stdinWriter((any Error)?)
+  }
+
+  /// Run the process and provide extended information on exit.
+  ///
+  /// Calling `run()` will run the (sub-)process and return its ``ProcessExitReason`` when the execution completes.
+  /// Unless `standardOutput` and `standardError` were both set to ``ProcessOutput/discard``,
+  /// ``ProcessOutput/fileDescriptor(takingOwnershipOf:)`` or ``ProcessOutput/inherit`` you must consume the `AsyncSequence`s
+  /// ``ProcessExecutor/standardOutput`` and ``ProcessExecutor/standardError`` concurrently to ``run()``ing the process.
+  ///
+  /// If you prefer to get the standard output and error in one (non-stremed) piece upon exit, consider the `static` methods such as
+  /// ``ProcessExecutor/runCollectingOutput(group:executable:_:standardInput:collectStandardOutput:collectStandardError:perStreamCollectionLimitBytes:environment:logger:)``.
+  public func runWithExtendedInfo() async throws -> ProcessExitExtendedInfo {
+    try await self.setupStandardOutput()
+    try await self.setupStandardError()
+
     let p = Process()
     #if canImport(Darwin)
       if #available(macOS 13.0, *) {
@@ -549,15 +686,32 @@ public final actor ProcessExecutor {
       assert(!Self.isBackedByPSProcess)
     }
 
-    if let standardOutputWriteHandle = self.standardOutputWriteHandle {
-      // NOTE: Do _NOT_ remove this if. Setting this to `nil` is different to not setting it at all!
-      p.standardOutput = standardOutputWriteHandle
+    switch self.standardInputPipe {
+    case .inherit:
+      ()  // We are _not_ setting it, this is `Foundation.Process`'s API for inheritance
+    case .devNull:
+      p.standardInput = nil  // Yes, setting to `nil` means `/dev/null`
+    case .ownedHandle(let pipe), .unownedHandle(let pipe):
+      p.standardInput = pipe
     }
-    if let standardErrorWriteHandle = self.standardErrorWriteHandle {
-      // NOTE: Do _NOT_ remove this if. Setting this to `nil` is different to not setting it at all!
-      p.standardError = standardErrorWriteHandle
+
+    switch self.standardOutputWriteHandle {
+    case .inherit:
+      ()  // We are _not_ setting it, this is `Foundation.Process`'s API for inheritance
+    case .devNull:
+      p.standardOutput = nil  // Yes, setting to `nil` means `/dev/null`
+    case .ownedHandle(let fileHandle), .unownedHandle(let fileHandle):
+      p.standardOutput = fileHandle
     }
-    p.standardInput = self.standardInputPipe
+
+    switch self.standardErrorWriteHandle {
+    case .inherit:
+      ()  // We are _not_ setting it, this is `Foundation.Process`'s API for inheritance
+    case .devNull:
+      p.standardError = nil  // Yes, setting to `nil` means `/dev/null`
+    case .ownedHandle(let fileHandle), .unownedHandle(let fileHandle):
+      p.standardError = fileHandle
+    }
 
     let (terminationStreamConsumer, terminationStreamProducer) = AsyncStream.justMakeIt(
       elementType: ProcessExitReason.self
@@ -630,11 +784,11 @@ public final actor ProcessExecutor {
             ordering: .relaxed
           )
           terminationStreamProducer.finish()  // The termination handler will never have fired.
-          if self.ownsStandardOutputWriteHandle {
-            try! self.standardOutputWriteHandle?.close()
+          if let stdoutHandle = self.standardOutputWriteHandle.handleIfOwned {
+            try! stdoutHandle.close()
           }
-          if self.ownsStandardErrorWriteHandle {
-            try! self.standardErrorWriteHandle?.close()
+          if let stderrHandle = self.standardErrorWriteHandle.handleIfOwned {
+            try! stderrHandle.close()
           }
           assert(worked)  // We just set it to running above, shouldn't be able to race (no `await`).
           assert(original == RunningStateApproximation.running.rawValue)  // We compare-and-exchange it.
@@ -659,12 +813,14 @@ public final actor ProcessExecutor {
       ]
     )
 
-    try! self.standardInputPipe?.fileHandleForReading.close()  // Must work.
-    if self.ownsStandardOutputWriteHandle {
-      try! self.standardOutputWriteHandle?.close()  // Must work.
+    if let stdinHandle = self.standardInputPipe.handleIfOwned {
+      try! stdinHandle.fileHandleForReading.close()  // Must work.
     }
-    if self.ownsStandardErrorWriteHandle {
-      try! self.standardErrorWriteHandle?.close()  // Must work.
+    if let stdoutHandle = self.standardOutputWriteHandle.handleIfOwned {
+      try! stdoutHandle.close()  // Must work.
+    }
+    if let stderrHandle = self.standardErrorWriteHandle.handleIfOwned {
+      try! stderrHandle.close()  // Must work.
     }
 
     @Sendable func waitForChildToExit() async -> ProcessExitReason {
@@ -683,10 +839,10 @@ public final actor ProcessExecutor {
       }
     }
 
-    return try await withThrowingTaskGroup(
-      of: ProcessExitReason?.self,
-      returning: ProcessExitReason.self
-    ) { runProcessGroup async throws -> ProcessExitReason in
+    let extendedExitReason = await withTaskGroup(
+      of: WhoReturned.self,
+      returning: ProcessExitExtendedInfo.self
+    ) { runProcessGroup async -> ProcessExitExtendedInfo in
       runProcessGroup.addTask {
         await withTaskGroup(of: Void.self) { triggerTeardownGroup in
           triggerTeardownGroup.addTask {
@@ -718,32 +874,55 @@ public final actor ProcessExecutor {
 
           let result = await waitForChildToExit()
           triggerTeardownGroup.cancelAll()  // This triggers the teardown
-          return result
+          return .process(result)
         }
       }
       runProcessGroup.addTask {
-        if let stdinPipe = self.standardInputPipe {
-          let fdForNIO = dup(stdinPipe.fileHandleForWriting.fileDescriptor)
-          try! stdinPipe.fileHandleForWriting.close()
+        let stdinPipe: Pipe
+        switch self.standardInputPipe {
+        case .inherit, .devNull:
+          return .stdinWriter(nil)
+        case .ownedHandle(let pipe):
+          stdinPipe = pipe
+        case .unownedHandle(let pipe):
+          stdinPipe = pipe
+        }
+        let fdForNIO = dup(stdinPipe.fileHandleForWriting.fileDescriptor)
+        try! stdinPipe.fileHandleForWriting.close()
 
+        do {
           try await NIOAsyncPipeWriter<AnyAsyncSequence<ByteBuffer>>.sinkSequenceInto(
             self.standardInput,
             takingOwnershipOfFD: fdForNIO,
+            ignoreWriteErrors: self.spawnOptions.ignoreStdinStreamWriteErrors,
             eventLoop: self.group.any()
           )
+        } catch {
+          return .stdinWriter(error)
         }
-        return nil
+        return .stdinWriter(nil)
       }
 
       var exitReason: ProcessExitReason? = nil
-      // cannot fix this warning yet (rdar://113844171)
-      while let result = try await runProcessGroup.next() {
-        if let result = result {
+      var stdinWriterError: (any Error)?? = nil
+      while let result = await runProcessGroup.next() {
+        switch result {
+        case .process(let result):
           exitReason = result
+          if self.spawnOptions.cancelStandardInputWritingWhenProcessExits {
+            runProcessGroup.cancelAll()
+          }
+        case .stdinWriter(let maybeError):
+          stdinWriterError = maybeError
+          if self.spawnOptions.cancelProcessOnStandardInputWriteFailure && maybeError != nil {
+            runProcessGroup.cancelAll()
+          }
         }
       }
-      return exitReason!  // must work because the real task will return a reason (or throw)
+      return ProcessExitExtendedInfo(exitReason: exitReason!, standardInputWriteError: stdinWriterError!)
     }
+
+    return extendedExitReason
   }
 
   /// The processes's process identifier (pid). Please note that most use cases of this are racy because UNIX systems recycle pids after process exit.

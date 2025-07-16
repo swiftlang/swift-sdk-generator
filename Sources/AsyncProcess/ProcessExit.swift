@@ -10,6 +10,14 @@
 //
 //===----------------------------------------------------------------------===//
 
+public struct ProcessExitExtendedInfo: Sendable {
+  /// Reason the process exited.
+  public var exitReason: ProcessExitReason
+
+  /// Any errors that occurred whilst writing the provided `standardInput` sequence into the child process' standard input.
+  public var standardInputWriteError: Optional<any Error>
+}
+
 public enum ProcessExitReason: Hashable & Sendable {
   case exit(CInt)
   case signal(CInt)
