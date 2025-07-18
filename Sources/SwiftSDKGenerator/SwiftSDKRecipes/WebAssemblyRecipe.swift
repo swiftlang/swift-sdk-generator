@@ -195,15 +195,17 @@ package struct WebAssemblyRecipe: SwiftSDKRecipe {
       try await generator.createSymlink(at: autolinkExtractPath, pointingTo: "swift")
     }
 
+    // TODO: Remove this once we drop support for Swift 6.2
     // Embedded Swift looks up clang compiler-rt in a different path.
     let embeddedCompilerRTPath = pathsConfiguration.toolchainDirPath.appending(
       "usr/lib/swift/clang/lib/wasip1"
     )
-
-    try await generator.createSymlink(
-      at: embeddedCompilerRTPath,
-      pointingTo: "../../../swift_static/clang/lib/wasi"
-    )
+    if await !generator.doesFileExist(at: embeddedCompilerRTPath) {
+      try await generator.createSymlink(
+        at: embeddedCompilerRTPath,
+        pointingTo: "../../../swift_static/clang/lib/wasi"
+      )
+    }
 
     // Copy the WASI sysroot into the SDK bundle.
     let sdkDirPath = pathsConfiguration.swiftSDKRootPath.appending("WASI.sdk")
