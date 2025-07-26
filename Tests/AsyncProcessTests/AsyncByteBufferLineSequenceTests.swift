@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift open source project
 //
-// Copyright (c) 2022-2023 Apple Inc. and the Swift project authors
+// Copyright (c) 2022-2025 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See https://swift.org/LICENSE.txt for license information
@@ -43,9 +43,7 @@ final class AsyncByteBufferLineSequenceTests: XCTestCase {
   func testManyChunksNoNewlineNotDeliveringLastChunk() async throws {
     for n in 0..<100 {
       let inputs: [ByteBuffer] = [ByteBuffer(repeating: 0, count: n)]
-      let lines = try await Array(
-        inputs.async.splitIntoLines(dropLastChunkIfNoNewline: true).strings
-      )
+      let lines = try await Array(inputs.async.splitIntoLines(dropLastChunkIfNoNewline: true).strings)
       XCTAssertEqual([], lines)
     }
   }

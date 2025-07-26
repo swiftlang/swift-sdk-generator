@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift open source project
 //
-// Copyright (c) 2022-2023 Apple Inc. and the Swift project authors
+// Copyright (c) 2022-2025 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See https://swift.org/LICENSE.txt for license information
@@ -13,8 +13,8 @@
 import Logging
 import NIOConcurrencyHelpers
 
-final class LogRecorderHandler: LogHandler {
-  let state = NIOLockedValueBox<State>(State())
+final internal class LogRecorderHandler: LogHandler {
+  internal let state = NIOLockedValueBox<State>(State())
 
   struct FullLogMessage: Equatable {
     var level: Logger.Level
@@ -29,7 +29,7 @@ final class LogRecorderHandler: LogHandler {
   }
 
   func makeLogger() -> Logger {
-    Logger(label: "LogRecorder for tests", factory: { _ in self })
+    return Logger(label: "LogRecorder for tests", factory: { _ in self })
   }
 
   func log(
@@ -44,7 +44,7 @@ final class LogRecorderHandler: LogHandler {
     let fullMessage = FullLogMessage(
       level: level,
       message: message,
-      metadata: self.metadata.merging(metadata ?? [:]) { _, r in r }
+      metadata: self.metadata.merging(metadata ?? [:]) { l, r in r }
     )
     self.state.withLockedValue { state in
       state.messages.append(fullMessage)
@@ -52,12 +52,12 @@ final class LogRecorderHandler: LogHandler {
   }
 
   var recordedMessages: [FullLogMessage] {
-    self.state.withLockedValue { $0.messages }
+    return self.state.withLockedValue { $0.messages }
   }
 
   subscript(metadataKey key: String) -> Logging.Logger.Metadata.Value? {
     get {
-      self.state.withLockedValue {
+      return self.state.withLockedValue {
         $0.metadata[key]
       }
     }
@@ -70,13 +70,13 @@ final class LogRecorderHandler: LogHandler {
 
   var metadata: Logging.Logger.Metadata {
     get {
-      self.state.withLockedValue {
+      return self.state.withLockedValue {
         $0.metadata
       }
     }
 
     set {
-      self.state.withLockedValue {
+      return self.state.withLockedValue {
         $0.metadata = newValue
       }
     }
@@ -84,13 +84,13 @@ final class LogRecorderHandler: LogHandler {
 
   var logLevel: Logging.Logger.Level {
     get {
-      self.state.withLockedValue {
+      return self.state.withLockedValue {
         $0.logLevel
       }
     }
 
     set {
-      self.state.withLockedValue {
+      return self.state.withLockedValue {
         $0.logLevel = newValue
       }
     }

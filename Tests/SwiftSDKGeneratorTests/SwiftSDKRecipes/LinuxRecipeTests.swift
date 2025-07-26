@@ -20,6 +20,7 @@ final class LinuxRecipeTests: XCTestCase {
 
   func createRecipe(
     hostTriple: Triple = Triple("x86_64-unknown-linux-gnu"),
+    linuxDistribution: LinuxDistribution,
     swiftVersion: String = "6.0",
     withDocker: Bool = false,
     fromContainerImage: String? = nil,
@@ -30,7 +31,7 @@ final class LinuxRecipeTests: XCTestCase {
     try LinuxRecipe(
       targetTriple: Triple("aarch64-unknown-linux-gnu"),
       hostTriple: hostTriple,
-      linuxDistribution: .init(name: .ubuntu, version: "22.04"),
+      linuxDistribution: linuxDistribution,
       swiftVersion: swiftVersion,
       swiftBranch: nil,
       lldVersion: "",
@@ -75,12 +76,17 @@ final class LinuxRecipeTests: XCTestCase {
       ),
     ]
 
+    let linuxDistribution = try LinuxDistribution(name: .ubuntu, version: "22.04")
     for testCase in testCases {
-      let recipe = try self.createRecipe(swiftVersion: testCase.swiftVersion)
+      let recipe = try self.createRecipe(
+        linuxDistribution: linuxDistribution,
+        swiftVersion: testCase.swiftVersion
+      )
       var toolset = Toolset(rootPath: nil)
       recipe.applyPlatformOptions(
         toolset: &toolset,
-        targetTriple: testCase.targetTriple
+        targetTriple: testCase.targetTriple,
+        isForEmbeddedSwift: false
       )
       XCTAssertEqual(toolset.swiftCompiler?.extraCLIOptions, testCase.expectedSwiftCompilerOptions)
       XCTAssertEqual(toolset.linker?.path, testCase.expectedLinkerPath)
@@ -90,11 +96,16 @@ final class LinuxRecipeTests: XCTestCase {
   }
 
   func testToolOptionsForPreinstalledSdk() throws {
-    let recipe = try self.createRecipe(includeHostToolchain: false)
+    let linuxDistribution = try LinuxDistribution(name: .ubuntu, version: "22.04")
+    let recipe = try self.createRecipe(
+      linuxDistribution: linuxDistribution,
+      includeHostToolchain: false
+    )
     var toolset = Toolset(rootPath: "swift.xctoolchain")
     recipe.applyPlatformOptions(
       toolset: &toolset,
-      targetTriple: Triple("x86_64-unknown-linux-gnu")
+      targetTriple: Triple("x86_64-unknown-linux-gnu"),
+      isForEmbeddedSwift: false
     )
     XCTAssertEqual(toolset.rootPath, nil)
     XCTAssertEqual(
@@ -145,6 +156,7 @@ final class LinuxRecipeTests: XCTestCase {
 
   func testItemsToDownloadForMacOSHost() throws {
     let hostTriple = Triple("x86_64-apple-macos")
+    let linuxDistribution = try LinuxDistribution(name: .ubuntu, version: "22.04")
     let testCases:
       [(
         recipe: LinuxRecipe, includesHostLLVM: Bool, includesTargetSwift: Bool,
@@ -152,14 +164,22 @@ final class LinuxRecipeTests: XCTestCase {
       )] = [
         (
           // Remote tarballs on Swift < 6.0
-          recipe: try createRecipe(hostTriple: hostTriple, swiftVersion: "5.10"),
+          recipe: try createRecipe(
+            hostTriple: hostTriple,
+            linuxDistribution: linuxDistribution,
+            swiftVersion: "5.10"
+          ),
           includesHostLLVM: true,
           includesTargetSwift: true,
           includesHostSwift: true
         ),
         (
           // Remote tarballs on Swift >= 6.0
-          recipe: try createRecipe(hostTriple: hostTriple, swiftVersion: "6.0"),
+          recipe: try createRecipe(
+            hostTriple: hostTriple,
+            linuxDistribution: linuxDistribution,
+            swiftVersion: "6.0"
+          ),
           includesHostLLVM: false,
           includesTargetSwift: true,
           includesHostSwift: true
@@ -168,6 +188,7 @@ final class LinuxRecipeTests: XCTestCase {
           // Remote target tarball with preinstalled toolchain
           recipe: try createRecipe(
             hostTriple: hostTriple,
+            linuxDistribution: linuxDistribution,
             swiftVersion: "5.9",
             includeHostToolchain: false
           ),
@@ -179,6 +200,7 @@ final class LinuxRecipeTests: XCTestCase {
           // Local packages with Swift < 6.0
           recipe: try createRecipe(
             hostTriple: hostTriple,
+            linuxDistribution: linuxDistribution,
             swiftVersion: "5.10",
             hostSwiftPackagePath: "/path/to/host/swift",
             targetSwiftPackagePath: "/path/to/target/swift"
@@ -191,6 +213,7 @@ final class LinuxRecipeTests: XCTestCase {
           // Local packages with Swift >= 6.0
           recipe: try createRecipe(
             hostTriple: hostTriple,
+            linuxDistribution: linuxDistribution,
             swiftVersion: "6.0",
             hostSwiftPackagePath: "/path/to/host/swift",
             targetSwiftPackagePath: "/path/to/target/swift"
@@ -213,16 +236,25 @@ final class LinuxRecipeTests: XCTestCase {
 
   func testItemsToDownloadForLinuxHost() throws {
     let hostTriple = Triple("x86_64-unknown-linux-gnu")
+    let linuxDistribution = try LinuxDistribution(name: .ubuntu, version: "22.04")
     let testCases = [
       (
         // Remote tarballs on Swift < 6.0
-        recipe: try createRecipe(hostTriple: hostTriple, swiftVersion: "5.10"),
+        recipe: try createRecipe(
+          hostTriple: hostTriple,
+          linuxDistribution: linuxDistribution,
+          swiftVersion: "5.10"
+        ),
         includesTargetSwift: true,
         includesHostSwift: true
       ),
       (
         // Remote tarballs on Swift >= 6.0
-        recipe: try createRecipe(hostTriple: hostTriple, swiftVersion: "6.0"),
+        recipe: try createRecipe(
+          hostTriple: hostTriple,
+          linuxDistribution: linuxDistribution,
+          swiftVersion: "6.0"
+        ),
         includesTargetSwift: true,
         includesHostSwift: true
       ),
@@ -230,6 +262,7 @@ final class LinuxRecipeTests: XCTestCase {
         // Remote target tarball with preinstalled toolchain
         recipe: try createRecipe(
           hostTriple: hostTriple,
+          linuxDistribution: linuxDistribution,
           swiftVersion: "5.9",
           includeHostToolchain: false
         ),
@@ -240,6 +273,7 @@ final class LinuxRecipeTests: XCTestCase {
         // Local packages with Swift < 6.0
         recipe: try createRecipe(
           hostTriple: hostTriple,
+          linuxDistribution: linuxDistribution,
           swiftVersion: "5.10",
           hostSwiftPackagePath: "/path/to/host/swift",
           targetSwiftPackagePath: "/path/to/target/swift"
@@ -251,6 +285,7 @@ final class LinuxRecipeTests: XCTestCase {
         // Local packages with Swift >= 6.0
         recipe: try createRecipe(
           hostTriple: hostTriple,
+          linuxDistribution: linuxDistribution,
           swiftVersion: "6.0",
           hostSwiftPackagePath: "/path/to/host/swift",
           targetSwiftPackagePath: "/path/to/target/swift"
@@ -267,6 +302,89 @@ final class LinuxRecipeTests: XCTestCase {
         includesTargetSwift: testCase.includesTargetSwift,
         includesHostSwift: testCase.includesHostSwift
       )
+    }
+  }
+
+  // Ubuntu toolchains will be selected for Debian 11 and 12 depending on the Swift version
+  func testItemsToDownloadForDebianTargets() throws {
+    let hostTriple = Triple("x86_64-unknown-linux-gnu")
+    let testCases = [
+      (
+        // Debian 11 -> ubuntu20.04
+        recipe: try createRecipe(
+          hostTriple: hostTriple,
+          linuxDistribution: try LinuxDistribution(name: .debian, version: "11"),
+          swiftVersion: "5.9"
+        ),
+        expectedTargetSwift: "ubuntu20.04"
+      ),
+      (
+        // Debian 12 with Swift 5.9 -> ubuntu22.04
+        recipe: try createRecipe(
+          hostTriple: hostTriple,
+          linuxDistribution: try LinuxDistribution(name: .debian, version: "12"),
+          swiftVersion: "5.9"
+        ),
+        expectedTargetSwift: "ubuntu22.04"
+      ),
+      (
+        // Debian 12 with Swift 5.10 -> ubuntu22.04
+        recipe: try createRecipe(
+          hostTriple: hostTriple,
+          linuxDistribution: try LinuxDistribution(name: .debian, version: "12"),
+          swiftVersion: "5.10"
+        ),
+        expectedTargetSwift: "ubuntu22.04"
+      ),
+      (
+        // Debian 11 with Swift 6.0 -> ubuntu20.04
+        recipe: try createRecipe(
+          hostTriple: hostTriple,
+          linuxDistribution: try LinuxDistribution(name: .debian, version: "11"),
+          swiftVersion: "6.0"
+        ),
+        expectedTargetSwift: "ubuntu20.04"
+      ),
+      (
+        // Debian 12 with Swift 5.10.1 -> debian12
+        recipe: try createRecipe(
+          hostTriple: hostTriple,
+          linuxDistribution: try LinuxDistribution(name: .debian, version: "12"),
+          swiftVersion: "5.10.1"
+        ),
+        expectedTargetSwift: "debian12"
+      ),
+      (
+        // Debian 12 with Swift 6.0 -> debian12
+        recipe: try createRecipe(
+          hostTriple: hostTriple,
+          linuxDistribution: try LinuxDistribution(name: .debian, version: "12"),
+          swiftVersion: "6.0"
+        ),
+        expectedTargetSwift: "debian12"
+      ),
+    ]
+
+    for testCase in testCases {
+
+      let pathsConfiguration = PathsConfiguration(
+        sourceRoot: ".",
+        artifactID: "my-sdk",
+        targetTriple: testCase.recipe.mainTargetTriple
+      )
+      let downloadableArtifacts = try DownloadableArtifacts(
+        hostTriple: testCase.recipe.mainHostTriple,
+        targetTriple: testCase.recipe.mainTargetTriple,
+        testCase.recipe.versionsConfiguration,
+        pathsConfiguration
+      )
+      let itemsToDownload = testCase.recipe.itemsToDownload(from: downloadableArtifacts)
+      let targetSwiftRemoteURL = itemsToDownload.first(where: {
+        $0.remoteURL == downloadableArtifacts.targetSwift.remoteURL
+      })?.remoteURL.absoluteString
+
+      // If this is a Linux host, we do not download LLVM
+      XCTAssert(targetSwiftRemoteURL!.contains(testCase.expectedTargetSwift))
     }
   }
 
@@ -287,8 +405,10 @@ final class LinuxRecipeTests: XCTestCase {
       ),
     ]
 
+    let linuxDistribution = try LinuxDistribution(name: .ubuntu, version: "22.04")
     for testCase in testCases {
       let recipe = try createRecipe(
+        linuxDistribution: linuxDistribution,
         swiftVersion: testCase.swiftVersion,
         includeHostToolchain: testCase.includeHostToolchain
       )

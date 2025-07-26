@@ -10,18 +10,4 @@
 //
 //===----------------------------------------------------------------------===//
 
-public struct EOFSequence<Element>: AsyncSequence & Sendable {
-  public typealias Element = Element
-
-  public struct AsyncIterator: AsyncIteratorProtocol {
-    public mutating func next() async throws -> Element? {
-      return nil
-    }
-  }
-
-  public init(of type: Element.Type = Element.self) {}
-
-  public func makeAsyncIterator() -> AsyncIterator {
-    return AsyncIterator()
-  }
-}
+#include "ps-api.h"

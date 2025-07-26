@@ -10,71 +10,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-struct DestinationV1: Encodable {
-  enum CodingKeys: String, CodingKey {
-    case version
-    case sdk
-    case toolchainBinDir = "toolchain-bin-dir"
-    case target
-    case extraCCFlags = "extra-cc-flags"
-    case extraSwiftCFlags = "extra-swiftc-flags"
-    case extraCPPFlags = "extra-cpp-flags"
-  }
-
-  let version = 1
-  let sdk: String
-  let toolchainBinDir: String
-  let target: String
-  let extraCCFlags: [String]
-  let extraSwiftCFlags: [String]
-  let extraCPPFlags: [String]
-}
-
-struct DestinationV2: Encodable {
-  let version = 2
-
-  let sdkRootDir: String
-  let toolchainBinDir: String
-  let hostTriples: [String]
-  let targetTriples: [String]
-  let extraCCFlags: [String]
-  let extraSwiftCFlags: [String]
-  let extraCXXFlags: [String]
-  let extraLinkerFlags: [String]
-}
-
-/// Represents v3 schema of `destination.json` files used for cross-compilation.
-struct DestinationV3: Encodable {
-  struct TripleProperties: Encodable {
-    /// Path relative to `destination.json` containing SDK root.
-    let sdkRootPath: String
-
-    /// Path relative to `destination.json` containing Swift resources for dynamic linking.
-    var swiftResourcesPath: String?
-
-    /// Path relative to `destination.json` containing Swift resources for static linking.
-    var swiftStaticResourcesPath: String?
-
-    /// Array of paths relative to `destination.json` containing headers.
-    var includeSearchPaths: [String]?
-
-    /// Array of paths relative to `destination.json` containing libraries.
-    var librarySearchPaths: [String]?
-
-    /// Array of paths relative to `destination.json` containing toolset files.
-    let toolsetPaths: [String]?
-  }
-
-  /// Version of the schema used when serializing the destination file.
-  let schemaVersion = "3.0"
-
-  /// Mapping of triple strings to corresponding properties of such target triple.
-  let runTimeTriples: [String: TripleProperties]
-}
-
 /// Represents v4 schema of `swift-sdk.json` (previously `destination.json`) files used for cross-compilation.
-public struct SwiftSDKMetadataV4: Encodable {
-  public struct TripleProperties: Encodable {
+package struct SwiftSDKMetadataV4: Encodable {
+  package struct TripleProperties: Encodable {
     /// Path relative to `swift-sdk.json` containing SDK root.
     var sdkRootPath: String
 
@@ -94,9 +32,9 @@ public struct SwiftSDKMetadataV4: Encodable {
     var toolsetPaths: [String]?
   }
 
-  /// Version of the schema used when serializing the destination file.
+  /// Version of the schema used when serializing the Swift SDK metadata file.
   let schemaVersion = "4.0"
 
   /// Mapping of triple strings to corresponding properties of such target triple.
-  let targetTriples: [String: TripleProperties]
+  var targetTriples: [String: TripleProperties]
 }

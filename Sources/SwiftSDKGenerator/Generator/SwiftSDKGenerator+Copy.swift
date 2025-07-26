@@ -22,6 +22,7 @@ extension SwiftSDKGenerator {
     logger.info("Launching a container to extract the Swift SDK for the target triple...")
     try await withDockerContainer(fromImage: baseDockerImage) { containerID in
       try await inTemporaryDirectory { generator, _ in
+        let sdkLibPath = sdkDirPath.appending("lib")
         let sdkUsrPath = sdkDirPath.appending("usr")
         try await generator.createDirectoryIfNeeded(at: sdkUsrPath)
         try await generator.copyFromDockerContainer(
@@ -60,6 +61,15 @@ extension SwiftSDKGenerator {
             to: sdkUsrLib64Path
           )
           try await createSymlink(at: sdkDirPath.appending("lib64"), pointingTo: "./usr/lib64")
+        } else if case let containerLib64 = FilePath("/lib64"),
+          try await generator.doesPathExist(containerLib64, inContainer: containerID)
+        {
+          let sdkLib64Path = sdkDirPath.appending("lib64")
+          try await generator.copyFromDockerContainer(
+            id: containerID,
+            from: containerLib64,
+            to: sdkLib64Path
+          )
         }
 
         let sdkUsrLibPath = sdkUsrPath.appending("lib")
@@ -72,13 +82,26 @@ extension SwiftSDKGenerator {
         // architecture-specific directories:
         //   https://wiki.ubuntu.com/MultiarchSpec
         // But not in all containers, so don't fail if it does not exist.
-        if case .ubuntu = targetDistribution {
-          subpaths += [("\(targetTriple.archName)-linux-gnu", false)]
+        if targetDistribution.name == .ubuntu || targetDistribution.name == .debian {
+          var archSubpath = "\(targetTriple.archName)-linux-gnu"
 
-          // Custom subpath for armv7
+          // armv7 with Debian uses a custom subpath for armhf
           if targetTriple.archName == "armv7" {
-            subpaths += [("arm-linux-gnueabihf", false)]
+            archSubpath = "arm-linux-gnueabihf"
           }
+
+          // Copy /lib/<archSubpath> for Debian 11
+          if case let .debian(debian) = targetDistribution, debian == .bullseye {
+            try await generator.createDirectoryIfNeeded(at: sdkLibPath)
+            try await generator.copyFromDockerContainer(
+              id: containerID,
+              from: FilePath("/lib").appending(archSubpath),
+              to: sdkLibPath.appending(archSubpath),
+              failIfNotExists: false
+            )
+          }
+
+          subpaths += [(archSubpath, false)]
         }
 
         for (subpath, failIfNotExists) in subpaths {
@@ -89,7 +112,11 @@ extension SwiftSDKGenerator {
             failIfNotExists: failIfNotExists
           )
         }
-        try await generator.createSymlink(at: sdkDirPath.appending("lib"), pointingTo: "usr/lib")
+
+        // Symlink if we do not have a /lib directory in the SDK
+        if await !generator.doesFileExist(at: sdkLibPath) {
+          try await generator.createSymlink(at: sdkLibPath, pointingTo: "usr/lib")
+        }
 
         // Look for 32-bit libraries to remove from RHEL-based distros
         // These are not needed, and the amazonlinux2 x86_64 symlinks are messed up

@@ -114,7 +114,7 @@ extension GeneratorCLI {
     var swiftBranch: String? = nil
 
     @Option(help: "Version of Swift to supply in the bundle.")
-    var swiftVersion = "6.0.3-RELEASE"
+    var swiftVersion = "6.1.2-RELEASE"
 
     @Option(
       help: """
@@ -213,7 +213,8 @@ extension GeneratorCLI {
 
     @Option(
       help: """
-        Linux distribution to use if the target platform is Linux. Available options: `ubuntu`, `rhel`. Default is `ubuntu`.
+        Linux distribution to use if the target platform is Linux.
+        - Available options: `ubuntu`, `debian`, `rhel`. Default is `ubuntu`.
         """,
       transform: LinuxDistribution.Name.init(nameString:)
     )
@@ -222,8 +223,9 @@ extension GeneratorCLI {
     @Option(
       help: """
         Version of the Linux distribution used as a target platform.
-        Available options for Ubuntu: `20.04`, `22.04` (default when `--distribution-name` is `ubuntu`), `24.04`.
-        Available options for RHEL: `ubi9` (default when `--distribution-name` is `rhel`).
+        - Available options for Ubuntu: `20.04`, `22.04` (default when `--distribution-name` is `ubuntu`), `24.04`.
+        - Available options for Debian: `11`, `12` (default when `--distribution-name` is `debian`).
+        - Available options for RHEL: `ubi9` (default when `--distribution-name` is `rhel`).
         """
     )
     var distributionVersion: String?
@@ -254,6 +256,8 @@ extension GeneratorCLI {
         distributionDefaultVersion = "ubi9"
       case .ubuntu:
         distributionDefaultVersion = "22.04"
+      case .debian:
+        distributionDefaultVersion = "12"
       }
       let distributionVersion =
         self.distributionVersion ?? distributionDefaultVersion

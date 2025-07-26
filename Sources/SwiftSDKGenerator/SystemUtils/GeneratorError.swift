@@ -25,8 +25,9 @@ enum GeneratorError: Error {
   case distributionDoesNotSupportArchitecture(LinuxDistribution, targetArchName: String)
   case fileDoesNotExist(FilePath)
   case fileDownloadFailed(URL, String)
-  case ubuntuPackagesDecompressionFailure
-  case ubuntuPackagesParsingFailure(expectedPackages: Int, actual: Int)
+  case debianPackagesListDownloadRequiresXz
+  case packagesListDecompressionFailure
+  case packagesListParsingFailure(expectedPackages: Int, actual: Int)
 }
 
 extension GeneratorError: CustomStringConvertible {
@@ -61,11 +62,12 @@ extension GeneratorError: CustomStringConvertible {
     case let .fileDownloadFailed(url, status):
       return
         "File could not be downloaded from a URL `\(url)`, the server returned status `\(status)`."
-    case .ubuntuPackagesDecompressionFailure:
-      return "Failed to decompress the list of Ubuntu packages"
-    case let .ubuntuPackagesParsingFailure(expected, actual):
-      return
-        "Failed to parse Ubuntu packages manifest, expected \(expected), found \(actual) packages."
+    case .debianPackagesListDownloadRequiresXz:
+      return "Downloading the Debian packages list requires xz, and it is not installed."
+    case .packagesListDecompressionFailure:
+      return "Failed to decompress the list of packages."
+    case let .packagesListParsingFailure(expected, actual):
+      return "Failed to parse packages manifest, expected \(expected), found \(actual) packages."
     }
   }
 }

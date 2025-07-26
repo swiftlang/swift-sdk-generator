@@ -182,4 +182,3 @@ extension Array: CacheKey where Element == FilePath.Component {
     map(\.string).joined(separator: "\n").hash(with: &hashFunction)
   }
 }
-

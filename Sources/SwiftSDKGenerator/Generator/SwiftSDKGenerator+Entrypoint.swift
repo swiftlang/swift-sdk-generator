@@ -34,7 +34,7 @@ extension Triple.Arch {
 }
 
 extension SwiftSDKGenerator {
-  public func run(recipe: SwiftSDKRecipe) async throws {
+  package func run(recipe: some SwiftSDKRecipe) async throws {
     try await withQueryEngine(OSFileSystem(), self.logger, cacheLocation: self.engineCachePath) {
       engine in
       let httpClientType: HTTPClientProtocol.Type
@@ -58,13 +58,30 @@ extension SwiftSDKGenerator {
 
         let toolsetJSONPath = try await self.generateToolsetJSON(recipe: recipe)
 
-        try await generateDestinationJSON(
-          toolsetPath: toolsetJSONPath,
-          sdkDirPath: swiftSDKProduct.sdkDirPath,
-          recipe: recipe
-        )
+        var artifacts = try await [
+          self.artifactID: generateSwiftSDKMetadata(
+            toolsetPath: toolsetJSONPath,
+            sdkDirPath: swiftSDKProduct.sdkDirPath,
+            recipe: recipe
+          )
+        ]
 
-        try await generateArtifactBundleManifest(hostTriples: swiftSDKProduct.hostTriples)
+        if recipe.shouldSupportEmbeddedSwift {
+          let toolsetJSONPath = try await self.generateToolsetJSON(recipe: recipe, isForEmbeddedSwift: true)
+
+          artifacts["\(self.artifactID)-embedded"] = try await generateSwiftSDKMetadata(
+            toolsetPath: toolsetJSONPath,
+            sdkDirPath: swiftSDKProduct.sdkDirPath,
+            recipe: recipe,
+            isForEmbeddedSwift: true
+          )
+        }
+
+        try await generateArtifactBundleManifest(
+          hostTriples: swiftSDKProduct.hostTriples,
+          artifacts: artifacts,
+          shouldUseFullPaths: recipe.shouldSupportEmbeddedSwift
+        )
 
         // Extra spaces added for readability for the user
         print(
