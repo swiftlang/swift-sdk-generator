@@ -158,8 +158,8 @@ extension GeneratorCLI {
     var hostArch: Triple.Arch? = nil
     @Option(
       help: """
-        The target arch of the bundle. The default depends on a recipe used for SDK generation.
-        If this is passed, the target triple will default to `<target-arch>-unknown-linux-gnu`.
+        The target arch of the bundle. The default depends on a recipe used for SDK generation. \
+        If this is passed, the target triple will default to `<target-arch>-unknown-linux-gnu`. \
         Use the `--target` param to pass the full target triple if needed.
         """
     )
