@@ -131,7 +131,7 @@ extension GeneratorCLI {
         but requires exactly the same version of the swift.org toolchain to be installed for it to work.
         """
     )
-    var hostToolchain: Bool = false
+    var hostToolchain: Bool = hostToolchainDefault
 
     @Option(
       help: """
@@ -149,16 +149,30 @@ extension GeneratorCLI {
     var host: Triple? = nil
 
     @Option(
-      help: """
-        The target triple of the bundle. The default depends on a recipe used for SDK generation. Pass `--help` to a specific recipe subcommand for more details.
-        """
+      help:
+        "The target triple of the bundle. The default depends on a recipe used for SDK generation."
     )
     var target: Triple? = nil
 
     @Option(help: "Deprecated. Use `--host` instead")
     var hostArch: Triple.Arch? = nil
-    @Option(help: "Deprecated. Use `--target` instead")
+    @Option(
+      help: """
+        The target arch of the bundle. The default depends on a recipe used for SDK generation. \
+        If this is passed, the target triple will default to `<target-arch>-unknown-linux-gnu`. \
+        Use the `--target` param to pass the full target triple if needed.
+        """
+    )
     var targetArch: Triple.Arch? = nil
+
+    /// Default to adding host toolchain when building on macOS
+    static var hostToolchainDefault: Bool {
+      #if os(macOS)
+        true
+      #else
+        false
+      #endif
+    }
 
     func deriveHostTriple() throws -> Triple {
       if let host {
@@ -204,7 +218,7 @@ extension GeneratorCLI {
         """,
       transform: LinuxDistribution.Name.init(nameString:)
     )
-    var linuxDistributionName = LinuxDistribution.Name.ubuntu
+    var distributionName = LinuxDistribution.Name.ubuntu
 
     @Option(
       help: """
@@ -214,7 +228,7 @@ extension GeneratorCLI {
         - Available options for RHEL: `ubi9` (default when `--distribution-name` is `rhel`).
         """
     )
-    var linuxDistributionVersion: String?
+    var distributionVersion: String?
 
     func deriveTargetTriple(hostTriple: Triple) -> Triple {
       if let target = generatorOptions.target {
@@ -223,8 +237,9 @@ extension GeneratorCLI {
       if let arch = generatorOptions.targetArch {
         let target = Triple(arch: arch, vendor: nil, os: .linux, environment: .gnu)
         appLogger.warning(
-          "deprecated: Please use `--target \(target.triple)` instead of `--target-arch \(arch)`"
+          "Using `--target-arch \(arch)` defaults to `\(target.triple)`. Use `--target` if you want to pass the full target triple."
         )
+        return target
       }
       return Triple(arch: hostTriple.arch!, vendor: nil, os: .linux, environment: .gnu)
     }
@@ -235,20 +250,20 @@ extension GeneratorCLI {
           "deprecated: Please explicitly specify the subcommand to run. For example: $ swift-sdk-generator make-linux-sdk"
         )
       }
-      let linuxDistributionDefaultVersion: String
-      switch self.linuxDistributionName {
+      let distributionDefaultVersion: String
+      switch self.distributionName {
       case .rhel:
-        linuxDistributionDefaultVersion = "ubi9"
+        distributionDefaultVersion = "ubi9"
       case .ubuntu:
-        linuxDistributionDefaultVersion = "22.04"
+        distributionDefaultVersion = "22.04"
       case .debian:
-        linuxDistributionDefaultVersion = "12"
+        distributionDefaultVersion = "12"
       }
-      let linuxDistributionVersion =
-        self.linuxDistributionVersion ?? linuxDistributionDefaultVersion
+      let distributionVersion =
+        self.distributionVersion ?? distributionDefaultVersion
       let linuxDistribution = try LinuxDistribution(
-        name: linuxDistributionName,
-        version: linuxDistributionVersion
+        name: distributionName,
+        version: distributionVersion
       )
       let hostTriple = try self.generatorOptions.deriveHostTriple()
       let targetTriple = self.deriveTargetTriple(hostTriple: hostTriple)
