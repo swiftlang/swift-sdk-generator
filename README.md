@@ -31,7 +31,7 @@ The output will either state that no Swift SDKs are available, or produce a list
 The generator depends on the following dependencies to be installed on macOS:
 
 - `xz`: used for more efficient downloading of package lists for Ubuntu. If `xz` is not found, the generator will fallback on `gzip`.
-- `cmake` and `ninja`: required for building LLVM native for versions of Swift before 6.0.
+- `cmake` and `ninja`: required for building LLVM native for versions of Swift before 6.0. _*NOTE: if you're building the Swift toolchain outside of Swift SDK Generator, you'll have to uninstall Homebrew CMake or remove it from your `PATH` before invoking toolchain's `build-script` due to [swiftlang/swift#83060](https://github.com/swiftlang/swift/pull/83060).*_
 - `zstd`: required to decompress certain downloaded artifacts that use [Zstandard](https://github.com/facebook/zstd) compression.
 
 These dependencies can be installed from the `Brewfile`:
