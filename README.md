@@ -24,18 +24,21 @@ After that, verify that the `experimental-sdk` command is available:
 swift experimental-sdk list
 ```
 
-The output will either state that no Swift SDKs are available, or produce a list of those you previously had 
-installed, in case you've used the `swift experimental-sdk install` command before.
+The output will either state that no Swift SDKs are available, or produce a list of those you previously had installed, in case you've used the `swift experimental-sdk install` command before.
 
 ### macOS Requirements
 
-The generator depends on the `xz` utility for more efficient downloading of package lists for Ubuntu. This is optional, but can be installed via the included `Brewfile`:
+The generator depends on the following dependencies to be installed on macOS:
+
+- `xz`: used for more efficient downloading of package lists for Ubuntu. If `xz` is not found, the generator will fallback on `gzip`.
+- `cmake` and `ninja`: required for building LLVM native for versions of Swift before 6.0.
+- `zstd`: required to decompress certain downloaded artifacts that use [Zstandard](https://github.com/facebook/zstd) compression.
+
+These dependencies can be installed from the `Brewfile`:
 
 ```bash
 brew bundle install
 ```
-
-If `xz` is not found, the generator will fallback on `gzip`.
 
 ## Supported platforms and minimum versions
 
