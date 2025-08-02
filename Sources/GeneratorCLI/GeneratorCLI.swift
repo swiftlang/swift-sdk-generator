@@ -141,12 +141,13 @@ extension GeneratorCLI {
     var targetSwiftPackagePath: String? = nil
 
     @Option(
+      name: .customLong("host"),
       help: """
-        The host triple of the bundle. Defaults to a triple of the machine this generator is \
-        running on if unspecified.
+        The host triples of the bundle. Defaults to a triple or triples of the machine this generator is \
+        running on if unspecified. Multiple host triples are only supported for macOS hosts.
         """
     )
-    var host: Triple? = nil
+    var hosts: [Triple] = []
 
     @Option(
       help:
@@ -174,9 +175,9 @@ extension GeneratorCLI {
       #endif
     }
 
-    func deriveHostTriple() throws -> Triple {
-      if let host {
-        return host
+    func deriveHostTriples() throws -> [Triple] {
+      if !hosts.isEmpty {
+        return hosts
       }
       let current = try SwiftSDKGenerator.getCurrentTriple(isVerbose: self.verbose)
       if let arch = hostArch {
@@ -184,9 +185,16 @@ extension GeneratorCLI {
         appLogger.warning(
           "deprecated: Please use `--host \(target.triple)` instead of `--host-arch \(arch)`"
         )
-        return target
+        return [target]
       }
-      return current
+      // macOS toolchains are built as universal binaries
+      if current.isMacOSX {
+        return [
+          Triple("arm64-apple-macos"),
+          Triple("x86_64-apple-macos"),
+        ]
+      }
+      return [current]
     }
   }
 
@@ -230,7 +238,7 @@ extension GeneratorCLI {
     )
     var distributionVersion: String?
 
-    func deriveTargetTriple(hostTriple: Triple) -> Triple {
+    func deriveTargetTriple(hostTriples: [Triple]) -> Triple {
       if let target = generatorOptions.target {
         return target
       }
@@ -241,7 +249,13 @@ extension GeneratorCLI {
         )
         return target
       }
-      return Triple(arch: hostTriple.arch!, vendor: nil, os: .linux, environment: .gnu)
+      let arch: Triple.Arch
+      if hostTriples.count == 1, let hostTriple = hostTriples.first {
+        arch = hostTriple.arch!
+      } else {
+        arch = try! SwiftSDKGenerator.getCurrentTriple(isVerbose: false).arch!
+      }
+      return Triple(arch: arch, vendor: nil, os: .linux, environment: .gnu)
     }
 
     func run() async throws {
@@ -265,12 +279,12 @@ extension GeneratorCLI {
         name: distributionName,
         version: distributionVersion
       )
-      let hostTriple = try self.generatorOptions.deriveHostTriple()
-      let targetTriple = self.deriveTargetTriple(hostTriple: hostTriple)
+      let hostTriples = try self.generatorOptions.deriveHostTriples()
+      let targetTriple = self.deriveTargetTriple(hostTriples: hostTriples)
 
       let recipe = try LinuxRecipe(
         targetTriple: targetTriple,
-        hostTriple: hostTriple,
+        hostTriples: hostTriples,
         linuxDistribution: linuxDistribution,
         swiftVersion: generatorOptions.swiftVersion,
         swiftBranch: self.generatorOptions.swiftBranch,
@@ -333,8 +347,8 @@ extension GeneratorCLI {
       }
       let recipe = try WebAssemblyRecipe(
         hostSwiftPackage: generatorOptions.hostSwiftPackagePath.map {
-          let hostTriple = try self.generatorOptions.deriveHostTriple()
-          return WebAssemblyRecipe.HostToolchainPackage(path: FilePath($0), triple: hostTriple)
+          let hostTriples = try self.generatorOptions.deriveHostTriples()
+          return WebAssemblyRecipe.HostToolchainPackage(path: FilePath($0), triples: hostTriples)
         },
         targetSwiftPackagePath: FilePath(targetSwiftPackagePath),
         wasiSysroot: FilePath(self.wasiSysroot),

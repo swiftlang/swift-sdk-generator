@@ -44,7 +44,7 @@ struct DownloadableArtifacts: Sendable {
   private let paths: PathsConfiguration
 
   init(
-    hostTriple: Triple,
+    hostTriples: [Triple],
     targetTriple: Triple,
     _ versions: VersionsConfiguration,
     _ paths: PathsConfiguration
@@ -52,7 +52,22 @@ struct DownloadableArtifacts: Sendable {
     self.versions = versions
     self.paths = paths
 
-    if hostTriple.os == .linux {
+    guard let hostTriple = hostTriples.first else {
+      throw StringError("no host triples")
+    }
+
+    if hostTriples.allSatisfy({ $0.os == .macosx }) {
+      self.hostSwift = .init(
+        remoteURL: versions.swiftDownloadURL(
+          subdirectory: "xcode",
+          platform: "osx",
+          fileExtension: "pkg"
+        ),
+        localPath: paths.artifactsCachePath
+          .appending("host_swift_\(versions.swiftVersion)_apple-macos.pkg"),
+        isPrebuilt: true
+      )
+    } else if hostTriple.os == .linux {
       // Amazon Linux 2 is chosen for its best compatibility with all Swift-supported Linux hosts
       let hostArchSuffix =
         hostTriple.arch == .aarch64 ? "-\(Triple.Arch.aarch64.linuxConventionName)" : ""
@@ -67,16 +82,13 @@ struct DownloadableArtifacts: Sendable {
         isPrebuilt: true
       )
     } else {
-      self.hostSwift = .init(
-        remoteURL: versions.swiftDownloadURL(
-          subdirectory: "xcode",
-          platform: "osx",
-          fileExtension: "pkg"
-        ),
-        localPath: paths.artifactsCachePath
-          .appending("host_swift_\(versions.swiftVersion)_\(hostTriple.triple).pkg"),
-        isPrebuilt: true
-      )
+      if hostTriples.count > 1 {
+        throw StringError(
+          "unsupported host triples \(hostTriples.map { "\($0)" }.joined(separator: ", ")) (only macOS supports multiple host triples)"
+        )
+      } else {
+        throw StringError("unsupported host triple \(hostTriple)")
+      }
     }
 
     self.hostLLVM = .init(
@@ -119,5 +131,12 @@ struct DownloadableArtifacts: Sendable {
         .appending("llvm_\(self.versions.lldVersion).src.tar.xz"),
       isPrebuilt: false
     )
+  }
+}
+
+struct StringError: Error, CustomStringConvertible {
+  let description: String
+  init(_ description: String) {
+    self.description = description
   }
 }
