@@ -59,19 +59,21 @@ func buildSDK(_ logger: Logger, scratchPath: String, withArguments runArguments:
   async throws -> String
 {
   var logger = logger
-  logger[metadataKey: "runArguments"] = "\"\(runArguments)\""
-  logger[metadataKey: "scratchPath"] = "\(scratchPath)"
+  logger[metadataKey: "scratchPath"] = .string(scratchPath)
 
-  logger.info("Building Swift SDK")
+  let packageDirectory = FilePath(#filePath)
+    .removingLastComponent()
+    .removingLastComponent()
 
-  var packageDirectory = FilePath(#filePath)
-  packageDirectory.removeLastComponent()
-  packageDirectory.removeLastComponent()
+  logger.info("Building SDK generator")
+  _ = try await Shell.readStdout(
+    "cd \(packageDirectory) && swift build --scratch-path \"\(scratchPath)\" --product swift-sdk-generator"
+  )
 
+  logger.info("Building Swift SDK", metadata: ["runArguments": .string(runArguments)])
   let generatorOutput = try await Shell.readStdout(
     "cd \(packageDirectory) && swift run --scratch-path \"\(scratchPath)\" swift-sdk-generator make-linux-sdk \(runArguments)"
   )
-  logger.info("Finished building Swift SDK")
 
   let installCommand = try XCTUnwrap(
     generatorOutput.split(separator: "\n").first {
@@ -84,18 +86,16 @@ func buildSDK(_ logger: Logger, scratchPath: String, withArguments runArguments:
   ).stem
   logger[metadataKey: "bundleName"] = "\(bundleName)"
 
-  logger.info("Checking installed Swift SDKs")
+  // Make sure this bundle hasn't been installed already.
   let installedSDKs = try await Shell.readStdout("swift experimental-sdk list").components(
     separatedBy: "\n"
   )
-
-  // Make sure this bundle hasn't been installed already.
   if installedSDKs.contains(bundleName) {
-    logger.info("Removing existing Swift SDK")
+    logger.info("Removing existing Swift SDK", metadata: ["bundleName": .string(bundleName)])
     try await Shell.run("swift experimental-sdk remove \(bundleName)")
   }
 
-  logger.info("Installing new Swift SDK")
+  logger.info("Installing new Swift SDK", metadata: ["bundleName": .string(bundleName)])
   let installOutput = try await Shell.readStdout(String(installCommand))
   XCTAssertTrue(installOutput.contains("successfully installed"))
 
@@ -262,7 +262,6 @@ func buildTestcase(_ logger: Logger, testcase: String, bundleName: String, tempD
 
   // This is a workaround for if Swift 6.0 is used as the host toolchain to run the generator.
   // We manually set the swift-tools-version to 5.9 to support building our test cases.
-  logger.info("Updating minimum swift-tools-version in test project...")
   let package_swift = testPackageURL.appendingPathComponent("Package.swift")
   let text = try String(contentsOf: package_swift, encoding: .utf8)
   var lines = text.components(separatedBy: .newlines)
@@ -353,8 +352,7 @@ func buildTestcases(config: SDKConfiguration) async throws {
       withArguments: config.sdkGeneratorArguments
     )
   }
-
-  logger.info("Built Swift SDK")
+  logger[metadataKey: "bundleName"] = .string(bundleName)
 
   // Cleanup
   func cleanupSDK() async {
@@ -362,20 +360,29 @@ func buildTestcases(config: SDKConfiguration) async throws {
     try? await Shell.run("swift experimental-sdk remove \(bundleName)")
   }
 
-  for (name, testcase) in testcases {
-    logger[metadataKey: "testcase"] = .string(name)
-    do {
-      try await FileManager.default.withTemporaryDirectory(logger: logger) { tempDir in
-        try await buildTestcase(
-          logger,
-          testcase: testcase,
-          bundleName: bundleName,
-          tempDir: tempDir
-        )
+  // Let's run the test cases in parallel to speed things up!
+  logger.info("Running test cases...")
+  try await withThrowingTaskGroup(of: Void.self) { group in
+    for (name, testcase) in testcases {
+      var testcaseLogger = logger
+      testcaseLogger[metadataKey: "testcase"] = .string(name)
+      group.addTask {
+        try await FileManager.default.withTemporaryDirectory(logger: testcaseLogger) { tempDir in
+          try await buildTestcase(
+            testcaseLogger,
+            testcase: testcase,
+            bundleName: bundleName,
+            tempDir: tempDir
+          )
+        }
       }
-    } catch {
-      await cleanupSDK()
-      throw error
+
+      do {
+        try await group.next()
+      } catch {
+        await cleanupSDK()
+        throw error
+      }
     }
   }
 
