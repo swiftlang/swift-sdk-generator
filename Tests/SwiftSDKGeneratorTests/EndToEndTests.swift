@@ -360,12 +360,17 @@ func buildTestcases(config: SDKConfiguration) async throws {
     try? await Shell.run("swift experimental-sdk remove \(bundleName)")
   }
 
+  func testcaseLogger(_ name: String) -> Logger {
+    var testcaseLogger = logger
+    testcaseLogger[metadataKey: "testcase"] = .string(name)
+    return testcaseLogger
+  }
+
   // Let's run the test cases in parallel to speed things up!
   logger.info("Running test cases...")
   try await withThrowingTaskGroup(of: Void.self) { group in
     for (name, testcase) in testcases {
-      var testcaseLogger = logger
-      testcaseLogger[metadataKey: "testcase"] = .string(name)
+      let testcaseLogger = testcaseLogger(name)
       group.addTask {
         try await FileManager.default.withTemporaryDirectory(logger: testcaseLogger) { tempDir in
           try await buildTestcase(
