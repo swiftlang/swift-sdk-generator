@@ -11,7 +11,14 @@ jobs:
     with:
       linux_os_versions: '["amazonlinux2", "bookworm", "noble", "jammy", "focal", "rhel-ubi9"]'
       linux_swift_versions: '["6.0", "6.1", "nightly-6.2", "nightly-main"]'
-      # linux_pre_build_command: apt-get update && apt-get install -y locales locales-all libsqlite3-dev
+      linux_pre_build_command: |
+        if command -v apt-get >/dev/null 2>&1 ; then # bookworm, noble, jammy, focal
+          apt-get update -y
+          apt-get install -y locales locales-all libsqlite3-dev
+        elif command -v yum >/dev/null 2>&1 ; then # amazonlinux2
+          yum update -y
+          yum install -y libsqlite3x-devel
+        fi
       enable_windows_checks: false
   soundness:
     name: Soundness
