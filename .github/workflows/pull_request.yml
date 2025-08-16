@@ -17,7 +17,7 @@ jobs:
           apt-get install -y locales locales-all libsqlite3-dev
         elif command -v yum >/dev/null 2>&1 ; then # amazonlinux2
           yum update -y
-          yum install -y libsqlite3x-devel
+          yum install -y sqlite-devel
         fi
       enable_windows_checks: false
   soundness:
