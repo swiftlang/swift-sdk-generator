@@ -15,7 +15,7 @@ jobs:
         if command -v apt-get >/dev/null 2>&1 ; then # bookworm, noble, jammy, focal
           apt-get update -y
           apt-get install -y locales locales-all libsqlite3-dev
-        elif command -v yum >/dev/null 2>&1 ; then # amazonlinux2
+        elif command -v yum >/dev/null 2>&1 ; then # amazonlinux2, rhel-ubi9
           yum update -y
           yum install -y sqlite-devel
         fi
