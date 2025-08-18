@@ -12,8 +12,14 @@
 
 import Atomics
 import CProcessSpawnSync
-import Foundation
 import NIOConcurrencyHelpers
+
+#if os(iOS) || os(tvOS) || os(watchOS)
+  // Process & fork/exec unavailable
+  #error("Process and fork() unavailable")
+#else
+  import Foundation
+#endif
 
 extension ps_error_s {
   private func makeDescription() -> String {
@@ -51,6 +57,38 @@ public struct PSProcessUnknownError: Error & CustomStringConvertible {
   }
 }
 
+// We need this to replicate `Foundation.Process`'s odd API where
+// - stardard{Input,Output,Error} not set means _inherit_
+// - stardard{Input,Output,Error} set to `nil` means `/dev/null`
+// - stardard{Input,Output,Error} set to FileHandle/Pipe means use that
+internal enum OptionallySet<Wrapped> {
+  case notSet
+  case setToNone
+  case setTo(Wrapped)
+
+  var asOptional: Wrapped? {
+    switch self {
+    case .notSet:
+      return nil
+    case .setToNone:
+      return nil
+    case .setTo(let wrapped):
+      return wrapped
+    }
+  }
+
+  var isSetToNone: Bool {
+    switch self {
+    case .notSet, .setTo:
+      return false
+    case .setToNone:
+      return true
+    }
+  }
+}
+
+extension OptionallySet: Sendable where Wrapped: Sendable {}
+
 public final class PSProcess: Sendable {
   struct State: Sendable {
     var executableURL: URL? = nil
@@ -60,9 +98,9 @@ public final class PSProcess: Sendable {
     var closeOtherFileDescriptors: Bool = true
     var createNewSession: Bool = false
     private(set) var pidWhenRunning: pid_t? = nil
-    var standardInput: Pipe? = nil
-    var standardOutput: FileHandle? = nil
-    var standardError: FileHandle? = nil
+    var standardInput: OptionallySet<Pipe> = .notSet
+    var standardOutput: OptionallySet<FileHandle> = .notSet
+    var standardError: OptionallySet<FileHandle> = .notSet
     var terminationHandler: (@Sendable (PSProcess) -> Void)? = nil
     private(set) var procecesIdentifier: pid_t? = nil
     private(set) var terminationStatus: (Process.TerminationReason, CInt)? = nil
@@ -129,13 +167,60 @@ public final class PSProcess: Sendable {
       }
     }
 
+    let devNullFD: CInt
+    if state.standardInput.isSetToNone || state.standardOutput.isSetToNone || state.standardError.isSetToNone {
+      devNullFD = open("/dev/null", O_RDWR)
+      guard devNullFD >= 0 else {
+        throw PSProcessUnknownError(reason: "Cannot open /dev/null: \(errno)")
+      }
+    } else {
+      devNullFD = -1
+    }
+
+    defer {
+      if devNullFD != -1 {
+        close(devNullFD)
+      }
+    }
+    let stdinFDForChild: CInt
+    let stdoutFDForChild: CInt
+    let stderrFDForChild: CInt
+
+    // Replicate `Foundation.Process`'s API where not setting means "inherit" and `nil`-setting means /dev/null
+    switch state.standardInput {
+    case .notSet:
+      stdinFDForChild = STDIN_FILENO
+    case .setToNone:
+      assert(devNullFD >= 0)
+      stdinFDForChild = devNullFD
+    case .setTo(let handle):
+      stdinFDForChild = handle.fileHandleForReading.fileDescriptor
+    }
+
+    switch state.standardOutput {
+    case .notSet:
+      stdoutFDForChild = STDOUT_FILENO
+    case .setToNone:
+      assert(devNullFD >= 0)
+      stdoutFDForChild = devNullFD
+    case .setTo(let handle):
+      stdoutFDForChild = handle.fileDescriptor
+    }
+
+    switch state.standardError {
+    case .notSet:
+      stderrFDForChild = STDERR_FILENO
+    case .setToNone:
+      assert(devNullFD >= 0)
+      stderrFDForChild = devNullFD
+    case .setTo(let handle):
+      stderrFDForChild = handle.fileDescriptor
+    }
+
     let psSetup: [ps_fd_setup] = [
-      ps_fd_setup(
-        psfd_kind: PS_MAP_FD,
-        psfd_parent_fd: state.standardInput?.fileHandleForReading.fileDescriptor ?? STDIN_FILENO
-      ),
-      ps_fd_setup(psfd_kind: PS_MAP_FD, psfd_parent_fd: state.standardOutput?.fileDescriptor ?? STDOUT_FILENO),
-      ps_fd_setup(psfd_kind: PS_MAP_FD, psfd_parent_fd: state.standardError?.fileDescriptor ?? STDERR_FILENO),
+      ps_fd_setup(psfd_kind: PS_MAP_FD, psfd_parent_fd: stdinFDForChild),
+      ps_fd_setup(psfd_kind: PS_MAP_FD, psfd_parent_fd: stdoutFDForChild),
+      ps_fd_setup(psfd_kind: PS_MAP_FD, psfd_parent_fd: stderrFDForChild),
     ]
     let (pid, error) = psSetup.withUnsafeBufferPointer { psSetupPtr -> (pid_t, ps_error) in
       var config = ps_process_configuration_s(
@@ -152,7 +237,12 @@ public final class PSProcess: Sendable {
       let pid = ps_spawn_process(&config, &error)
       return (pid, error)
     }
-    try! state.standardInput?.fileHandleForReading.close()
+    switch state.standardInput {
+    case .notSet, .setToNone:
+      ()  // Nothing to do
+    case .setTo(let pipe):
+      try! pipe.fileHandleForReading.close()
+    }
     guard pid > 0 else {
       switch (error.pse_kind, error.pse_code) {
       case (PS_ERROR_KIND_EXECVE, ENOENT),
@@ -313,12 +403,12 @@ public final class PSProcess: Sendable {
   public var standardOutput: FileHandle? {
     get {
       self.state.withLockedValue { state in
-        state.standardOutput
+        state.standardOutput.asOptional
       }
     }
     set {
       self.state.withLockedValue { state in
-        state.standardOutput = newValue
+        state.standardOutput = newValue.map { .setTo($0) } ?? .setToNone
       }
     }
   }
@@ -326,12 +416,12 @@ public final class PSProcess: Sendable {
   public var standardError: FileHandle? {
     get {
       self.state.withLockedValue { state in
-        state.standardError
+        state.standardError.asOptional
       }
     }
     set {
       self.state.withLockedValue { state in
-        state.standardError = newValue
+        state.standardError = newValue.map { .setTo($0) } ?? .setToNone
       }
     }
   }
@@ -339,12 +429,12 @@ public final class PSProcess: Sendable {
   public var standardInput: Pipe? {
     get {
       self.state.withLockedValue { state in
-        state.standardInput
+        state.standardInput.asOptional
       }
     }
     set {
       self.state.withLockedValue { state in
-        state.standardInput = newValue
+        state.standardInput = newValue.map { .setTo($0) } ?? .setToNone
       }
     }
   }

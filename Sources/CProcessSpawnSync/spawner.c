@@ -10,7 +10,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define _GNU_SOURCE
 #include <unistd.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -169,7 +168,8 @@ static void setup_and_execve_child(ps_process_configuration *config, int error_p
 #endif
         if (close_range_err) {
             // close_range failed (or doesn't exist), let's fall back onto this
-            for (int i=config->psc_fd_setup_count; i<highest_possibly_open_fd(); i++) {
+            int high_fd = highest_possibly_open_fd();
+            for (int i=config->psc_fd_setup_count; i<=high_fd; i++) {
                 if (i != error_pipe) {
                     close(i);
                 }

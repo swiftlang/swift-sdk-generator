@@ -140,7 +140,7 @@ final class RepeatedBuildTests: XCTestCase {
     do {
       try await Shell.run("docker ps")
       possibleArguments.append(
-        "--with-docker --linux-distribution-name rhel --linux-distribution-version ubi9"
+        "--with-docker --distribution-name rhel --distribution-version ubi9"
       )
     } catch {
       self.logger.warning(
@@ -223,8 +223,8 @@ struct SDKConfiguration {
       "--swift-version \(swiftVersion)-RELEASE",
       testLinuxSwiftSDKs ? "--host \(hostArch!)-unknown-linux-gnu" : nil,
       "--target \(architecture)-unknown-linux-gnu",
-      "--linux-distribution-name \(linuxDistributionName)",
-      "--linux-distribution-version \(linuxDistributionVersion)",
+      "--distribution-name \(linuxDistributionName)",
+      "--distribution-version \(linuxDistributionVersion)",
     ].compactMap { $0 }.joined(separator: " ")
   }
 }

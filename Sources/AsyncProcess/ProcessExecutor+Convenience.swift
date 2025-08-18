@@ -235,13 +235,33 @@ extension ProcessExecutor {
   }
 
   public struct ProcessExitReasonAndOutput: Sendable & Hashable {
+    public func hash(into hasher: inout Hasher) {
+      self.exitReason.hash(into: &hasher)
+      self.standardOutput.hash(into: &hasher)
+      self.standardError.hash(into: &hasher)
+      (self.standardInputWriteError == nil).hash(into: &hasher)
+    }
+
+    public static func == (
+      lhs: ProcessExecutor.ProcessExitReasonAndOutput,
+      rhs: ProcessExecutor.ProcessExitReasonAndOutput
+    ) -> Bool {
+      return lhs.exitReason == rhs.exitReason && lhs.standardOutput == rhs.standardOutput
+        && lhs.standardError == rhs.standardError
+        && (lhs.standardInputWriteError == nil) == (rhs.standardInputWriteError == nil)
+    }
+
     public var exitReason: ProcessExitReason
+
+    /// Any errors that occurred whilst writing the provided `standardInput` sequence into the child process' standard input.
+    public var standardInputWriteError: Optional<any Error>
+
     public var standardOutput: ByteBuffer?
     public var standardError: ByteBuffer?
   }
 
   internal enum ProcessExitInformationPiece {
-    case exitReason(ProcessExitReason)
+    case exitReason(ProcessExitExtendedInfo)
     case standardOutput(ByteBuffer?)
     case standardError(ByteBuffer?)
   }
@@ -319,14 +339,20 @@ extension ProcessExecutor {
       }
 
       group.addTask {
-        return .exitReason(try await exe.run())
+        return .exitReason(try await exe.runWithExtendedInfo())
       }
 
-      var allInfo = ProcessExitReasonAndOutput(exitReason: .exit(-1), standardOutput: nil, standardError: nil)
+      var allInfo = ProcessExitReasonAndOutput(
+        exitReason: .exit(-1),
+        standardInputWriteError: nil,
+        standardOutput: nil,
+        standardError: nil
+      )
       while let next = try await group.next() {
         switch next {
         case .exitReason(let exitReason):
-          allInfo.exitReason = exitReason
+          allInfo.exitReason = exitReason.exitReason
+          allInfo.standardInputWriteError = exitReason.standardInputWriteError
         case .standardOutput(let output):
           allInfo.standardOutput = output
         case .standardError(let output):

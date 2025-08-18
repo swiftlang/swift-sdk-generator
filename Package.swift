@@ -79,7 +79,12 @@ let package = Package(
 
     // `AsyncProcess` modules and dependencies
 
-    .target(name: "CProcessSpawnSync"),
+    .target(
+      name: "CProcessSpawnSync",
+      cSettings: [
+        .define("_GNU_SOURCE")
+      ]
+    ),
     .target(
       name: "ProcessSpawnSync",
       dependencies: [

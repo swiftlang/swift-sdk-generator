@@ -354,8 +354,6 @@ final class IntegrationTests: XCTestCase {
   }
 
   func testOutputWithoutNewlinesThatIsSplitIntoLines() async throws {
-    self.logger = Logger(label: "x")
-    self.logger.logLevel = .trace
     let exe = ProcessExecutor(
       group: self.group,
       executable: "/bin/sh",
@@ -1331,6 +1329,672 @@ final class IntegrationTests: XCTestCase {
       self.logger.info("pid still set, waiting", metadata: ["process": "\(p)"])
       try? await Task.sleep(nanoseconds: 100_000_000)
     }
+  }
+
+  func testVeryHighFDs() async throws {
+    var openedFDs: [CInt] = []
+
+    // Open /dev/null to use as source for duplication
+    let devNullFD = open("/dev/null", O_RDONLY)
+    guard devNullFD != -1 else {
+      XCTFail("Failed to open /dev/null")
+      return
+    }
+    defer {
+      let closeResult = close(devNullFD)
+      XCTAssertEqual(0, closeResult, "Failed to close /dev/null FD")
+    }
+
+    for candidate in sequence(first: CInt(1), next: { $0 <= CInt.max / 2 ? $0 * 2 : nil }) {
+      // Use fcntl with F_DUPFD to find next available FD >= candidate
+      let fd = fcntl(devNullFD, F_DUPFD, candidate)
+      if fd == -1 {
+        // Failed to allocate FD >= candidate, try next power of 2
+        self.logger.debug(
+          "already unavailable, skipping",
+          metadata: ["candidate": "\(candidate)", "errno": "\(errno)"]
+        )
+        continue
+      } else {
+        openedFDs.append(fd)
+        self.logger.debug("Opened FD in parent", metadata: ["fd": "\(fd)"])
+      }
+    }
+
+    defer {
+      for fd in openedFDs {
+        let closeResult = close(fd)
+        XCTAssertEqual(0, closeResult, "Failed to close FD \(fd)")
+      }
+    }
+
+    // Create shell script that checks each FD passed as arguments
+    let shellScript = """
+      for fd in "$@"; do
+          if [ -e "/proc/self/fd/$fd" ] || [ -e "/dev/fd/$fd" ]; then
+              echo "- fd: $fd: OPEN"
+          else
+              echo "- fd: $fd: CLOSED"
+          fi
+      done
+      """
+
+    var arguments = ["-c", shellScript, "--"]
+    arguments.append(contentsOf: openedFDs.map { "\($0)" })
+
+    let result = try await ProcessExecutor.runCollectingOutput(
+      group: self.group,
+      executable: "/bin/sh",
+      arguments,
+      standardInput: EOFSequence(),
+      collectStandardOutput: true,
+      collectStandardError: true,
+      logger: self.logger
+    )
+    try result.exitReason.throwIfNonZero()
+
+    // Assert stderr is empty
+    XCTAssertEqual("", String(buffer: result.standardError!))
+
+    // Assert stdout contains exactly the expected output (all FDs closed)
+    let expectedOutput = openedFDs.map { "- fd: \($0): CLOSED" }.joined(separator: "\n") + "\n"
+    XCTAssertEqual(expectedOutput, String(buffer: result.standardOutput!))
+  }
+
+  func testStandardInputIgnoredMeansImmediateEOF() async throws {
+    let result = try await ProcessExecutor.runCollectingOutput(
+      executable: "/bin/sh",
+      [
+        "-c",
+        #"""
+        set -eu
+        while read -r line; do
+            echo "unexpected input $line"
+        done
+        exit 0
+        """#,
+      ],
+      collectStandardOutput: true,
+      collectStandardError: true
+    )
+    try result.exitReason.throwIfNonZero()
+    XCTAssertEqual("", String(buffer: result.standardOutput!))
+    XCTAssertEqual("", String(buffer: result.standardError!))
+  }
+
+  func testStandardInputStreamWriteErrorsBlowUpOldSchoolRunSpawnOnProcessExit() async throws {
+    do {
+      let result = try await ProcessExecutor(
+        executable: "/bin/sh",
+        [
+          "-c",
+          #"""
+          set -e
+          read -r line
+          if [ "$line" = "go" ]; then
+              echo "GO"
+              exit 0 # We're just exiting here which will have the effect of stdin closing
+          fi
+          echo "PROBLEM"
+          while read -r line; do
+              echo "unexpected input $line"
+          done
+          exit 1
+          """#,
+        ],
+        standardInput: sequence(
+          first: ByteBuffer(string: "go\n"),
+          next: { _ in ByteBuffer(string: "extra line\n") }  // infinite sequence
+        ).async,
+        standardOutput: .discard,
+        standardError: .discard
+      ).run()
+      XCTFail("unexpected result: \(result)")
+    } catch let error as NIO.IOError {
+      XCTAssert(
+        [
+          EPIPE,
+          EBADF,  // don't worry, this is a NIO-synthesised (already closed) EBADF
+        ].contains(error.errnoCode),
+        "unexpected error: \(error)"
+      )
+    }
+  }
+
+  func testStandardInputStreamWriteErrorsBlowUpOldSchoolRunOnStandardInputClose() async throws {
+    do {
+      let result = try await ProcessExecutor(
+        executable: "/bin/sh",
+        [
+          "-c",
+          #"""
+          set -e
+          read -r line
+          if [ "$line" = "go" ]; then
+              echo "GO"
+              exec <&- # close stdin but stay alive
+              while true; do sleep 1; done
+              exit 0
+          fi
+          echo "PROBLEM"
+          while read -r line; do
+              echo "unexpected input $line"
+          done
+          exit 1
+          """#,
+        ],
+        standardInput: sequence(
+          first: ByteBuffer(string: "go\n"),
+          next: { _ in ByteBuffer(string: "extra line\n") }  // infinite sequence
+        ).async,
+        standardOutput: .discard,
+        standardError: .discard
+      ).run()
+      XCTFail("unexpected result: \(result)")
+    } catch let error as NIO.IOError {
+      XCTAssert(
+        [
+          EPIPE,
+          EBADF,  // don't worry, this is a NIO-synthesised (already closed) EBADF
+        ].contains(error.errnoCode),
+        "unexpected error: \(error)"
+      )
+    }
+  }
+
+  func testStandardInputStreamWriteErrorsDoNotBlowUpRunCollectingInputOnProcessExit() async throws {
+    let result = try await ProcessExecutor.runCollectingOutput(
+      executable: "/bin/sh",
+      [
+        "-c",
+        #"""
+        set -e
+        read -r line
+        if [ "$line" = "go" ]; then
+            echo "GO"
+            exit 0 # We're just exiting here which will have the effect of stdin closing
+        fi
+        echo "PROBLEM"
+        while read -r line; do
+            echo "unexpected input $line"
+        done
+        exit 1
+        """#,
+      ],
+      standardInput: sequence(
+        first: ByteBuffer(string: "go\n"),
+        next: { _ in ByteBuffer(string: "extra line\n") }  // infinite sequence
+      ).async,
+      collectStandardOutput: true,
+      collectStandardError: true
+    )
+    XCTAssertEqual(.exit(0), result.exitReason)  // child exits by itself
+    XCTAssertNotNil(result.standardInputWriteError)
+    XCTAssertEqual(
+      EPIPE,
+      (result.standardInputWriteError as? NIO.IOError).map { ioError in
+        if ioError.errnoCode == EBADF {
+          // Don't worry, not a real EBADF, just a NIO synthesised one
+          // https://github.com/apple/swift-nio/issues/3292
+          // Let's fudge the error into a sensible one.
+          let ioError = NIO.IOError(errnoCode: EPIPE, reason: ioError.description)
+          return ioError
+        } else {
+          return ioError
+        }
+      }?.errnoCode,
+      "\(result.standardInputWriteError.debugDescription)"
+    )
+    XCTAssertEqual("GO\n", String(buffer: result.standardOutput!))
+    XCTAssertEqual("", String(buffer: result.standardError!))
+  }
+
+  func testStandardInputStreamWriteErrorsDoNotBlowUpRunCollectingInputOnStandardInputClose() async throws {
+    let result = try await ProcessExecutor.runCollectingOutput(
+      executable: "/bin/sh",
+      [
+        "-c",
+        #"""
+        set -e
+        read -r line
+        if [ "$line" = "go" ]; then
+            echo "GO"
+            exec <&- # close stdin but stay alive
+            while true; do sleep 1; done
+            exit 0
+        fi
+        echo "PROBLEM"
+        while read -r line; do
+            echo "unexpected input $line"
+        done
+        exit 1
+        """#,
+      ],
+      standardInput: sequence(
+        first: ByteBuffer(string: "go\n"),
+        next: { _ in ByteBuffer(string: "extra line\n") }  // infinite sequence
+      ).async,
+      collectStandardOutput: true,
+      collectStandardError: true
+    )
+    XCTAssertEqual(.signal(9), result.exitReason)  // Child doesn't die by itself, so it'll be killed by our cancel
+    XCTAssertNotNil(result.standardInputWriteError)
+    XCTAssertEqual(
+      EPIPE,
+      (result.standardInputWriteError as? NIO.IOError).map { ioError in
+        if ioError.errnoCode == EBADF {
+          // Don't worry, not a real EBADF, just a NIO synthesised one
+          // https://github.com/apple/swift-nio/issues/3292
+          // Let's fudge the error into a sensible one.
+          let ioError = NIO.IOError(errnoCode: EPIPE, reason: ioError.description)
+          return ioError
+        } else {
+          return ioError
+        }
+      }?.errnoCode,
+      "\(result.standardInputWriteError.debugDescription)"
+    )
+    XCTAssertEqual("GO\n", String(buffer: result.standardOutput!))
+    XCTAssertEqual("", String(buffer: result.standardError!))
+  }
+
+  func testStandardInputStreamWriteErrorsCanBeIgnored() async throws {
+    var spawnOptions = ProcessExecutor.SpawnOptions.default
+    spawnOptions.ignoreStdinStreamWriteErrors = true
+    do {
+      let result = try await ProcessExecutor.runCollectingOutput(
+        executable: "/bin/sh",
+        [
+          "-c",
+          #"""
+          set -e
+          read -r line
+          if [ "$line" = "go" ]; then
+              echo "GO"
+              exit 0 # We're just exiting here which will have the effect of stdin closing
+          fi
+          echo "PROBLEM"
+          while read -r line; do
+              echo "unexpected input $line"
+          done
+          exit 1
+          """#,
+        ],
+        spawnOptions: spawnOptions,
+        standardInput: sequence(
+          first: ByteBuffer(string: "go\n"),
+          next: { _ in ByteBuffer(string: "extra line\n") }  // infinite sequence
+        ).async,
+        collectStandardOutput: true,
+        collectStandardError: true
+      )
+      try result.exitReason.throwIfNonZero()
+      XCTAssertEqual("GO\n", String(buffer: result.standardOutput!))
+      XCTAssertEqual("", String(buffer: result.standardError!))
+    }
+  }
+
+  func testStandardInputStreamWriteErrorsCanBeReceivedThroughExtendedResults() async throws {
+    // The default is
+    //    spawnOptions.cancelProcessOnStandardInputWriteFailure = true
+    // therefore, this should not hang and the program should get killed with SIGKILL (due to cancellation).
+    let exe = ProcessExecutor(
+      executable: "/bin/sh",
+      [
+        "-c",
+        #"""
+        set -eu
+        read -r line
+        if [ "$line" = "go" ]; then
+            echo "GO"
+            exec <&- # close stdin but stay alive
+            while true; do sleep 1; done
+            exit 0
+        fi
+        echo "PROBLEM"
+        while read -r line; do
+            echo "unexpected input $line"
+        done
+        exit 1
+        """#,
+      ],
+      standardInput: sequence(
+        first: ByteBuffer(string: "go\n"),
+        next: { _ in ByteBuffer(string: "extra line\n") }  // infinite sequence
+      ).async
+    )
+    async let resultAsync = exe.runWithExtendedInfo()
+    for try await line in await merge(exe.standardOutput.splitIntoLines(), exe.standardError.splitIntoLines()) {
+      if String(buffer: line) != "GO" {
+        XCTFail("unexpected line: \(line)")
+      }
+    }
+    let result = try await resultAsync
+    XCTAssertEqual(.signal(SIGKILL), result.exitReason)
+    XCTAssertThrowsError(try result.standardInputWriteError.map { throw $0 }) { error in
+      if let error = error as? NIO.IOError {
+        XCTAssert(
+          [
+            EPIPE,
+            EBADF,  // don't worry, this is a NIO-synthesised (already closed) EBADF
+          ].contains(error.errnoCode),
+          "unexpected error: \(error)"
+        )
+      } else {
+        XCTFail("unexpected error: \(error)")
+      }
+    }
+  }
+
+  func testCanMakeProgramHangWhenStdinIsClosedBecauseWeDisabledCancellation() async throws {
+    // This is quite a complex test. Here we're closing stdin in the child process but disable automatic
+    // parent process cancellation on child stdin write errors. Therefore, the child will hang until we cancel it
+    // ourselves.
+    var spawnOptions = ProcessExecutor.SpawnOptions.default
+    spawnOptions.cancelProcessOnStandardInputWriteFailure = false
+    let exe = ProcessExecutor(
+      executable: "/bin/sh",
+      [
+        "-c",
+        #"""
+        set -eu
+        read -r line
+        if [ "$line" = "go" ]; then
+            echo "GO"
+            exec <&- # close stdin but stay alive
+            exec >&- # also close stdout to signal to parent
+            while true; do sleep 1; done
+            exit 0
+        fi
+        echo "PROBLEM"
+        while read -r line; do
+            echo "unexpected input $line"
+        done
+        exit 1
+        """#,
+      ],
+      spawnOptions: spawnOptions,
+      standardInput: sequence(
+        first: ByteBuffer(string: "go\n"),
+        next: { _ in ByteBuffer(string: "extra line\n") }  // infinite sequence
+      ).async
+    )
+
+    enum WhoReturned {
+      case process(Result<ProcessExitExtendedInfo, any Error>)
+      case stderr(Error?)
+      case stdout(Error?)
+      case sleep
+    }
+    await withTaskGroup(of: WhoReturned.self) { group in
+      group.addTask {
+        do {
+          let result = try await exe.runWithExtendedInfo()
+          return WhoReturned.process(.success(result))
+        } catch {
+          return WhoReturned.process(.failure(error))
+        }
+      }
+      group.addTask {
+        do {
+          for try await line in await exe.standardError.splitIntoLines() {
+            XCTFail("unexpected stderr line: \(line)")
+          }
+          return .stderr(nil)
+        } catch {
+          return .stderr(error)
+        }
+      }
+      group.addTask {
+        do {
+          for try await line in await exe.standardOutput.splitIntoLines() {
+            if line != ByteBuffer(string: "GO") {
+              XCTFail("unexpected stdout line: \(line)")
+            }
+          }
+          return .stdout(nil)
+        } catch {
+          return .stdout(error)
+        }
+      }
+      group.addTask {
+        try? await Task.sleep(nanoseconds: 500_000_000)
+        return .sleep
+      }
+
+      let actualReturn1 = await group.next()!  // .stdout (likely) or .sleep (unlikely)
+      let actualReturn2 = await group.next()!  // .sleep (likely) or .stdout (unlikely)
+      group.cancelAll()
+      let actualReturn3 = await group.next()!  // .stderr or .process
+      let actualReturn4 = await group.next()!  // .stderr or .process
+
+      switch actualReturn1 {
+      case .stdout(let maybeError):
+        XCTAssertNil(maybeError)
+      case .sleep:
+        ()
+      default:
+        XCTFail("unexpected: \(actualReturn1)")
+      }
+      switch actualReturn2 {
+      case .stdout(let maybeError):
+        XCTAssertNil(maybeError)
+      case .sleep:
+        ()
+      default:
+        XCTFail("unexpected: \(actualReturn2)")
+      }
+      switch actualReturn3 {
+      case .stderr(let maybeError):
+        XCTAssertNil(maybeError)
+      case .process(let result):
+        let exitReason = try? result.get()
+        XCTAssertEqual(.signal(SIGKILL), exitReason?.exitReason)
+        XCTAssertNotNil(exitReason?.standardInputWriteError)
+      default:
+        XCTFail("unexpected: \(actualReturn3)")
+      }
+      switch actualReturn4 {
+      case .stderr(let maybeError):
+        XCTAssertNil(maybeError)
+      case .process(let result):
+        let exitReason = try? result.get()
+        XCTAssertEqual(.signal(SIGKILL), exitReason?.exitReason)
+        XCTAssertNotNil(exitReason?.standardInputWriteError)
+      default:
+        XCTFail("unexpected: \(actualReturn4)")
+      }
+    }
+  }
+
+  func testWeDoNotHangIfStandardInputRemainsOpenButProcessExits() async throws {
+    // This tests an odd situation: The child exits but stdin is still not closed, mostly happens if we inherit a
+    // pipe that we still have another writer to.
+
+    var sleepPidToKill: CInt?
+    defer {
+      if let sleepPidToKill {
+        self.logger.debug(
+          "killing our sleep grand-child",
+          metadata: ["pid": "\(sleepPidToKill)"]
+        )
+        kill(sleepPidToKill, SIGKILL)
+      } else {
+        XCTFail("didn't find the pid of sleep to kill")
+      }
+    }
+    do {  // We create a scope here to make sure we can leave the scope without hanging
+      let (stdinStream, stdinStreamProducer) = AsyncStream.makeStream(of: ByteBuffer.self)
+      let exe = ProcessExecutor(
+        executable: "/bin/sh",
+        [
+          "-c",
+          #"""
+          # This construction attempts to emulate a simple `sleep 12345678 < /dev/null` but some shells (eg. dash)
+          # won't allow stdin inheritance for background processes...
+          exec 2>&- # close stderr
+          exec 2<&0 # duplicate stdin into fd 2 (so we can inherit it into sleep
+
+          (
+              exec 0<&2  # map the duplicated fd 2 as our stdin
+              exec 2>&-  # close the duplicated fd2
+              exec sleep 12345678 # sleep (this will now have the origin stdin as its stdin)
+          ) & # uber long sleep that will inherit our stdin pipe
+          exec 2>&- # close duplicated 2
+
+          read -r line
+          echo "$line" # write back the line
+          echo "$!" # write back the sleep
+          exec >&-
+          exit 0
+          """#,
+        ],
+        standardInput: stdinStream
+      )
+      stdinStreamProducer.yield(ByteBuffer(string: "GO\n"))
+      stdinStreamProducer.yield(ByteBuffer(repeating: 0x42, count: 16 * 1024 * 1024))
+      async let resultAsync = exe.runWithExtendedInfo()
+      async let stderrAsync = Array(exe.standardError)
+      var stdoutLines = await exe.standardOutput.splitIntoLines().makeAsyncIterator()
+      let lineGo = try await stdoutLines.next()
+      XCTAssertEqual(ByteBuffer(string: "GO"), lineGo)
+      let linePid = try await stdoutLines.next().map(String.init(buffer:))
+      let sleepPid = try XCTUnwrap(linePid.flatMap { CInt($0) })
+      self.logger.debug("found our sleep grand-child", metadata: ["pid": "\(sleepPid)"])
+      sleepPidToKill = sleepPid
+      let stderrBytes = try await stderrAsync
+      XCTAssertEqual([], stderrBytes)
+      let result = try await resultAsync
+      XCTAssertEqual(.exit(0), result.exitReason)
+      XCTAssertNotNil(result.standardInputWriteError)
+      XCTAssertEqual(ChannelError.ioOnClosedChannel, result.standardInputWriteError as? ChannelError)
+      stdinStreamProducer.finish()
+    }
+  }
+
+  #if !os(Linux)  // https://github.com/apple/swift-nio/issues/3294
+    func testWeDoHangIfStandardInputWriterCouldStillWriteIfWeDisableCancellingInputWriterAfterExit() async throws {
+      // Here, we do the same thing as in testWeDoNotHangIfStandardInputRemainsOpenButProcessExits but to make matters
+      // worse, we're setting `spawnOptions.cancelStandardInputWritingWhenProcessExits = false` which means that we're
+      // not gonna return because the write will be hanging until we kill our long sleep.
+
+      enum WhoReturned {
+        case processRun
+        case waiter
+      }
+
+      try await withThrowingTaskGroup(of: WhoReturned.self) { group in
+        let (stdinStream, stdinStreamProducer) = AsyncStream.makeStream(of: ByteBuffer.self)
+        var spawnOptions = ProcessExecutor.SpawnOptions.default
+        spawnOptions.cancelStandardInputWritingWhenProcessExits = false
+        let exe = ProcessExecutor(
+          executable: "/bin/sh",
+          [
+            "-c",
+            #"""
+            # This construction attempts to emulate a simple `sleep 12345678 < /dev/null` but some shells (eg. dash)
+            # won't allow stdin inheritance for background processes...
+            exec 2>&- # close stderr
+            exec 2<&0 # duplicate stdin into fd 2 (so we can inherit it into sleep
+
+            (
+                exec 0<&2  # map the duplicated fd 2 as our stdin
+                exec 2>&-  # close the duplicated fd2
+                exec sleep 12345678 # sleep (this will now have the origin stdin as its stdin)
+            ) & # uber long sleep that will inherit our stdin pipe
+            exec 2>&- # close duplicated 2
+
+            read -r line
+            echo "$line" # write back the line
+            echo "$!" # write back the sleep
+            exec >&-
+            exit 0
+            """#,
+          ],
+          spawnOptions: spawnOptions,
+          standardInput: stdinStream
+        )
+        stdinStreamProducer.yield(ByteBuffer(string: "GO\n"))
+        stdinStreamProducer.yield(ByteBuffer(repeating: 0x42, count: 32 * 1024 * 1024))
+
+        group.addTask {
+          let result = try await exe.runWithExtendedInfo()
+          XCTAssertEqual(.exit(0), result.exitReason)
+          XCTAssertNotNil(result.standardInputWriteError)
+          XCTAssert(
+            [
+              .some(EPIPE),
+              .some(EBADF),  // don't worry, this is a NIO-synthesised (already closed) EBADF
+            ].contains(result.standardInputWriteError.flatMap { $0 as? NIO.IOError }.map { $0.errnoCode }),
+            "unexpected error: \(result.standardInputWriteError.debugDescription)"
+          )
+          stdinStreamProducer.finish()
+          return .processRun
+        }
+        var stdoutLines = await exe.standardOutput.splitIntoLines().makeAsyncIterator()
+        let lineGo = try await stdoutLines.next()
+        XCTAssertEqual(ByteBuffer(string: "GO"), lineGo)
+        let linePid = try await stdoutLines.next().map(String.init(buffer:))
+        let sleepPid = try XCTUnwrap(linePid.flatMap { CInt($0) })
+        self.logger.debug("found our sleep grand-child", metadata: ["pid": "\(sleepPid)"])
+
+        group.addTask {
+          try? await Task.sleep(nanoseconds: 500_000_000)  // Wait until we're confident that we're stuck
+          return .waiter
+        }
+
+        // The situation we set up is the following
+        // - Our direct child process will have exited here
+        // - Our grand child (sleep 12345678) is still running and has the stdin pipe
+        // - We switched off cancelling the stdin writer when our child exits
+        // - We're stuck now ...
+        // - ... until our `.waiter` returns
+        // - When we kill the grand-child
+        // - Which then unblocks everything else
+
+        let actualReturn1 = try await group.next()!
+        XCTAssertEqual(.waiter, actualReturn1)
+
+        let stderrBytes = try await Array(exe.standardError)
+        XCTAssertEqual([], stderrBytes, "\(stderrBytes.map { $0.hexDump(format: .plain(maxBytes: .max)) })")
+
+        let killRet = kill(sleepPid, SIGKILL)
+        XCTAssertEqual(0, killRet, "kill failed: \(errno)")
+
+        stdinStreamProducer.yield(ByteBuffer(repeating: 0x42, count: 1 * 1024 * 1024))
+
+        let actualReturn2 = try await group.next()!
+        XCTAssertEqual(.processRun, actualReturn2)
+      }
+    }
+  #endif
+
+  func testTinyOutputConsumedAfterRun() async throws {
+    let exe = ProcessExecutor(
+      executable: "/bin/sh",
+      ["-c", "echo O; echo >&2 E"]
+    )
+    let result = try await exe.run()
+    XCTAssertEqual(.exit(0), result)
+    let stdout = try await Array(await exe.standardOutput.splitIntoLines())
+    XCTAssertEqual([ByteBuffer(string: "O")], stdout)
+    let stderr = try await Array(await exe.standardError.splitIntoLines())
+    XCTAssertEqual([ByteBuffer(string: "E")], stderr)
+  }
+
+  func testTinyOutputConsumedDuringRun() async throws {
+    let exe = ProcessExecutor(
+      executable: "/bin/sh",
+      ["-c", "echo O; echo >&2 E"]
+    )
+    async let asyncResult = exe.run()
+    try await Task.sleep(nanoseconds: .random(in: 0..<10_000_000))
+    let stdout = try await Array(await exe.standardOutput.splitIntoLines())
+    XCTAssertEqual([ByteBuffer(string: "O")], stdout)
+    let stderr = try await Array(await exe.standardError.splitIntoLines())
+    XCTAssertEqual([ByteBuffer(string: "E")], stderr)
+    let result = try await asyncResult
+    XCTAssertEqual(.exit(0), result)
   }
 
   // MARK: - Setup/teardown
