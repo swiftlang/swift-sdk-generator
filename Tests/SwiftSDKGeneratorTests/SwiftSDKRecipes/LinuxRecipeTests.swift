@@ -19,7 +19,7 @@ final class LinuxRecipeTests: XCTestCase {
   let logger = Logger(label: "LinuxRecipeTests")
 
   func createRecipe(
-    hostTriple: Triple = Triple("x86_64-unknown-linux-gnu"),
+    hostTriples: [Triple] = [Triple("x86_64-unknown-linux-gnu")],
     linuxDistribution: LinuxDistribution,
     swiftVersion: String = "6.0",
     withDocker: Bool = false,
@@ -30,7 +30,7 @@ final class LinuxRecipeTests: XCTestCase {
   ) throws -> LinuxRecipe {
     try LinuxRecipe(
       targetTriple: Triple("aarch64-unknown-linux-gnu"),
-      hostTriple: hostTriple,
+      hostTriples: hostTriples,
       linuxDistribution: linuxDistribution,
       swiftVersion: swiftVersion,
       swiftBranch: nil,
@@ -132,7 +132,7 @@ final class LinuxRecipeTests: XCTestCase {
       targetTriple: recipe.mainTargetTriple
     )
     let downloadableArtifacts = try DownloadableArtifacts(
-      hostTriple: recipe.mainHostTriple,
+      hostTriples: recipe.mainHostTriples,
       targetTriple: recipe.mainTargetTriple,
       recipe.versionsConfiguration,
       pathsConfiguration
@@ -154,8 +154,19 @@ final class LinuxRecipeTests: XCTestCase {
     XCTAssertEqual(foundHostSwift, includesHostSwift)
   }
 
-  func testItemsToDownloadForMacOSHost() throws {
-    let hostTriple = Triple("x86_64-apple-macos")
+  func testItemsToDownloadForMacOSHost_arm64() throws {
+    try _testItemsToDownloadForMacOSHost(hostTriples: [Triple("arm64-apple-macos")])
+  }
+
+  func testItemsToDownloadForMacOSHost_x86_64() throws {
+    try _testItemsToDownloadForMacOSHost(hostTriples: [Triple("x86_64-apple-macos")])
+  }
+
+  func testItemsToDownloadForMacOSHost_multiArch() throws {
+    try _testItemsToDownloadForMacOSHost(hostTriples: [Triple("arm64-apple-macos"), Triple("x86_64-apple-macos")])
+  }
+
+  func _testItemsToDownloadForMacOSHost(hostTriples: [Triple]) throws {
     let linuxDistribution = try LinuxDistribution(name: .ubuntu, version: "22.04")
     let testCases:
       [(
@@ -165,7 +176,7 @@ final class LinuxRecipeTests: XCTestCase {
         (
           // Remote tarballs on Swift < 6.0
           recipe: try createRecipe(
-            hostTriple: hostTriple,
+            hostTriples: hostTriples,
             linuxDistribution: linuxDistribution,
             swiftVersion: "5.10"
           ),
@@ -176,7 +187,7 @@ final class LinuxRecipeTests: XCTestCase {
         (
           // Remote tarballs on Swift >= 6.0
           recipe: try createRecipe(
-            hostTriple: hostTriple,
+            hostTriples: hostTriples,
             linuxDistribution: linuxDistribution,
             swiftVersion: "6.0"
           ),
@@ -187,7 +198,7 @@ final class LinuxRecipeTests: XCTestCase {
         (
           // Remote target tarball with preinstalled toolchain
           recipe: try createRecipe(
-            hostTriple: hostTriple,
+            hostTriples: hostTriples,
             linuxDistribution: linuxDistribution,
             swiftVersion: "5.9",
             includeHostToolchain: false
@@ -199,7 +210,7 @@ final class LinuxRecipeTests: XCTestCase {
         (
           // Local packages with Swift < 6.0
           recipe: try createRecipe(
-            hostTriple: hostTriple,
+            hostTriples: hostTriples,
             linuxDistribution: linuxDistribution,
             swiftVersion: "5.10",
             hostSwiftPackagePath: "/path/to/host/swift",
@@ -212,7 +223,7 @@ final class LinuxRecipeTests: XCTestCase {
         (
           // Local packages with Swift >= 6.0
           recipe: try createRecipe(
-            hostTriple: hostTriple,
+            hostTriples: hostTriples,
             linuxDistribution: linuxDistribution,
             swiftVersion: "6.0",
             hostSwiftPackagePath: "/path/to/host/swift",
@@ -235,13 +246,13 @@ final class LinuxRecipeTests: XCTestCase {
   }
 
   func testItemsToDownloadForLinuxHost() throws {
-    let hostTriple = Triple("x86_64-unknown-linux-gnu")
+    let hostTriples = [Triple("x86_64-unknown-linux-gnu")]
     let linuxDistribution = try LinuxDistribution(name: .ubuntu, version: "22.04")
     let testCases = [
       (
         // Remote tarballs on Swift < 6.0
         recipe: try createRecipe(
-          hostTriple: hostTriple,
+          hostTriples: hostTriples,
           linuxDistribution: linuxDistribution,
           swiftVersion: "5.10"
         ),
@@ -251,7 +262,7 @@ final class LinuxRecipeTests: XCTestCase {
       (
         // Remote tarballs on Swift >= 6.0
         recipe: try createRecipe(
-          hostTriple: hostTriple,
+          hostTriples: hostTriples,
           linuxDistribution: linuxDistribution,
           swiftVersion: "6.0"
         ),
@@ -261,7 +272,7 @@ final class LinuxRecipeTests: XCTestCase {
       (
         // Remote target tarball with preinstalled toolchain
         recipe: try createRecipe(
-          hostTriple: hostTriple,
+          hostTriples: hostTriples,
           linuxDistribution: linuxDistribution,
           swiftVersion: "5.9",
           includeHostToolchain: false
@@ -272,7 +283,7 @@ final class LinuxRecipeTests: XCTestCase {
       (
         // Local packages with Swift < 6.0
         recipe: try createRecipe(
-          hostTriple: hostTriple,
+          hostTriples: hostTriples,
           linuxDistribution: linuxDistribution,
           swiftVersion: "5.10",
           hostSwiftPackagePath: "/path/to/host/swift",
@@ -284,7 +295,7 @@ final class LinuxRecipeTests: XCTestCase {
       (
         // Local packages with Swift >= 6.0
         recipe: try createRecipe(
-          hostTriple: hostTriple,
+          hostTriples: hostTriples,
           linuxDistribution: linuxDistribution,
           swiftVersion: "6.0",
           hostSwiftPackagePath: "/path/to/host/swift",
@@ -307,12 +318,12 @@ final class LinuxRecipeTests: XCTestCase {
 
   // Ubuntu toolchains will be selected for Debian 11 and 12 depending on the Swift version
   func testItemsToDownloadForDebianTargets() throws {
-    let hostTriple = Triple("x86_64-unknown-linux-gnu")
+    let hostTriples = [Triple("x86_64-unknown-linux-gnu")]
     let testCases = [
       (
         // Debian 11 -> ubuntu20.04
         recipe: try createRecipe(
-          hostTriple: hostTriple,
+          hostTriples: hostTriples,
           linuxDistribution: try LinuxDistribution(name: .debian, version: "11"),
           swiftVersion: "5.9"
         ),
@@ -321,7 +332,7 @@ final class LinuxRecipeTests: XCTestCase {
       (
         // Debian 12 with Swift 5.9 -> ubuntu22.04
         recipe: try createRecipe(
-          hostTriple: hostTriple,
+          hostTriples: hostTriples,
           linuxDistribution: try LinuxDistribution(name: .debian, version: "12"),
           swiftVersion: "5.9"
         ),
@@ -330,7 +341,7 @@ final class LinuxRecipeTests: XCTestCase {
       (
         // Debian 12 with Swift 5.10 -> ubuntu22.04
         recipe: try createRecipe(
-          hostTriple: hostTriple,
+          hostTriples: hostTriples,
           linuxDistribution: try LinuxDistribution(name: .debian, version: "12"),
           swiftVersion: "5.10"
         ),
@@ -339,7 +350,7 @@ final class LinuxRecipeTests: XCTestCase {
       (
         // Debian 11 with Swift 6.0 -> ubuntu20.04
         recipe: try createRecipe(
-          hostTriple: hostTriple,
+          hostTriples: hostTriples,
           linuxDistribution: try LinuxDistribution(name: .debian, version: "11"),
           swiftVersion: "6.0"
         ),
@@ -348,7 +359,7 @@ final class LinuxRecipeTests: XCTestCase {
       (
         // Debian 12 with Swift 5.10.1 -> debian12
         recipe: try createRecipe(
-          hostTriple: hostTriple,
+          hostTriples: hostTriples,
           linuxDistribution: try LinuxDistribution(name: .debian, version: "12"),
           swiftVersion: "5.10.1"
         ),
@@ -357,7 +368,7 @@ final class LinuxRecipeTests: XCTestCase {
       (
         // Debian 12 with Swift 6.0 -> debian12
         recipe: try createRecipe(
-          hostTriple: hostTriple,
+          hostTriples: hostTriples,
           linuxDistribution: try LinuxDistribution(name: .debian, version: "12"),
           swiftVersion: "6.0"
         ),
@@ -373,7 +384,7 @@ final class LinuxRecipeTests: XCTestCase {
         targetTriple: testCase.recipe.mainTargetTriple
       )
       let downloadableArtifacts = try DownloadableArtifacts(
-        hostTriple: testCase.recipe.mainHostTriple,
+        hostTriples: testCase.recipe.mainHostTriples,
         targetTriple: testCase.recipe.mainTargetTriple,
         testCase.recipe.versionsConfiguration,
         pathsConfiguration
