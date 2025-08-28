@@ -42,13 +42,14 @@ brew bundle install
 
 ## Supported platforms and minimum versions
 
-macOS as a host platform and Linux as both host and target platforms are supported by the generator.
+FreeBSD and Linux are supported as both host and target platforms. macOS is only supported as a host platform.
 The generator also allows cross-compiling between any Linux distributions officially supported by the Swift project.
 
 | Platform       | Supported Version as Host | Supported Version as Target |
 | -:             | :-                        | :-                          |
 | macOS (arm64)  | ✅ macOS 13.0+            | ❌                         |
 | macOS (x86_64) | ✅ macOS 13.0+[^1]        | ❌                         |
+| FreeBSD        | ✅ 14.3+                  | ✅ 14.3+                   |
 | Ubuntu         | ✅ 20.04+                 | ✅ 20.04+                  |
 | Debian         | ✅ 11, 12[^2]             | ✅ 11, 12[^2]              |
 | RHEL           | ✅ Fedora 39, UBI 9       | ✅ Fedora 39, UBI 9[^3]    |

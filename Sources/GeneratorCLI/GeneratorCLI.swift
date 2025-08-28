@@ -23,7 +23,7 @@ struct GeneratorCLI: AsyncParsableCommand {
 
   static let configuration = CommandConfiguration(
     commandName: "swift-sdk-generator",
-    subcommands: [MakeLinuxSDK.self, MakeWasmSDK.self],
+    subcommands: [MakeLinuxSDK.self, MakeFreeBSDSDK.self, MakeWasmSDK.self],
     defaultSubcommand: MakeLinuxSDK.self
   )
 
@@ -301,6 +301,84 @@ extension GeneratorCLI {
         return true
       }
       return false
+    }
+  }
+
+  struct MakeFreeBSDSDK: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(
+      commandName: "make-freebsd-sdk",
+      abstract: "Generate a Swift SDK bundle for FreeBSD.",
+      discussion: """
+        The default `--target` triple is FreeBSD for x86_64
+        """
+    )
+
+    @OptionGroup
+    var generatorOptions: GeneratorOptions
+
+    @Option(
+      help: """
+        Swift toolchain for FreeBSD from which to copy the Swift libraries. \
+        This must match the architecture of the target triple.
+        """
+    )
+    var fromSwiftToolchain: String? = nil
+
+    @Option(
+      help: """
+        Version of FreeBSD to use as a target platform. Example: 14.3
+        """
+    )
+    var freeBSDVersion: String
+
+    func deriveTargetTriple() throws -> Triple {
+      if let target = generatorOptions.target, target.os == .freeBSD {
+        return target
+      }
+      if let arch = generatorOptions.targetArch {
+        let target = Triple(arch: arch, vendor: nil, os: .freeBSD)
+        appLogger.warning(
+          """
+            Using `--target-arch \(arch)` defaults to `\(target.triple)`. \
+            Use `--target` if you want to pass the full target triple.
+          """
+        )
+        return target
+      } else {
+        // If no target is given, use the architecture of the host.
+        let hostTriple = try self.generatorOptions.deriveHostTriple()
+        let hostArch = hostTriple.arch!
+        return Triple(arch: hostArch, vendor: nil, os: .freeBSD)
+      }
+    }
+
+    func run() async throws {
+      let freebsdVersion = try FreeBSD(self.freeBSDVersion)
+      guard freebsdVersion.isSupportedVersion() else {
+        throw StringError("Only FreeBSD versions 14.3 or higher are supported.")
+      }
+
+      let hostTriple = try self.generatorOptions.deriveHostTriple()
+      let targetTriple = try self.deriveTargetTriple()
+
+      let sourceSwiftToolchain: FilePath?
+      if let fromSwiftToolchain {
+        sourceSwiftToolchain = .init(fromSwiftToolchain)
+      } else {
+        sourceSwiftToolchain = nil
+      }
+
+      let recipe = FreeBSDRecipe(
+        freeBSDVersion: freebsdVersion,
+        mainTargetTriple: targetTriple,
+        sourceSwiftToolchain: sourceSwiftToolchain,
+        logger: loggerWithLevel(from: self.generatorOptions)
+      )
+      try await GeneratorCLI.run(
+        recipe: recipe,
+        targetTriple: targetTriple,
+        options: self.generatorOptions
+      )
     }
   }
 
