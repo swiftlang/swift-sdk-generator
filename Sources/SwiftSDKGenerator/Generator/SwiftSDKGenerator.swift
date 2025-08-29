@@ -149,6 +149,12 @@ public actor SwiftSDKGenerator {
     self.fileManager.fileExists(atPath: path.string)
   }
 
+  func doesDirectoryExist(at path: FilePath) -> Bool {
+    var isDirectory: ObjCBool = false
+    let itemExists = self.fileManager.fileExists(atPath: path.string, isDirectory: &isDirectory)
+    return itemExists && isDirectory.boolValue
+  }
+
   func removeFile(at path: FilePath) throws {
     try self.fileManager.removeItem(atPath: path.string)
   }
@@ -245,7 +251,8 @@ public actor SwiftSDKGenerator {
   func untar(
     file: FilePath,
     into directoryPath: FilePath,
-    stripComponents: Int? = nil
+    stripComponents: Int? = nil,
+    paths: [String]? = nil
   ) async throws {
     let stripComponentsOption: String
     if let stripComponents {
@@ -253,8 +260,15 @@ public actor SwiftSDKGenerator {
     } else {
       stripComponentsOption = ""
     }
+
+    var command = #"tar -C "\#(directoryPath)" \#(stripComponentsOption) -xf "\#(file)""#
+    if let paths {
+      for path in paths {
+        command += #" "\#(path)""#
+      }
+    }
     try await Shell.run(
-      #"tar -C "\#(directoryPath)" \#(stripComponentsOption) -xf "\#(file)""#,
+      command,
       shouldLogCommands: self.isVerbose
     )
   }
@@ -298,6 +312,8 @@ public actor SwiftSDKGenerator {
       } else {
         try await self.gunzip(file: file, into: directoryPath)
       }
+    case "txz":
+      try await self.untar(file: file, into: directoryPath)
     case "deb":
       try await self.unpack(debFile: file, into: directoryPath)
     case "pkg":
