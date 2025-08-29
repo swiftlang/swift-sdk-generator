@@ -18,6 +18,8 @@ import struct SystemPackage.FilePath
 extension Triple {
   fileprivate var llvmBinaryURLSuffix: String {
     switch (self.os, self.arch) {
+    case (.win32, .aarch64): return "aarch64-pc-windows-msvc"
+    case (.win32, .x86_64): return "x86_64-pc-windows-msvc"
     case (.linux, .aarch64): return "aarch64-linux-gnu"
     case (.linux, .x86_64): return "x86_64-linux-gnu-ubuntu-22.04"
     case (.macosx, .aarch64): return "arm64-apple-darwin22.0"
@@ -30,6 +32,27 @@ extension Triple {
 typealias CPUMapping = [Triple.Arch: String]
 
 struct DownloadableArtifacts: Sendable {
+  enum Error: Swift.Error, CustomStringConvertible {
+    case noHostTriples
+    case unsupportedHostTriple(Triple)
+    case unsupportedHostTriples([Triple])
+
+    var description: String {
+      switch self {
+      case .noHostTriples:
+        "no host triples"
+      case let .unsupportedHostTriple(hostTriple):
+        "unsupported host triple \(hostTriple)"
+      case let .unsupportedHostTriples(hostTriples):
+        """
+        unsupported host triples \(
+          hostTriples.map { "\($0)" }.joined(separator: ", ")
+        ) (only macOS supports multiple host triples)
+        """
+      }
+    }
+  }
+
   struct Item: Sendable, CacheKey {
     let remoteURL: URL
     var localPath: FilePath
@@ -44,7 +67,7 @@ struct DownloadableArtifacts: Sendable {
   private let paths: PathsConfiguration
 
   init(
-    hostTriple: Triple,
+    hostTriples: [Triple],
     targetTriple: Triple,
     _ versions: VersionsConfiguration,
     _ paths: PathsConfiguration
@@ -52,7 +75,22 @@ struct DownloadableArtifacts: Sendable {
     self.versions = versions
     self.paths = paths
 
-    if hostTriple.os == .linux {
+    guard let hostTriple = hostTriples.first else {
+      throw Error.noHostTriples
+    }
+
+    if hostTriples.allSatisfy({ $0.os == .macosx }) {
+      self.hostSwift = .init(
+        remoteURL: versions.swiftDownloadURL(
+          subdirectory: "xcode",
+          platform: "osx",
+          fileExtension: "pkg"
+        ),
+        localPath: paths.artifactsCachePath
+          .appending("host_swift_\(versions.swiftVersion)_apple-macos.pkg"),
+        isPrebuilt: true
+      )
+    } else if hostTriple.os == .linux && hostTriples.count == 1 {
       // Amazon Linux 2 is chosen for its best compatibility with all Swift-supported Linux hosts
       let hostArchSuffix =
         hostTriple.arch == .aarch64 ? "-\(Triple.Arch.aarch64.linuxConventionName)" : ""
@@ -67,16 +105,11 @@ struct DownloadableArtifacts: Sendable {
         isPrebuilt: true
       )
     } else {
-      self.hostSwift = .init(
-        remoteURL: versions.swiftDownloadURL(
-          subdirectory: "xcode",
-          platform: "osx",
-          fileExtension: "pkg"
-        ),
-        localPath: paths.artifactsCachePath
-          .appending("host_swift_\(versions.swiftVersion)_\(hostTriple.triple).pkg"),
-        isPrebuilt: true
-      )
+      if hostTriples.count > 1 {
+        throw Error.unsupportedHostTriples(hostTriples)
+      } else {
+        throw Error.unsupportedHostTriple(hostTriple)
+      }
     }
 
     self.hostLLVM = .init(
