@@ -49,7 +49,7 @@ final class ArchitectureMappingTests: XCTestCase {
   ) async throws {
     let recipe = try LinuxRecipe(
       targetTriple: targetTriple,
-      hostTriple: hostTriple,
+      hostTriples: [hostTriple],
       linuxDistribution: .ubuntu(.jammy),
       swiftVersion: "5.8-RELEASE",
       swiftBranch: nil,
@@ -79,7 +79,7 @@ final class ArchitectureMappingTests: XCTestCase {
 
     // Verify download URLs
     let artifacts = try await DownloadableArtifacts(
-      hostTriple: hostTriple,
+      hostTriples: [hostTriple],
       targetTriple: sdk.targetTriple,
       recipe.versionsConfiguration,
       sdk.pathsConfiguration

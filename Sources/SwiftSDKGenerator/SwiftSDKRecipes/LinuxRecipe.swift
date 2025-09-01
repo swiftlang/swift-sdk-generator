@@ -30,7 +30,7 @@ package struct LinuxRecipe: SwiftSDKRecipe {
   }
 
   let mainTargetTriple: Triple
-  let mainHostTriple: Triple
+  let mainHostTriples: [Triple]
   let linuxDistribution: LinuxDistribution
   let targetSwiftSource: TargetSwiftSource
   let hostSwiftSource: HostSwiftSource
@@ -46,7 +46,7 @@ package struct LinuxRecipe: SwiftSDKRecipe {
 
   package init(
     targetTriple: Triple,
-    hostTriple: Triple,
+    hostTriples: [Triple],
     linuxDistribution: LinuxDistribution,
     swiftVersion: String,
     swiftBranch: String?,
@@ -89,7 +89,7 @@ package struct LinuxRecipe: SwiftSDKRecipe {
 
     self.init(
       mainTargetTriple: targetTriple,
-      mainHostTriple: hostTriple,
+      mainHostTriples: hostTriples,
       linuxDistribution: linuxDistribution,
       targetSwiftSource: targetSwiftSource,
       hostSwiftSource: hostSwiftSource,
@@ -100,7 +100,7 @@ package struct LinuxRecipe: SwiftSDKRecipe {
 
   package init(
     mainTargetTriple: Triple,
-    mainHostTriple: Triple,
+    mainHostTriples: [Triple],
     linuxDistribution: LinuxDistribution,
     targetSwiftSource: TargetSwiftSource,
     hostSwiftSource: HostSwiftSource,
@@ -108,7 +108,7 @@ package struct LinuxRecipe: SwiftSDKRecipe {
     logger: Logger
   ) {
     self.mainTargetTriple = mainTargetTriple
-    self.mainHostTriple = mainHostTriple
+    self.mainHostTriples = mainHostTriples
     self.linuxDistribution = linuxDistribution
     self.targetSwiftSource = targetSwiftSource
     self.hostSwiftSource = hostSwiftSource
@@ -185,7 +185,7 @@ package struct LinuxRecipe: SwiftSDKRecipe {
   func itemsToDownload(from artifacts: DownloadableArtifacts) -> [DownloadableArtifacts.Item] {
     var items: [DownloadableArtifacts.Item] = []
     if self.hostSwiftSource != .preinstalled
-      && self.mainHostTriple.os != .linux
+      && !self.mainHostTriples.contains(where: { $0.os == .linux })
       && !self.versionsConfiguration.swiftVersion.hasPrefix("6.")
     {
       items.append(artifacts.hostLLVM)
@@ -223,7 +223,7 @@ package struct LinuxRecipe: SwiftSDKRecipe {
       return nil
     }
 
-    return [self.mainHostTriple]
+    return self.mainHostTriples
   }
 
   package func makeSwiftSDK(
@@ -245,7 +245,7 @@ package struct LinuxRecipe: SwiftSDKRecipe {
     try await generator.createDirectoryIfNeeded(at: sdkDirPath)
 
     var downloadableArtifacts = try DownloadableArtifacts(
-      hostTriple: mainHostTriple,
+      hostTriples: mainHostTriples,
       targetTriple: generator.targetTriple,
       self.versionsConfiguration,
       generator.pathsConfiguration
@@ -340,7 +340,7 @@ package struct LinuxRecipe: SwiftSDKRecipe {
     }
 
     if self.hostSwiftSource != .preinstalled {
-      if self.mainHostTriple.os != .linux
+      if !self.mainHostTriples.contains(where: { $0.os == .linux })
         && !self.versionsConfiguration.swiftVersion.hasPrefix("6.")
       {
         try await generator.prepareLLDLinker(engine, llvmArtifact: downloadableArtifacts.hostLLVM)
