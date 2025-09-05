@@ -90,7 +90,7 @@ extension GeneratorCLI {
 
     @Option(
       help: """
-        Name of the SDK bundle. Defaults to a string composed of Swift version, Linux distribution, Linux release \
+        Name of the SDK bundle. Defaults to a string composed of Swift version, target OS release/version \
         and target CPU architecture.
         """
     )
@@ -160,7 +160,8 @@ extension GeneratorCLI {
     @Option(
       help: """
         The target arch of the bundle. The default depends on a recipe used for SDK generation. \
-        If this is passed, the target triple will default to `<target-arch>-unknown-linux-gnu`. \
+        If this is passed, the target triple will default to an appropriate value for the target \
+        platform, with its arch component set to this value. \
         Use the `--target` param to pass the full target triple if needed.
         """
     )
@@ -323,7 +324,7 @@ extension GeneratorCLI {
       commandName: "make-freebsd-sdk",
       abstract: "Generate a Swift SDK bundle for FreeBSD.",
       discussion: """
-        The default `--target` triple is FreeBSD for x86_64
+        The default `--target` triple is FreeBSD with the same CPU architecture with host triple
         """
     )
 
@@ -331,14 +332,7 @@ extension GeneratorCLI {
     var generatorOptions: GeneratorOptions
 
     @Option(
-      help: """
-        Swift toolchain for FreeBSD from which to copy the Swift libraries. \
-        This must match the architecture of the target triple.
-        """
-    )
-    var fromSwiftToolchain: String? = nil
-
-    @Option(
+      name: .customLong("freebsd-version"),
       help: """
         Version of FreeBSD to use as a target platform. Example: 14.3
         """
@@ -377,8 +371,12 @@ extension GeneratorCLI {
       let hostTriples = try self.generatorOptions.deriveHostTriples()
       let targetTriple = try self.deriveTargetTriple(hostTriples: hostTriples)
 
+      if self.generatorOptions.hostSwiftPackagePath != nil {
+        throw StringError("This tool does not support embedding host-specific toolchains into FreeBSD SDKs")
+      }
+
       let sourceSwiftToolchain: FilePath?
-      if let fromSwiftToolchain {
+      if let fromSwiftToolchain = self.generatorOptions.targetSwiftPackagePath {
         sourceSwiftToolchain = .init(fromSwiftToolchain)
       } else {
         sourceSwiftToolchain = nil
