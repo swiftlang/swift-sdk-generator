@@ -143,7 +143,12 @@ package struct LinuxRecipe: SwiftSDKRecipe {
     toolset.swiftCompiler = Toolset.ToolProperties(extraCLIOptions: swiftCompilerOptions)
 
     toolset.cxxCompiler = Toolset.ToolProperties(extraCLIOptions: ["-lstdc++"])
-    toolset.librarian = Toolset.ToolProperties(path: "llvm-ar")
+
+    // Don't include path to librarian if we're using the preinstalled toolchain
+    // Workaround for https://github.com/swiftlang/swift-package-manager/issues/9035
+    if self.hostSwiftSource != .preinstalled {
+      toolset.librarian = Toolset.ToolProperties(path: "llvm-ar")
+    }
   }
 
   package func applyPlatformOptions(

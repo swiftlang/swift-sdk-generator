@@ -116,7 +116,7 @@ final class LinuxRecipeTests: XCTestCase {
       ]
     )
     XCTAssertEqual(toolset.cxxCompiler?.extraCLIOptions, ["-lstdc++"])
-    XCTAssertEqual(toolset.librarian?.path, "llvm-ar")
+    XCTAssert(toolset.librarian == nil)
     XCTAssert(toolset.linker == nil)
   }
 
