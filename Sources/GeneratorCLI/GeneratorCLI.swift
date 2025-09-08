@@ -345,12 +345,12 @@ extension GeneratorCLI {
     )
     var freeBSDVersion: String
 
-    func deriveTargetTriple(hostTriples: [Triple]) throws -> Triple {
+    func deriveTargetTriple(hostTriples: [Triple], freebsdVersion: String) throws -> Triple {
       if let target = generatorOptions.target, target.os == .freeBSD {
         return target
       }
       if let arch = generatorOptions.targetArch {
-        let target = Triple(arch: arch, vendor: nil, os: .freeBSD)
+        let target = Triple(arch: arch, vendor: nil, os: .freeBSD, version: freebsdVersion)
         appLogger.warning(
           """
             Using `--target-arch \(arch)` defaults to `\(target.triple)`. \
@@ -375,7 +375,7 @@ extension GeneratorCLI {
       }
 
       let hostTriples = try self.generatorOptions.deriveHostTriples()
-      let targetTriple = try self.deriveTargetTriple(hostTriples: hostTriples)
+      let targetTriple = try self.deriveTargetTriple(hostTriples: hostTriples, freebsdVersion: self.freeBSDVersion)
 
       let sourceSwiftToolchain: FilePath?
       if let fromSwiftToolchain {

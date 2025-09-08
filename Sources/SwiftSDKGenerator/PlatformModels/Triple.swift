@@ -26,6 +26,11 @@ extension Triple {
     let os = os.rawValue
     self.init("\(arch)-\(vendor?.rawValue ?? "unknown")-\(os)", normalizing: true)
   }
+
+  public init(arch: Arch, vendor: Vendor?, os: OS, version: String) {
+    let os = os.rawValue
+    self.init("\(arch)-\(vendor?.rawValue ?? "unknown")-\(os)\(version)", normalizing: true)
+  }
 }
 
 extension Triple.Arch {
