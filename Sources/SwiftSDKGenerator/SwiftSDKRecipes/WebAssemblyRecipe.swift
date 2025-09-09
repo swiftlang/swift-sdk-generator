@@ -24,11 +24,11 @@ package struct WebAssemblyRecipe: SwiftSDKRecipe {
 
   package struct HostToolchainPackage: Sendable {
     let path: FilePath
-    let triple: Triple
+    let triples: [Triple]
 
-    package init(path: FilePath, triple: Triple) {
+    package init(path: FilePath, triples: [Triple]) {
       self.path = path
-      self.triple = triple
+      self.triples = triples
     }
   }
 
@@ -139,7 +139,7 @@ package struct WebAssemblyRecipe: SwiftSDKRecipe {
     logger.info("Copying Swift binaries for the host triple...")
     var hostTriples: [Triple]? = nil
     if let hostSwiftPackage {
-      hostTriples = [hostSwiftPackage.triple]
+      hostTriples = hostSwiftPackage.triples
       try await generator.rsync(
         from: hostSwiftPackage.path.appending("usr"),
         to: pathsConfiguration.toolchainDirPath
