@@ -125,13 +125,7 @@ package struct WebAssemblyRecipe: SwiftSDKRecipe {
       ? relativeToolchainDir.appending("usr/lib/swift").string
       : tripleProperties.swiftStaticResourcesPath
 
-    var finalTriple = targetTriple
-    if isForEmbeddedSwift {
-      metadata.targetTriples.removeValue(forKey: targetTriple.triple)
-      finalTriple = Triple("wasm32-unknown-wasip1")
-    }
-
-    metadata.targetTriples[finalTriple.triple] = tripleProperties
+    metadata.targetTriples[targetTriple.triple] = tripleProperties
   }
 
   package func makeSwiftSDK(

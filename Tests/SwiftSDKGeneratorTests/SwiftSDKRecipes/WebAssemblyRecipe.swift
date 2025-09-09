@@ -99,4 +99,31 @@ final class WebAssemblyRecipeTests: XCTestCase {
       ]
     )
   }
+
+  func testMetadataWithEmbedded() {
+    testMetadataWithEmbedded(targetTriple: Triple("wasm32-unknown-wasip1"))
+    testMetadataWithEmbedded(targetTriple: Triple("wasm32-unknown-wasip1-threads"))
+  }
+
+  func testMetadataWithEmbedded(targetTriple: Triple) {
+    let recipe = self.createRecipe()
+    var metadata = SwiftSDKMetadataV4(
+      targetTriples: [
+        targetTriple.triple: .init(sdkRootPath: "./WASI.sdk")
+      ]
+    )
+    let paths = PathsConfiguration(
+      sourceRoot: "./",
+      artifactID: "any-sdk-id",
+      targetTriple: targetTriple
+    )
+    recipe.applyPlatformOptions(
+      metadata: &metadata,
+      paths: paths,
+      targetTriple: targetTriple,
+      isForEmbeddedSwift: true
+    )
+    // Should include the target we started with.
+    XCTAssertNotNil(metadata.targetTriples[targetTriple.triple])
+  }
 }
