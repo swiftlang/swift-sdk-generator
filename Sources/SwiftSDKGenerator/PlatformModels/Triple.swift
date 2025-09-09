@@ -18,11 +18,18 @@ extension Triple: @unchecked Sendable {}
 
 extension Triple {
   public init(arch: Arch, vendor: Vendor?, os: OS, environment: Environment) {
+    let os = os.rawValue
     self.init("\(arch)-\(vendor?.rawValue ?? "unknown")-\(os)-\(environment)", normalizing: true)
   }
 
   public init(arch: Arch, vendor: Vendor?, os: OS) {
+    let os = os.rawValue
     self.init("\(arch)-\(vendor?.rawValue ?? "unknown")-\(os)", normalizing: true)
+  }
+
+  public init(arch: Arch, vendor: Vendor?, os: OS, version: String) {
+    let os = os.rawValue
+    self.init("\(arch)-\(vendor?.rawValue ?? "unknown")-\(os)\(version)", normalizing: true)
   }
 }
 
