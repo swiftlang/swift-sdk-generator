@@ -1,2 +1,3 @@
 Sources/AsyncProcess/ProcessExecutor.swift
 Tests/AsyncProcessTests/IntegrationTests.swift
+Sources/CProcessSpawnSync/spawner.c

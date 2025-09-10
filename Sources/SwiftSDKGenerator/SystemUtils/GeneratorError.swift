@@ -14,9 +14,11 @@ import struct Foundation.URL
 import struct SystemPackage.FilePath
 
 enum GeneratorError: Error {
+  case invalidVersionString(string: String, reason: String)
   case noProcessOutput(String)
   case unhandledChildProcessSignal(CInt, CommandInfo)
   case nonZeroExitCode(CInt, CommandInfo)
+  case unknownFreeBSDVersion(version: String)
   case unknownLinuxDistribution(name: String, version: String?)
   case unknownMacOSVersion(String)
   case unknownCPUArchitecture(String)
@@ -33,15 +35,19 @@ enum GeneratorError: Error {
 extension GeneratorError: CustomStringConvertible {
   var description: String {
     switch self {
+    case let .invalidVersionString(string: string, reason: reason):
+      return "The version string '\(string)' is invalid. \(reason)"
     case let .noProcessOutput(process):
       return "Failed to read standard output of a launched process: \(process)"
     case let .unhandledChildProcessSignal(signal, commandInfo):
       return "Process launched with \(commandInfo) finished due to signal \(signal)"
     case let .nonZeroExitCode(exitCode, commandInfo):
       return "Process launched with \(commandInfo) failed with exit code \(exitCode)"
+    case let .unknownFreeBSDVersion(version: version):
+      return "The string '\(version)' does not represent a valid FreeBSD version."
     case let .unknownLinuxDistribution(name, version):
       return
-        "Linux distribution `\(name)`\(version.map { " with version \($0)" } ?? "")` is not supported by this generator."
+        "Linux distribution `\(name)`\(version.map { " with version `\($0)`" } ?? "") is not supported by this generator."
     case let .unknownMacOSVersion(version):
       return "macOS version `\(version)` is not supported by this generator."
     case let .unknownCPUArchitecture(cpu):

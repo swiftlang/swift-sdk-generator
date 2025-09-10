@@ -50,49 +50,41 @@ public enum LinuxDistribution: Hashable, Sendable {
       }
     }
 
+    private var commonPackages: [String] {
+      [
+        "libc6",
+        "libc6-dev",
+        "libgcc-s1",
+        "libstdc++6",
+        "linux-libc-dev",
+        "zlib1g",
+        "zlib1g-dev",
+        "libcurl4-openssl-dev",
+      ]
+    }
+
     public var requiredPackages: [String] {
       switch self {
       case .focal:
-        return [
-          "libc6",
-          "libc6-dev",
-          "libgcc-s1",
+        return commonPackages + [
           "libgcc-10-dev",
           "libicu66",
           "libicu-dev",
           "libstdc++-10-dev",
-          "libstdc++6",
-          "linux-libc-dev",
-          "zlib1g",
-          "zlib1g-dev",
         ]
       case .jammy:
-        return [
-          "libc6",
-          "libc6-dev",
-          "libgcc-s1",
+        return commonPackages + [
           "libgcc-12-dev",
           "libicu70",
           "libicu-dev",
           "libstdc++-12-dev",
-          "libstdc++6",
-          "linux-libc-dev",
-          "zlib1g",
-          "zlib1g-dev",
         ]
       case .noble:
-        return [
-          "libc6",
-          "libc6-dev",
-          "libgcc-s1",
+        return commonPackages + [
           "libgcc-13-dev",
           "libicu74",
           "libicu-dev",
           "libstdc++-13-dev",
-          "libstdc++6",
-          "linux-libc-dev",
-          "zlib1g",
-          "zlib1g-dev",
         ]
       }
     }
@@ -121,35 +113,34 @@ public enum LinuxDistribution: Hashable, Sendable {
       }
     }
 
+    private var commonPackages: [String] {
+      [
+        "libc6",
+        "libc6-dev",
+        "libgcc-s1",
+        "libstdc++6",
+        "linux-libc-dev",
+        "zlib1g",
+        "zlib1g-dev",
+        "libcurl4-openssl-dev",
+      ]
+    }
+
     public var requiredPackages: [String] {
       switch self {
       case .bullseye:
-        return [
-          "libc6",
-          "libc6-dev",
-          "libgcc-s1",
+        return commonPackages + [
           "libgcc-10-dev",
           "libicu67",
           "libicu-dev",
           "libstdc++-10-dev",
-          "libstdc++6",
-          "linux-libc-dev",
-          "zlib1g",
-          "zlib1g-dev",
         ]
       case .bookworm:
-        return [
-          "libc6",
-          "libc6-dev",
-          "libgcc-s1",
+        return commonPackages + [
           "libgcc-12-dev",
           "libicu72",
           "libicu-dev",
           "libstdc++-12-dev",
-          "libstdc++6",
-          "linux-libc-dev",
-          "zlib1g",
-          "zlib1g-dev",
         ]
       }
     }

@@ -24,28 +24,32 @@ After that, verify that the `experimental-sdk` command is available:
 swift experimental-sdk list
 ```
 
-The output will either state that no Swift SDKs are available, or produce a list of those you previously had 
-installed, in case you've used the `swift experimental-sdk install` command before.
+The output will either state that no Swift SDKs are available, or produce a list of those you previously had installed, in case you've used the `swift experimental-sdk install` command before.
 
 ### macOS Requirements
 
-The generator depends on the `xz` utility for more efficient downloading of package lists for Ubuntu. This is optional, but can be installed via the included `Brewfile`:
+The generator depends on the following dependencies to be installed on macOS:
+
+- `xz`: used for more efficient downloading of package lists for Ubuntu. If `xz` is not found, the generator will fallback on `gzip`.
+- `cmake` and `ninja`: required for building LLVM native for versions of Swift before 6.0. _*NOTE: if you're building the Swift toolchain outside of Swift SDK Generator, you'll have to uninstall Homebrew CMake or remove it from your `PATH` before invoking toolchain's `build-script` due to [swiftlang/swift#83060](https://github.com/swiftlang/swift/pull/83060).*_
+- `zstd`: required to decompress certain downloaded artifacts that use [Zstandard](https://github.com/facebook/zstd) compression.
+
+These dependencies can be installed from the `Brewfile`:
 
 ```bash
 brew bundle install
 ```
 
-If `xz` is not found, the generator will fallback on `gzip`.
-
 ## Supported platforms and minimum versions
 
-macOS as a host platform and Linux as both host and target platforms are supported by the generator.
+FreeBSD and Linux are supported as both host and target platforms. macOS is only supported as a host platform.
 The generator also allows cross-compiling between any Linux distributions officially supported by the Swift project.
 
 | Platform       | Supported Version as Host | Supported Version as Target |
 | -:             | :-                        | :-                          |
 | macOS (arm64)  | ✅ macOS 13.0+            | ❌                         |
 | macOS (x86_64) | ✅ macOS 13.0+[^1]        | ❌                         |
+| FreeBSD        | ✅ 14.3+                  | ✅ 14.3+                   |
 | Ubuntu         | ✅ 20.04+                 | ✅ 20.04+                  |
 | Debian         | ✅ 11, 12[^2]             | ✅ 11, 12[^2]              |
 | RHEL           | ✅ Fedora 39, UBI 9       | ✅ Fedora 39, UBI 9[^3]    |
@@ -116,6 +120,43 @@ for Ubuntu Jammy and Swift 5.9 this would be `swift:5.9-jammy-slim`. If you'd li
 an arbitrary Ubuntu Jammy system, make sure you pass `--static-swift-stdlib` flag to `swift build`, in addition
 to the `--experimental-swift-sdk` option.
 
+## Common Generator Options
+
+By default, on macOS hosts running on Apple Silicon, the Swift SDK Generator will create Swift SDKs
+for Ubuntu Jammy on aarch64, which matches the CPU architecture of the host. However, it is possible to change
+the default target architecture by passing the `--target-arch` flag:
+
+```bash
+swift run swift-sdk-generator make-linux-sdk --target-arch x86_64
+```
+
+This will default to building the Swift SDK for `x86_64-unknown-linux-gnu`. To build for other
+platforms and environments, supply the `--target` flag with the full target triple instead.
+
+The Linux distribution name and version can also be passed to change from the default of Ubuntu Jammy:
+
+```bash
+swift run swift-sdk-generator make-linux-sdk --distribution-name ubuntu --distribution-version 24.04
+```
+
+### Host Toolchain
+
+The host toolchain is not included in the generated Swift SDK by default on Linux to match the behavior
+of the [Static Linux Swift SDKs](https://www.swift.org/documentation/articles/static-linux-getting-started.html)
+downloadable from [swift.org](https://www.swift.org/install/). However, on macOS, since most users are using Xcode
+and are likely not using the Swift OSS toolchain to build and run Swift projects, the Swift host toolchain
+is included by *default*. This default behavior can be changed by passing  `--no-host-toolchain`:
+
+```bash
+swift run swift-sdk-generator make-linux-sdk --no-host-toolchain --target-arch x86_64
+```
+
+To generate the Swift SDK on Linux with the host toolchain included, add `--host-toolchain`:
+
+```bash
+swift run swift-sdk-generator make-linux-sdk --host-toolchain --target-arch aarch64
+```
+
 ## Building an SDK from a container image
 
 You can base your SDK on a container image, such as one of the
@@ -125,10 +166,10 @@ Jammy image:
 ```
 swift run swift-sdk-generator make-linux-sdk --with-docker
 ```
-To build a RHEL images, use the `--linux-distribution-name` option.
+To build a RHEL images, use the `--distribution-name` option.
 The following command will build a `ubi9`-based image:
 ```
-swift run swift-sdk-generator make-linux-sdk --with-docker --linux-distribution-name rhel
+swift run swift-sdk-generator make-linux-sdk --with-docker --distribution-name rhel
 ```
 
 You can also specify the base container image by name:
@@ -138,7 +179,7 @@ swift run swift-sdk-generator make-linux-sdk --from-container-image swift:5.9-ja
 ```
 
 ```
-swift run swift-sdk-generator make-linux-sdk --with-docker --linux-distribution-name rhel --from-container-image swift:5.9-rhel-ubi9
+swift run swift-sdk-generator make-linux-sdk --with-docker --distribution-name rhel --from-container-image swift:5.9-rhel-ubi9
 ```
 
 ### Including extra Linux libraries

@@ -24,11 +24,11 @@ package struct WebAssemblyRecipe: SwiftSDKRecipe {
 
   package struct HostToolchainPackage: Sendable {
     let path: FilePath
-    let triple: Triple
+    let triples: [Triple]
 
-    package init(path: FilePath, triple: Triple) {
+    package init(path: FilePath, triples: [Triple]) {
       self.path = path
-      self.triple = triple
+      self.triples = triples
     }
   }
 
@@ -69,7 +69,7 @@ package struct WebAssemblyRecipe: SwiftSDKRecipe {
 
       toolset.swiftCompiler?.extraCLIOptions?.append(
         // libraries required for concurrency
-        contentsOf: ["-lc++", "-lswift_Concurrency", "-lswift_ConcurrencyDefaultExecutor"].flatMap {
+        contentsOf: ["-lc++", "-lswift_Concurrency"].flatMap {
           ["-Xlinker", $0]
         }
       )
@@ -145,7 +145,7 @@ package struct WebAssemblyRecipe: SwiftSDKRecipe {
     logger.info("Copying Swift binaries for the host triple...")
     var hostTriples: [Triple]? = nil
     if let hostSwiftPackage {
-      hostTriples = [hostSwiftPackage.triple]
+      hostTriples = hostSwiftPackage.triples
       try await generator.rsync(
         from: hostSwiftPackage.path.appending("usr"),
         to: pathsConfiguration.toolchainDirPath
@@ -195,15 +195,17 @@ package struct WebAssemblyRecipe: SwiftSDKRecipe {
       try await generator.createSymlink(at: autolinkExtractPath, pointingTo: "swift")
     }
 
+    // TODO: Remove this once we drop support for Swift 6.2
     // Embedded Swift looks up clang compiler-rt in a different path.
     let embeddedCompilerRTPath = pathsConfiguration.toolchainDirPath.appending(
       "usr/lib/swift/clang/lib/wasip1"
     )
-
-    try await generator.createSymlink(
-      at: embeddedCompilerRTPath,
-      pointingTo: "../../../swift_static/clang/lib/wasi"
-    )
+    if await !generator.doesFileExist(at: embeddedCompilerRTPath) {
+      try await generator.createSymlink(
+        at: embeddedCompilerRTPath,
+        pointingTo: "../../../swift_static/clang/lib/wasi"
+      )
+    }
 
     // Copy the WASI sysroot into the SDK bundle.
     let sdkDirPath = pathsConfiguration.swiftSDKRootPath.appending("WASI.sdk")

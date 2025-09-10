@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift open source project
 //
-// Copyright (c) 2022-2023 Apple Inc. and the Swift project authors
+// Copyright (c) 2022-2025 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See https://swift.org/LICENSE.txt for license information
@@ -19,21 +19,31 @@ import NIO
 // - Known issues:
 //   - no tests
 //   - most configurations have never run
-struct FileContentStream: AsyncSequence {
+internal typealias FileContentStream = _FileContentStream
+public struct _FileContentStream: AsyncSequence & Sendable {
   public typealias Element = ByteBuffer
   typealias Underlying = AsyncThrowingChannel<Element, Error>
 
-  public func makeAsyncIterator() -> AsyncIterator {
-    AsyncIterator(underlying: self.asyncChannel.makeAsyncIterator())
-  }
-
-  public struct AsyncIterator: AsyncIteratorProtocol {
+  public final class AsyncIterator: AsyncIteratorProtocol {
     public typealias Element = ByteBuffer
 
-    var underlying: Underlying.AsyncIterator
+    deinit {
+      // This is painful and so wrong but unfortunately, our iterators don't have a cancel signal, so the only
+      // thing we can do is hope for `deinit` to be invoked :(.
+      // AsyncIteratorProtocol also doesn't support `~Copyable` so we also have to make this a class.
+      self.channel?.close(promise: nil)
+    }
 
-    public mutating func next() async throws -> ByteBuffer? {
-      try await self.underlying.next()
+    init(underlying: Underlying.AsyncIterator, channel: (any Channel)?) {
+      self.underlying = underlying
+      self.channel = channel
+    }
+
+    var underlying: Underlying.AsyncIterator
+    let channel: (any Channel)?
+
+    public func next() async throws -> ByteBuffer? {
+      return try await self.underlying.next()
     }
   }
 
@@ -41,17 +51,46 @@ struct FileContentStream: AsyncSequence {
     public var errnoValue: CInt
 
     public static func makeFromErrnoGlobal() -> IOError {
-      IOError(errnoValue: errno)
+      return IOError(errnoValue: errno)
     }
   }
 
   private let asyncChannel: AsyncThrowingChannel<ByteBuffer, Error>
+  private let channel: (any Channel)?
 
-  public init(
+  internal func isSameAs(_ other: FileContentStream) -> Bool {
+    return (self.asyncChannel === other.asyncChannel) && (self.channel === other.channel)
+  }
+
+  public func makeAsyncIterator() -> AsyncIterator {
+    return AsyncIterator(
+      underlying: self.asyncChannel.makeAsyncIterator(),
+      channel: self.channel
+    )
+  }
+
+  public func close() async throws {
+    self.asyncChannel.finish()
+    do {
+      try await self.channel?.close().get()
+    } catch ChannelError.alreadyClosed {
+      // That's okay
+    }
+  }
+
+  public static func makeReader(
+    fileDescriptor: CInt,
+    eventLoop: EventLoop = MultiThreadedEventLoopGroup.singleton.any(),
+    blockingPool: NIOThreadPool = .singleton
+  ) async throws -> _FileContentStream {
+    try await FileContentStream(fileDescriptor: fileDescriptor, eventLoop: eventLoop, blockingPool: blockingPool)
+  }
+
+  internal init(
     fileDescriptor: CInt,
     eventLoop: EventLoop,
     blockingPool: NIOThreadPool? = nil
-  ) throws {
+  ) async throws {
     var statInfo: stat = .init()
     let statError = fstat(fileDescriptor, &statInfo)
     if statError != 0 {
@@ -64,7 +103,7 @@ struct FileContentStream: AsyncSequence {
 
     switch statInfo.st_mode & S_IFMT {
     case S_IFREG:
-      guard let blockingPool else {
+      guard let blockingPool = blockingPool else {
         throw IOError(errnoValue: EINVAL)
       }
       let fileHandle = NIOLoopBound(
@@ -86,29 +125,42 @@ struct FileContentStream: AsyncSequence {
         .whenComplete { result in
           try! fileHandle.value.close()
           switch result {
-          case let .failure(error):
+          case .failure(let error):
             asyncChannel.fail(error)
           case .success:
             asyncChannel.finish()
           }
         }
+      self.channel = nil
     case S_IFSOCK:
-      _ = ClientBootstrap(group: eventLoop)
+      self.channel = try await ClientBootstrap(group: eventLoop)
         .channelInitializer { channel in
-          channel.pipeline.addHandler(ReadIntoAsyncChannelHandler(sink: asyncChannel))
+          do {
+            try channel.pipeline.syncOperations.addHandler(ReadIntoAsyncChannelHandler(sink: asyncChannel))
+            return channel.eventLoop.makeSucceededFuture(())
+          } catch {
+            return channel.eventLoop.makeFailedFuture(error)
+          }
         }
         .withConnectedSocket(dupedFD)
+        .get()
     case S_IFIFO:
-      NIOPipeBootstrap(group: eventLoop)
+      self.channel = try await NIOPipeBootstrap(group: eventLoop)
         .channelInitializer { channel in
-          channel.pipeline.addHandler(ReadIntoAsyncChannelHandler(sink: asyncChannel))
+          do {
+            try channel.pipeline.syncOperations.addHandler(ReadIntoAsyncChannelHandler(sink: asyncChannel))
+            return channel.eventLoop.makeSucceededFuture(())
+          } catch {
+            return channel.eventLoop.makeFailedFuture(error)
+          }
         }
         .takingOwnershipOfDescriptor(
           input: dupedFD
         )
-        .whenSuccess { channel in
+        .map { channel in
           channel.close(mode: .output, promise: nil)
-        }
+          return channel
+        }.get()
     case S_IFDIR:
       throw IOError(errnoValue: EISDIR)
     case S_IFBLK, S_IFCHR, S_IFLNK:
@@ -140,7 +192,7 @@ private final class ReadIntoAsyncChannelHandler: ChannelDuplexHandler {
         return data
       case .error:
         return nil
-      case var .sending(queue):
+      case .sending(var queue):
         queue.append(data)
         self = .sending(queue)
         return nil
@@ -153,7 +205,7 @@ private final class ReadIntoAsyncChannelHandler: ChannelDuplexHandler {
         preconditionFailure("didSendOne during .idle")
       case .error:
         return nil
-      case var .sending(queue):
+      case .sending(var queue):
         if queue.isEmpty {
           self = .idle
           return nil
@@ -212,7 +264,7 @@ private final class ReadIntoAsyncChannelHandler: ChannelDuplexHandler {
     eventLoop.makeFutureWithTask {
       // note: We're _not_ on an EventLoop thread here
       switch data {
-      case let .chunk(data):
+      case .chunk(let data):
         await sink.send(data)
       case .finish:
         sink.finish()
@@ -254,11 +306,8 @@ private final class ReadIntoAsyncChannelHandler: ChannelDuplexHandler {
 }
 
 extension FileHandle {
-  func fileContentStream(eventLoop: EventLoop) throws -> FileContentStream {
-    let asyncBytes = try FileContentStream(
-      fileDescriptor: self.fileDescriptor,
-      eventLoop: eventLoop
-    )
+  func fileContentStream(eventLoop: EventLoop) async throws -> FileContentStream {
+    let asyncBytes = try await FileContentStream(fileDescriptor: self.fileDescriptor, eventLoop: eventLoop)
     try self.close()
     return asyncBytes
   }
@@ -266,7 +315,7 @@ extension FileHandle {
 
 extension FileContentStream {
   var lines: AsyncByteBufferLineSequence<FileContentStream> {
-    AsyncByteBufferLineSequence(
+    return AsyncByteBufferLineSequence(
       self,
       dropTerminator: true,
       maximumAllowableBufferSize: 1024 * 1024,
@@ -281,7 +330,7 @@ extension AsyncSequence where Element == ByteBuffer, Self: Sendable {
     maximumAllowableBufferSize: Int = 1024 * 1024,
     dropLastChunkIfNoNewline: Bool = false
   ) -> AsyncByteBufferLineSequence<Self> {
-    AsyncByteBufferLineSequence(
+    return AsyncByteBufferLineSequence(
       self,
       dropTerminator: dropTerminator,
       maximumAllowableBufferSize: maximumAllowableBufferSize,
@@ -290,7 +339,7 @@ extension AsyncSequence where Element == ByteBuffer, Self: Sendable {
   }
 
   public var strings: AsyncMapSequence<Self, String> {
-    self.map { String(buffer: $0) }
+    return self.map { String(buffer: $0) }
   }
 }
 
@@ -312,7 +361,7 @@ where Base: AsyncSequence, Base.Element == ByteBuffer {
 
     struct Buffer {
       private var buffer: [ByteBuffer] = []
-      private(set) var byteCount: Int = 0
+      internal private(set) var byteCount: Int = 0
 
       mutating func append(_ buffer: ByteBuffer) {
         self.buffer.append(buffer)
@@ -320,20 +369,18 @@ where Base: AsyncSequence, Base.Element == ByteBuffer {
       }
 
       func allButLast() -> ArraySlice<ByteBuffer> {
-        self.buffer.dropLast()
+        return self.buffer.dropLast()
       }
 
       var byteCountButLast: Int {
-        self.byteCount - (self.buffer.last?.readableBytes ?? 0)
+        return self.byteCount - (self.buffer.last?.readableBytes ?? 0)
       }
 
       var lastChunkView: ByteBufferView? {
-        self.buffer.last?.readableBytesView
+        return self.buffer.last?.readableBytesView
       }
 
-      mutating func concatenateEverything(upToLastChunkLengthToConsume lastLength: Int)
-        -> ByteBuffer
-      {
+      mutating func concatenateEverything(upToLastChunkLengthToConsume lastLength: Int) -> ByteBuffer {
         var output = ByteBuffer()
         output.reserveCapacity(lastLength + self.byteCountButLast)
 
@@ -359,7 +406,7 @@ where Base: AsyncSequence, Base.Element == ByteBuffer {
       }
     }
 
-    init(
+    internal init(
       underlying: Base.AsyncIterator,
       dropTerminator: Bool,
       maximumAllowableBufferSize: Int,
@@ -446,7 +493,7 @@ where Base: AsyncSequence, Base.Element == ByteBuffer {
   }
 
   public func makeAsyncIterator() -> AsyncIterator {
-    AsyncIterator(
+    return AsyncIterator(
       underlying: self.underlying.makeAsyncIterator(),
       dropTerminator: self.dropTerminator,
       maximumAllowableBufferSize: self.maximumAllowableBufferSize,

@@ -23,7 +23,7 @@ struct GeneratorCLI: AsyncParsableCommand {
 
   static let configuration = CommandConfiguration(
     commandName: "swift-sdk-generator",
-    subcommands: [MakeLinuxSDK.self, MakeWasmSDK.self],
+    subcommands: [MakeLinuxSDK.self, MakeFreeBSDSDK.self, MakeWasmSDK.self],
     defaultSubcommand: MakeLinuxSDK.self
   )
 
@@ -90,7 +90,7 @@ extension GeneratorCLI {
 
     @Option(
       help: """
-        Name of the SDK bundle. Defaults to a string composed of Swift version, Linux distribution, Linux release \
+        Name of the SDK bundle. Defaults to a string composed of Swift version, target OS release/version \
         and target CPU architecture.
         """
     )
@@ -131,7 +131,7 @@ extension GeneratorCLI {
         but requires exactly the same version of the swift.org toolchain to be installed for it to work.
         """
     )
-    var hostToolchain: Bool = false
+    var hostToolchain: Bool = hostToolchainDefault
 
     @Option(
       help: """
@@ -141,28 +141,44 @@ extension GeneratorCLI {
     var targetSwiftPackagePath: String? = nil
 
     @Option(
+      name: .customLong("host"),
       help: """
-        The host triple of the bundle. Defaults to a triple of the machine this generator is \
-        running on if unspecified.
+        The host triples of the bundle. Defaults to a triple or triples of the machine this generator is \
+        running on if unspecified. Multiple host triples are only supported for macOS hosts.
         """
     )
-    var host: Triple? = nil
+    var hosts: [Triple] = []
 
     @Option(
-      help: """
-        The target triple of the bundle. The default depends on a recipe used for SDK generation. Pass `--help` to a specific recipe subcommand for more details.
-        """
+      help:
+        "The target triple of the bundle. The default depends on a recipe used for SDK generation."
     )
     var target: Triple? = nil
 
     @Option(help: "Deprecated. Use `--host` instead")
     var hostArch: Triple.Arch? = nil
-    @Option(help: "Deprecated. Use `--target` instead")
+    @Option(
+      help: """
+        The target arch of the bundle. The default depends on a recipe used for SDK generation. \
+        If this is passed, the target triple will default to an appropriate value for the target \
+        platform, with its arch component set to this value. \
+        Use the `--target` param to pass the full target triple if needed.
+        """
+    )
     var targetArch: Triple.Arch? = nil
 
-    func deriveHostTriple() throws -> Triple {
-      if let host {
-        return host
+    /// Default to adding host toolchain when building on macOS
+    static var hostToolchainDefault: Bool {
+      #if os(macOS)
+        true
+      #else
+        false
+      #endif
+    }
+
+    func deriveHostTriples() throws -> [Triple] {
+      if !hosts.isEmpty {
+        return hosts
       }
       let current = try SwiftSDKGenerator.getCurrentTriple(isVerbose: self.verbose)
       if let arch = hostArch {
@@ -170,9 +186,16 @@ extension GeneratorCLI {
         appLogger.warning(
           "deprecated: Please use `--host \(target.triple)` instead of `--host-arch \(arch)`"
         )
-        return target
+        return [target]
       }
-      return current
+      // macOS toolchains are built as universal binaries
+      if current.isMacOSX {
+        return [
+          Triple("arm64-apple-macos"),
+          Triple("x86_64-apple-macos"),
+        ]
+      }
+      return [current]
     }
   }
 
@@ -204,7 +227,7 @@ extension GeneratorCLI {
         """,
       transform: LinuxDistribution.Name.init(nameString:)
     )
-    var linuxDistributionName = LinuxDistribution.Name.ubuntu
+    var distributionName = LinuxDistribution.Name.ubuntu
 
     @Option(
       help: """
@@ -214,19 +237,26 @@ extension GeneratorCLI {
         - Available options for RHEL: `ubi9` (default when `--distribution-name` is `rhel`).
         """
     )
-    var linuxDistributionVersion: String?
+    var distributionVersion: String?
 
-    func deriveTargetTriple(hostTriple: Triple) -> Triple {
-      if let target = generatorOptions.target {
+    func deriveTargetTriple(hostTriples: [Triple]) -> Triple {
+      if let target = generatorOptions.target, target.os == .linux {
         return target
       }
       if let arch = generatorOptions.targetArch {
         let target = Triple(arch: arch, vendor: nil, os: .linux, environment: .gnu)
         appLogger.warning(
-          "deprecated: Please use `--target \(target.triple)` instead of `--target-arch \(arch)`"
+          "Using `--target-arch \(arch)` defaults to `\(target.triple)`. Use `--target` if you want to pass the full target triple."
         )
+        return target
       }
-      return Triple(arch: hostTriple.arch!, vendor: nil, os: .linux, environment: .gnu)
+      let arch: Triple.Arch
+      if hostTriples.count == 1, let hostTriple = hostTriples.first {
+        arch = hostTriple.arch!
+      } else {
+        arch = try! SwiftSDKGenerator.getCurrentTriple(isVerbose: false).arch!
+      }
+      return Triple(arch: arch, vendor: nil, os: .linux, environment: .gnu)
     }
 
     func run() async throws {
@@ -235,27 +265,27 @@ extension GeneratorCLI {
           "deprecated: Please explicitly specify the subcommand to run. For example: $ swift-sdk-generator make-linux-sdk"
         )
       }
-      let linuxDistributionDefaultVersion: String
-      switch self.linuxDistributionName {
+      let distributionDefaultVersion: String
+      switch self.distributionName {
       case .rhel:
-        linuxDistributionDefaultVersion = "ubi9"
+        distributionDefaultVersion = "ubi9"
       case .ubuntu:
-        linuxDistributionDefaultVersion = "22.04"
+        distributionDefaultVersion = "22.04"
       case .debian:
-        linuxDistributionDefaultVersion = "12"
+        distributionDefaultVersion = "12"
       }
-      let linuxDistributionVersion =
-        self.linuxDistributionVersion ?? linuxDistributionDefaultVersion
+      let distributionVersion =
+        self.distributionVersion ?? distributionDefaultVersion
       let linuxDistribution = try LinuxDistribution(
-        name: linuxDistributionName,
-        version: linuxDistributionVersion
+        name: distributionName,
+        version: distributionVersion
       )
-      let hostTriple = try self.generatorOptions.deriveHostTriple()
-      let targetTriple = self.deriveTargetTriple(hostTriple: hostTriple)
+      let hostTriples = try self.generatorOptions.deriveHostTriples()
+      let targetTriple = self.deriveTargetTriple(hostTriples: hostTriples)
 
       let recipe = try LinuxRecipe(
         targetTriple: targetTriple,
-        hostTriple: hostTriple,
+        hostTriples: hostTriples,
         linuxDistribution: linuxDistribution,
         swiftVersion: generatorOptions.swiftVersion,
         swiftBranch: self.generatorOptions.swiftBranch,
@@ -289,6 +319,83 @@ extension GeneratorCLI {
     }
   }
 
+  struct MakeFreeBSDSDK: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(
+      commandName: "make-freebsd-sdk",
+      abstract: "Generate a Swift SDK bundle for FreeBSD.",
+      discussion: """
+        The default `--target` triple is FreeBSD with the same CPU architecture with host triple
+        """
+    )
+
+    @OptionGroup
+    var generatorOptions: GeneratorOptions
+
+    @Option(
+      name: .customLong("freebsd-version"),
+      help: """
+        Version of FreeBSD to use as a target platform. Example: 14.3
+        """
+    )
+    var freeBSDVersion: String
+
+    func deriveTargetTriple(hostTriples: [Triple], freeBSDVersion: String) throws -> Triple {
+      if let target = generatorOptions.target, target.os == .freeBSD {
+        return target
+      }
+      if let arch = generatorOptions.targetArch {
+        let target = Triple(arch: arch, vendor: nil, os: .freeBSD, version: freeBSDVersion)
+        appLogger.warning(
+          """
+            Using `--target-arch \(arch)` defaults to `\(target.triple)`. \
+            Use `--target` if you want to pass the full target triple.
+          """
+        )
+        return target
+      }
+      let arch: Triple.Arch
+      if hostTriples.count == 1, let hostTriple = hostTriples.first {
+        arch = hostTriple.arch!
+      } else {
+        arch = try! SwiftSDKGenerator.getCurrentTriple(isVerbose: false).arch!
+      }
+      return Triple(arch: arch, vendor: nil, os: .freeBSD)
+    }
+
+    func run() async throws {
+      let freebsdVersion = try FreeBSD(self.freeBSDVersion)
+      guard freebsdVersion.isSupportedVersion() else {
+        throw StringError("Only FreeBSD versions 14.3 or higher are supported.")
+      }
+
+      let hostTriples = try self.generatorOptions.deriveHostTriples()
+      let targetTriple = try self.deriveTargetTriple(hostTriples: hostTriples, freeBSDVersion: self.freeBSDVersion)
+
+      if self.generatorOptions.hostSwiftPackagePath != nil {
+        throw StringError("This tool does not support embedding host-specific toolchains into FreeBSD SDKs")
+      }
+
+      let sourceSwiftToolchain: FilePath?
+      if let fromSwiftToolchain = self.generatorOptions.targetSwiftPackagePath {
+        sourceSwiftToolchain = .init(fromSwiftToolchain)
+      } else {
+        sourceSwiftToolchain = nil
+      }
+
+      let recipe = FreeBSDRecipe(
+        freeBSDVersion: freebsdVersion,
+        mainTargetTriple: targetTriple,
+        sourceSwiftToolchain: sourceSwiftToolchain,
+        logger: loggerWithLevel(from: self.generatorOptions)
+      )
+      try await GeneratorCLI.run(
+        recipe: recipe,
+        targetTriple: targetTriple,
+        options: self.generatorOptions
+      )
+    }
+  }
+
   struct MakeWasmSDK: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
       commandName: "make-wasm-sdk",
@@ -318,8 +425,8 @@ extension GeneratorCLI {
       }
       let recipe = try WebAssemblyRecipe(
         hostSwiftPackage: generatorOptions.hostSwiftPackagePath.map {
-          let hostTriple = try self.generatorOptions.deriveHostTriple()
-          return WebAssemblyRecipe.HostToolchainPackage(path: FilePath($0), triple: hostTriple)
+          let hostTriples = try self.generatorOptions.deriveHostTriples()
+          return WebAssemblyRecipe.HostToolchainPackage(path: FilePath($0), triples: hostTriples)
         },
         targetSwiftPackagePath: FilePath(targetSwiftPackagePath),
         wasiSysroot: FilePath(self.wasiSysroot),
