@@ -420,15 +420,12 @@ extension GeneratorCLI {
     }
 
     func run() async throws {
-      guard let targetSwiftPackagePath = generatorOptions.targetSwiftPackagePath else {
-        throw StringError("Missing expected argument '--target-swift-package-path'")
-      }
       let recipe = try WebAssemblyRecipe(
         hostSwiftPackage: generatorOptions.hostSwiftPackagePath.map {
           let hostTriples = try self.generatorOptions.deriveHostTriples()
           return WebAssemblyRecipe.HostToolchainPackage(path: FilePath($0), triples: hostTriples)
         },
-        targetSwiftPackagePath: FilePath(targetSwiftPackagePath),
+        targetSwiftPackagePath: generatorOptions.targetSwiftPackagePath.map { FilePath($0) },
         wasiSysroot: FilePath(self.wasiSysroot),
         swiftVersion: self.generatorOptions.swiftVersion,
         logger: loggerWithLevel(from: self.generatorOptions)
