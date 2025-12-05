@@ -93,11 +93,13 @@ public enum LinuxDistribution: Hashable, Sendable {
   public enum Debian: String, Sendable {
     case bullseye
     case bookworm
+    case trixie
 
     init(version: String) throws {
       switch version {
       case "11": self = .bullseye
       case "12": self = .bookworm
+      case "13": self = .trixie
       default:
         throw GeneratorError.unknownLinuxDistribution(
           name: LinuxDistribution.Name.debian.rawValue,
@@ -110,6 +112,7 @@ public enum LinuxDistribution: Hashable, Sendable {
       switch self {
       case .bullseye: return "11"
       case .bookworm: return "12"
+      case .trixie: return "13"
       }
     }
 
@@ -141,6 +144,13 @@ public enum LinuxDistribution: Hashable, Sendable {
           "libicu72",
           "libicu-dev",
           "libstdc++-12-dev",
+        ]
+      case .trixie:
+        return commonPackages + [
+          "libgcc-14-dev",
+          "libicu76",
+          "libicu-dev",
+          "libstdc++-14-dev",
         ]
       }
     }

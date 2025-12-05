@@ -679,8 +679,22 @@ final class Swift510_DebianEndToEndTests: XCTestCase {
     )
   }
 
-  // NOTE: Debian 11 containers do not exist for Swift, and the generator does not support
-  // generating this container for you automatically, so we do not test this scenario.
+  func testTrixieAarch64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(
+      config: config.withLinuxDistributionVersion("13").withArchitecture("aarch64")
+    )
+  }
+
+  func testTrixieX86_64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(
+      config: config.withLinuxDistributionVersion("13").withArchitecture("x86_64")
+    )
+  }
+
+  // NOTE: Debian 11 and 13 containers do not exist for Swift, and the generator does not
+  // support creating this container for you automatically, so we do not test this scenario.
 }
 
 final class Swift60_DebianEndToEndTests: XCTestCase {
@@ -726,8 +740,22 @@ final class Swift60_DebianEndToEndTests: XCTestCase {
     )
   }
 
-  // NOTE: Debian 11 containers do not exist for Swift, and the generator does not support
-  // generating this container for you automatically, so we do not test this scenario.
+  func testTrixieAarch64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(
+      config: config.withLinuxDistributionVersion("13").withArchitecture("aarch64")
+    )
+  }
+
+  func testTrixieX86_64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(
+      config: config.withLinuxDistributionVersion("13").withArchitecture("x86_64")
+    )
+  }
+
+  // NOTE: Debian 11 and 13 containers do not exist for Swift, and the generator does not
+  // support creating this container for you automatically, so we do not test this scenario.
 }
 
 final class Swift61_DebianEndToEndTests: XCTestCase {
@@ -773,8 +801,22 @@ final class Swift61_DebianEndToEndTests: XCTestCase {
     )
   }
 
-  // NOTE: Debian 11 containers do not exist for Swift, and the generator does not support
-  // generating this container for you automatically, so we do not test this scenario.
+  func testTrixieAarch64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(
+      config: config.withLinuxDistributionVersion("13").withArchitecture("aarch64")
+    )
+  }
+
+  func testTrixieX86_64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(
+      config: config.withLinuxDistributionVersion("13").withArchitecture("x86_64")
+    )
+  }
+
+  // NOTE: Debian 11 and 13 containers do not exist for Swift, and the generator does not
+  // support creating this container for you automatically, so we do not test this scenario.
 }
 
 final class Swift62_DebianEndToEndTests: XCTestCase {
@@ -820,8 +862,22 @@ final class Swift62_DebianEndToEndTests: XCTestCase {
     )
   }
 
-  // NOTE: Debian 11 containers do not exist for Swift, and the generator does not support
-  // generating this container for you automatically, so we do not test this scenario.
+  func testTrixieAarch64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(
+      config: config.withLinuxDistributionVersion("13").withArchitecture("aarch64")
+    )
+  }
+
+  func testTrixieX86_64Direct() async throws {
+    try skipSlow()
+    try await buildTestcases(
+      config: config.withLinuxDistributionVersion("13").withArchitecture("x86_64")
+    )
+  }
+
+  // NOTE: Debian 11 and 13 containers do not exist for Swift, and the generator does not
+  // support creating this container for you automatically, so we do not test this scenario.
 }
 
 final class Swift59_RHELEndToEndTests: XCTestCase {
