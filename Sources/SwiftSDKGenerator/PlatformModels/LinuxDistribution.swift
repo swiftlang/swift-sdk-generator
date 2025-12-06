@@ -21,7 +21,7 @@ public enum LinuxDistribution: Hashable, Sendable {
     case ubi9
   }
 
-  public enum Ubuntu: String, Sendable {
+  public enum Ubuntu: String, Sendable, Equatable, CaseIterable {
     case focal
     case jammy
     case noble
@@ -59,6 +59,7 @@ public enum LinuxDistribution: Hashable, Sendable {
         "linux-libc-dev",
         "zlib1g",
         "zlib1g-dev",
+        "libicu-dev",
         "libcurl4-openssl-dev",
       ]
     }
@@ -69,28 +70,25 @@ public enum LinuxDistribution: Hashable, Sendable {
         return commonPackages + [
           "libgcc-10-dev",
           "libicu66",
-          "libicu-dev",
           "libstdc++-10-dev",
         ]
       case .jammy:
         return commonPackages + [
           "libgcc-12-dev",
           "libicu70",
-          "libicu-dev",
           "libstdc++-12-dev",
         ]
       case .noble:
         return commonPackages + [
           "libgcc-13-dev",
           "libicu74",
-          "libicu-dev",
           "libstdc++-13-dev",
         ]
       }
     }
   }
 
-  public enum Debian: String, Sendable {
+  public enum Debian: String, Sendable, Equatable, CaseIterable {
     case bullseye
     case bookworm
     case trixie
@@ -128,6 +126,7 @@ public enum LinuxDistribution: Hashable, Sendable {
         "linux-libc-dev",
         "zlib1g",
         "zlib1g-dev",
+        "libicu-dev",
         "libcurl4-openssl-dev",
       ]
     }
@@ -138,21 +137,18 @@ public enum LinuxDistribution: Hashable, Sendable {
         return commonPackages + [
           "libgcc-10-dev",
           "libicu67",
-          "libicu-dev",
           "libstdc++-10-dev",
         ]
       case .bookworm:
         return commonPackages + [
           "libgcc-12-dev",
           "libicu72",
-          "libicu-dev",
           "libstdc++-12-dev",
         ]
       case .trixie:
         return commonPackages + [
           "libgcc-14-dev",
           "libicu76",
-          "libicu-dev",
           "libstdc++-14-dev",
         ]
       }
