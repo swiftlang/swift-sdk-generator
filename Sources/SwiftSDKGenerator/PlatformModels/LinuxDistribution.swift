@@ -28,17 +28,17 @@ public enum LinuxDistribution: Hashable, Sendable {
 
     init(version: String) throws {
       switch version {
-      case "20.04":
-        self = .focal
-      case "22.04":
-        self = .jammy
-      case "24.04":
-        self = .noble
+      case "20.04": self = .focal
+      case "22.04": self = .jammy
+      case "24.04": self = .noble
       default:
-        throw GeneratorError.unknownLinuxDistribution(
-          name: LinuxDistribution.Name.ubuntu.rawValue,
-          version: version
-        )
+        guard let versionType = Self(rawValue: version) else {
+          throw GeneratorError.unknownLinuxDistribution(
+            name: LinuxDistribution.Name.ubuntu.rawValue,
+            version: version
+          )
+        }
+        self = versionType
       }
     }
 
@@ -101,10 +101,13 @@ public enum LinuxDistribution: Hashable, Sendable {
       case "12": self = .bookworm
       case "13": self = .trixie
       default:
-        throw GeneratorError.unknownLinuxDistribution(
-          name: LinuxDistribution.Name.debian.rawValue,
-          version: version
-        )
+        guard let versionType = Self(rawValue: version) else {
+          throw GeneratorError.unknownLinuxDistribution(
+            name: LinuxDistribution.Name.debian.rawValue,
+            version: version
+          )
+        }
+        self = versionType
       }
     }
 
