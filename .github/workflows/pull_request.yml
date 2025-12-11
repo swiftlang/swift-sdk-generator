@@ -10,7 +10,7 @@ on:
 jobs:
   tests:
     name: Test
-    uses: swiftlang/github-workflows/.github/workflows/swift_package_test.yml@0.0.3
+    uses: swiftlang/github-workflows/.github/workflows/swift_package_test.yml@0.0.2
     with:
       linux_os_versions: '["amazonlinux2", "bookworm", "jammy", "focal", "noble", "rhel-ubi9"]'
       linux_swift_versions: '["6.0", "6.1", "nightly-6.2", "nightly-main"]'
