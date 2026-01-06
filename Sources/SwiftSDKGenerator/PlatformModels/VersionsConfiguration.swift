@@ -50,6 +50,9 @@ public struct VersionsConfiguration: Sendable {
       } else if self.swiftVersion.hasPrefix("5.9") || self.swiftVersion == "5.10" {
         // Ubuntu 22.04 toolchain is binary compatible with Debian 12
         return "ubuntu22.04"
+      } else if debian.version == "13" {
+        // Ubuntu 24.04 toolchain is binary compatible with Debian 13
+        return "ubuntu24.04"
       }
       return "debian\(debian.version)"
     case let .rhel(rhel):
