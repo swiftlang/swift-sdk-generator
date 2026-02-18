@@ -47,7 +47,7 @@ final class SwiftSDKGeneratorMetadataTests: XCTestCase {
     for testCase in testCases {
       let sdk = try await SwiftSDKGenerator(
         bundleVersion: testCase.bundleVersion,
-        targetTriple: testCase.targetTriple,
+        targetTriples: [testCase.targetTriple],
         artifactID: "6.0.3-RELEASE_ubuntu_jammy_\(testCase.targetTriple.archName)",
         isIncremental: false,
         isVerbose: false,
@@ -56,7 +56,7 @@ final class SwiftSDKGeneratorMetadataTests: XCTestCase {
       let linuxDistribution = try LinuxDistribution(name: .ubuntu, version: "22.04")
 
       let sdkDirPath = FilePath(".")
-      try await sdk.generateSDKSettingsFile(sdkDirPath: sdkDirPath, distribution: linuxDistribution)
+      try await sdk.generateSDKSettingsFile(sdkDirPath: sdkDirPath, distribution: linuxDistribution, targetTriple: testCase.targetTriple)
 
       // Make sure the file exists
       let sdkSettingsFile = sdkDirPath.appending("SDKSettings.json")
@@ -79,7 +79,7 @@ final class SwiftSDKGeneratorMetadataTests: XCTestCase {
       for shouldUseFullPaths in [true, false] {
         // Generate bundle metadata
         try await sdk.generateArtifactBundleManifest(
-          hostTriples: [sdk.targetTriple],
+          hostTriples: sdk.targetTriples,
           artifacts: ["foo": sdk.pathsConfiguration.artifactBundlePath.appending("foo").appending("bar.json")],
           shouldUseFullPaths: shouldUseFullPaths
         )

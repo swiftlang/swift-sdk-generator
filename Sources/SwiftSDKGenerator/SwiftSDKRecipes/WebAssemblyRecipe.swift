@@ -22,6 +22,7 @@ package struct WebAssemblyRecipe: SwiftSDKRecipe {
   let targetSwiftPackagePath: FilePath?
   let wasiSysroot: FilePath
   let swiftVersion: String
+  let targetTriples: [Triple]
   package let logger: Logger
 
   package struct HostToolchainPackage: Sendable {
@@ -39,12 +40,14 @@ package struct WebAssemblyRecipe: SwiftSDKRecipe {
     targetSwiftPackagePath: FilePath?,
     wasiSysroot: FilePath,
     swiftVersion: String,
+    targetTriples: [Triple],
     logger: Logger
   ) {
     self.hostSwiftPackage = hostSwiftPackage
     self.targetSwiftPackagePath = targetSwiftPackagePath
     self.wasiSysroot = wasiSysroot
     self.swiftVersion = swiftVersion
+    self.targetTriples = targetTriples
     self.logger = logger
   }
 
@@ -138,84 +141,112 @@ package struct WebAssemblyRecipe: SwiftSDKRecipe {
     engine: QueryEngine,
     httpClient: some HTTPClientProtocol
   ) async throws -> SwiftSDKProduct {
-    let pathsConfiguration = generator.pathsConfiguration
     var hostTriples: [Triple]? = nil
-    if let targetSwiftLibPath = self.targetSwiftPackagePath?.appending("usr/lib") {
-      logger.info("Copying Swift binaries for the host triple...")
-      if let hostSwiftPackage {
-        hostTriples = hostSwiftPackage.triples
-        try await generator.rsync(
-          from: hostSwiftPackage.path.appending("usr"),
-          to: pathsConfiguration.toolchainDirPath
-        )
+    var sdkDirPaths: [Triple: FilePath] = [:]
 
-        logger.info("Removing unused toolchain components...")
-        let liblldbNames: [String] = try await {
-          let libDirPath = pathsConfiguration.toolchainDirPath.appending("usr/lib")
-          guard await generator.doesFileExist(at: libDirPath) else {
-            return []
+    // Set up each target triple's directory
+    for (index, targetTriple) in targetTriples.enumerated() {
+      let pathsConfiguration = generator.pathsConfiguration(for: targetTriple)
+
+      if index == 0 {
+        // First triple: copy all files
+        if let targetSwiftLibPath = self.targetSwiftPackagePath?.appending("usr/lib") {
+          logger.info("Copying Swift binaries for the host triple...")
+          if let hostSwiftPackage {
+            hostTriples = hostSwiftPackage.triples
+            try await generator.rsync(
+              from: hostSwiftPackage.path.appending("usr"),
+              to: pathsConfiguration.toolchainDirPath
+            )
+
+            logger.info("Removing unused toolchain components...")
+            let liblldbNames: [String] = try await {
+              let libDirPath = pathsConfiguration.toolchainDirPath.appending("usr/lib")
+              guard await generator.doesFileExist(at: libDirPath) else {
+                return []
+              }
+              return try await generator.contentsOfDirectory(at: libDirPath).filter { dirEntry in
+                // liblldb is version suffixed: liblldb.so.17.0.0
+                dirEntry.hasPrefix("liblldb")
+              }
+            }()
+            try await generator.removeToolchainComponents(
+              pathsConfiguration.toolchainDirPath,
+              platforms: unusedTargetPlatforms,
+              libraries: unusedHostLibraries + liblldbNames,
+              binaries: unusedHostBinaries + ["lldb", "lldb-argdumper", "lldb-server"]
+            )
+            // Merge target Swift package with the host package.
+            try await self.mergeTargetSwift(from: targetSwiftLibPath, pathsConfiguration: pathsConfiguration, generator: generator)
+          } else {
+            // Simply copy the target Swift package into the Swift SDK bundle when building host-agnostic Swift SDK.
+            try await generator.createDirectoryIfNeeded(
+              at: pathsConfiguration.toolchainDirPath.appending("usr")
+            )
+            try await generator.copy(
+              from: targetSwiftLibPath,
+              to: pathsConfiguration.toolchainDirPath.appending("usr/lib")
+            )
           }
-          return try await generator.contentsOfDirectory(at: libDirPath).filter { dirEntry in
-            // liblldb is version suffixed: liblldb.so.17.0.0
-            dirEntry.hasPrefix("liblldb")
+
+          let autolinkExtractPath = pathsConfiguration.toolchainBinDirPath.appending(
+            "swift-autolink-extract"
+          )
+
+          // WebAssembly object file requires `swift-autolink-extract`
+          if await !generator.doesFileExist(at: autolinkExtractPath),
+            await generator.doesFileExist(
+              at: pathsConfiguration.toolchainBinDirPath.appending("swift")
+            )
+          {
+            logger.info("Fixing `swift-autolink-extract` symlink...")
+            try await generator.createSymlink(at: autolinkExtractPath, pointingTo: "swift")
           }
-        }()
-        try await generator.removeToolchainComponents(
-          pathsConfiguration.toolchainDirPath,
-          platforms: unusedTargetPlatforms,
-          libraries: unusedHostLibraries + liblldbNames,
-          binaries: unusedHostBinaries + ["lldb", "lldb-argdumper", "lldb-server"]
-        )
-        // Merge target Swift package with the host package.
-        try await self.mergeTargetSwift(from: targetSwiftLibPath, generator: generator)
+
+          // TODO: Remove this once we drop support for Swift 6.2
+          // Embedded Swift looks up clang compiler-rt in a different path.
+          let embeddedCompilerRTPath = pathsConfiguration.toolchainDirPath.appending(
+            "usr/lib/swift/clang/lib/wasip1"
+          )
+          if await !generator.doesFileExist(at: embeddedCompilerRTPath) {
+            try await generator.createSymlink(
+              at: embeddedCompilerRTPath,
+              pointingTo: "../../../swift_static/clang/lib/wasi"
+            )
+          }
+        }
+
+        // Copy the WASI sysroot into the Swift SDK bundle.
+        let sdkDirPath = pathsConfiguration.swiftSDKRootPath.appending("WASI.sdk")
+        try await generator.rsyncContents(from: self.wasiSysroot, to: sdkDirPath)
+        sdkDirPaths[targetTriple] = sdkDirPath
       } else {
-        // Simply copy the target Swift package into the Swift SDK bundle when building host-agnostic Swift SDK.
-        try await generator.createDirectoryIfNeeded(
-          at: pathsConfiguration.toolchainDirPath.appending("usr")
-        )
-        try await generator.copy(
-          from: targetSwiftLibPath,
-          to: pathsConfiguration.toolchainDirPath.appending("usr/lib")
-        )
-      }
+        // Additional triples: copy from first triple's directory
+        let firstTriplePaths = generator.pathsConfiguration(for: targetTriples[0])
 
-      let autolinkExtractPath = pathsConfiguration.toolchainBinDirPath.appending(
-        "swift-autolink-extract"
-      )
+        logger.info("Setting up directory for target triple \(targetTriple.triple)...")
 
-      // WebAssembly object file requires `swift-autolink-extract`
-      if await !generator.doesFileExist(at: autolinkExtractPath),
-        await generator.doesFileExist(
-          at: generator.pathsConfiguration.toolchainBinDirPath.appending("swift")
-        )
-      {
-        logger.info("Fixing `swift-autolink-extract` symlink...")
-        try await generator.createSymlink(at: autolinkExtractPath, pointingTo: "swift")
-      }
+        // Copy toolchain
+        if self.targetSwiftPackagePath != nil {
+          try await generator.rsync(
+            from: firstTriplePaths.toolchainDirPath,
+            to: pathsConfiguration.swiftSDKRootPath
+          )
+        }
 
-      // TODO: Remove this once we drop support for Swift 6.2
-      // Embedded Swift looks up clang compiler-rt in a different path.
-      let embeddedCompilerRTPath = pathsConfiguration.toolchainDirPath.appending(
-        "usr/lib/swift/clang/lib/wasip1"
-      )
-      if await !generator.doesFileExist(at: embeddedCompilerRTPath) {
-        try await generator.createSymlink(
-          at: embeddedCompilerRTPath,
-          pointingTo: "../../../swift_static/clang/lib/wasi"
-        )
+        // Copy WASI sysroot
+        let sdkDirPath = pathsConfiguration.swiftSDKRootPath.appending("WASI.sdk")
+        let firstSdkDirPath = firstTriplePaths.swiftSDKRootPath.appending("WASI.sdk")
+        try await generator.rsync(from: firstSdkDirPath, to: pathsConfiguration.swiftSDKRootPath)
+        sdkDirPaths[targetTriple] = sdkDirPath
       }
     }
 
-    // Copy the WASI sysroot into the Swift SDK bundle.
-    let sdkDirPath = pathsConfiguration.swiftSDKRootPath.appending("WASI.sdk")
-    try await generator.rsyncContents(from: self.wasiSysroot, to: sdkDirPath)
-
-    return SwiftSDKProduct(sdkDirPath: sdkDirPath, hostTriples: hostTriples)
+    return SwiftSDKProduct(sdkDirPaths: sdkDirPaths, hostTriples: hostTriples)
   }
 
   /// Merge the target Swift package into the Swift SDK bundle derived from the host Swift package.
-  func mergeTargetSwift(from distributionPath: FilePath, generator: SwiftSDKGenerator) async throws {
-    let pathsConfiguration = generator.pathsConfiguration
+  func mergeTargetSwift(from distributionPath: FilePath, pathsConfiguration: PathsConfiguration, generator: SwiftSDKGenerator) async throws {
     logger.info("Copying Swift core libraries for the target triple into Swift SDK bundle...")
     for (pathWithinPackage, pathWithinSwiftSDK, isOptional) in [
       ("clang", pathsConfiguration.toolchainDirPath.appending("usr/lib"), false),

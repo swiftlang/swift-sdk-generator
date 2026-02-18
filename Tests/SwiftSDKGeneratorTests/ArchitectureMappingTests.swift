@@ -65,7 +65,7 @@ final class ArchitectureMappingTests: XCTestCase {
       bundleVersion: bundleVersion,
 
       // Linux is currently the only supported runtime environment
-      targetTriple: targetTriple,
+      targetTriples: [targetTriple],
       artifactID: recipe.defaultArtifactID,
       // Remaining fields are placeholders which are the same for all
       // combinations of build and runtime architecture
@@ -80,7 +80,7 @@ final class ArchitectureMappingTests: XCTestCase {
     // Verify download URLs
     let artifacts = try await DownloadableArtifacts(
       hostTriples: [hostTriple],
-      targetTriple: sdk.targetTriple,
+      targetTriple: sdk.targetTriples[0],
       recipe.versionsConfiguration,
       sdk.pathsConfiguration
     )

@@ -37,14 +37,14 @@ struct GeneratorCLI: AsyncParsableCommand {
 
   static func run(
     recipe: some SwiftSDKRecipe,
-    targetTriple: Triple,
+    targetTriples: [Triple],
     options: GeneratorOptions
   ) async throws {
     let logger = loggerWithLevel(from: options)
     let elapsed = try await ContinuousClock().measure {
       let generator = try await SwiftSDKGenerator(
         bundleVersion: options.bundleVersion,
-        targetTriple: targetTriple,
+        targetTriples: targetTriples,
         artifactID: options.sdkName ?? recipe.defaultArtifactID,
         isIncremental: options.incremental,
         isVerbose: options.verbose,
@@ -90,7 +90,7 @@ extension GeneratorCLI {
 
     @Option(
       help: """
-        Name of the SDK bundle. Defaults to a string composed of Swift version, target OS release/version \
+        Name of the Swift SDK bundle. Defaults to a string composed of Swift version, target OS release/version \
         and target CPU architecture.
         """
     )
@@ -98,7 +98,7 @@ extension GeneratorCLI {
 
     @Flag(
       help:
-        "Experimental: avoid cleaning up toolchain and SDK directories and regenerate the SDK bundle incrementally."
+        "Experimental: avoid cleaning up toolchain and SDK directories and regenerate the Swift SDK bundle incrementally."
     )
     var incremental: Bool = false
 
@@ -151,9 +151,12 @@ extension GeneratorCLI {
 
     @Option(
       help:
-        "The target triple of the bundle. The default depends on a recipe used for SDK generation."
+        """
+        The target triple(s) of the bundle. Can be specified multiple times for multiple targets. \
+        The default depends on a recipe used for SDK generation.
+        """
     )
-    var target: Triple? = nil
+    var target: [Triple] = []
 
     @Option(help: "Deprecated. Use `--host` instead")
     var hostArch: Triple.Arch? = nil
@@ -239,16 +242,16 @@ extension GeneratorCLI {
     )
     var distributionVersion: String?
 
-    func deriveTargetTriple(hostTriples: [Triple]) -> Triple {
-      if let target = generatorOptions.target, target.os == .linux {
-        return target
+    func deriveTargetTriples(hostTriples: [Triple]) -> [Triple] {
+      if !generatorOptions.target.isEmpty {
+        return generatorOptions.target
       }
       if let arch = generatorOptions.targetArch {
         let target = Triple(arch: arch, vendor: nil, os: .linux, environment: .gnu)
         appLogger.warning(
           "Using `--target-arch \(arch)` defaults to `\(target.triple)`. Use `--target` if you want to pass the full target triple."
         )
-        return target
+        return [target]
       }
       let arch: Triple.Arch
       if hostTriples.count == 1, let hostTriple = hostTriples.first {
@@ -256,7 +259,7 @@ extension GeneratorCLI {
       } else {
         arch = try! SwiftSDKGenerator.getCurrentTriple(isVerbose: false).arch!
       }
-      return Triple(arch: arch, vendor: nil, os: .linux, environment: .gnu)
+      return [Triple(arch: arch, vendor: nil, os: .linux, environment: .gnu)]
     }
 
     func run() async throws {
@@ -281,10 +284,10 @@ extension GeneratorCLI {
         version: distributionVersion
       )
       let hostTriples = try self.generatorOptions.deriveHostTriples()
-      let targetTriple = self.deriveTargetTriple(hostTriples: hostTriples)
+      let targetTriples = self.deriveTargetTriples(hostTriples: hostTriples)
 
       let recipe = try LinuxRecipe(
-        targetTriple: targetTriple,
+        targetTriple: targetTriples[0],
         hostTriples: hostTriples,
         linuxDistribution: linuxDistribution,
         swiftVersion: generatorOptions.swiftVersion,
@@ -299,7 +302,7 @@ extension GeneratorCLI {
       )
       try await GeneratorCLI.run(
         recipe: recipe,
-        targetTriple: targetTriple,
+        targetTriples: targetTriples,
         options: self.generatorOptions
       )
     }
@@ -339,9 +342,9 @@ extension GeneratorCLI {
     )
     var freeBSDVersion: String
 
-    func deriveTargetTriple(hostTriples: [Triple], freeBSDVersion: String) throws -> Triple {
-      if let target = generatorOptions.target, target.os == .freeBSD {
-        return target
+    func deriveTargetTriples(hostTriples: [Triple], freeBSDVersion: String) throws -> [Triple] {
+      if !generatorOptions.target.isEmpty {
+        return generatorOptions.target
       }
       if let arch = generatorOptions.targetArch {
         let target = Triple(arch: arch, vendor: nil, os: .freeBSD, version: freeBSDVersion)
@@ -351,7 +354,7 @@ extension GeneratorCLI {
             Use `--target` if you want to pass the full target triple.
           """
         )
-        return target
+        return [target]
       }
       let arch: Triple.Arch
       if hostTriples.count == 1, let hostTriple = hostTriples.first {
@@ -359,7 +362,7 @@ extension GeneratorCLI {
       } else {
         arch = try! SwiftSDKGenerator.getCurrentTriple(isVerbose: false).arch!
       }
-      return Triple(arch: arch, vendor: nil, os: .freeBSD)
+      return [Triple(arch: arch, vendor: nil, os: .freeBSD)]
     }
 
     func run() async throws {
@@ -369,7 +372,7 @@ extension GeneratorCLI {
       }
 
       let hostTriples = try self.generatorOptions.deriveHostTriples()
-      let targetTriple = try self.deriveTargetTriple(hostTriples: hostTriples, freeBSDVersion: self.freeBSDVersion)
+      let targetTriples = try self.deriveTargetTriples(hostTriples: hostTriples, freeBSDVersion: self.freeBSDVersion)
 
       if self.generatorOptions.hostSwiftPackagePath != nil {
         throw StringError("This tool does not support embedding host-specific toolchains into FreeBSD SDKs")
@@ -384,13 +387,13 @@ extension GeneratorCLI {
 
       let recipe = FreeBSDRecipe(
         freeBSDVersion: freebsdVersion,
-        mainTargetTriple: targetTriple,
+        mainTargetTriple: targetTriples[0],
         sourceSwiftToolchain: sourceSwiftToolchain,
         logger: loggerWithLevel(from: self.generatorOptions)
       )
       try await GeneratorCLI.run(
         recipe: recipe,
-        targetTriple: targetTriple,
+        targetTriples: targetTriples,
         options: self.generatorOptions
       )
     }
@@ -401,7 +404,9 @@ extension GeneratorCLI {
       commandName: "make-wasm-sdk",
       abstract: "Experimental: Generate a Swift SDK bundle for WebAssembly.",
       discussion: """
-        The default `--target` triple is wasm32-unknown-wasi
+        The default `--target` triple is wasm32-unknown-wasip1. \
+        Use `--target wasm32-unknown-wasip1 --target wasm32-unknown-wasip1-threads` to generate \
+        a Swift SDK bundle supporting both threaded and non-threaded WebAssembly targets.
         """
     )
 
@@ -415,11 +420,16 @@ extension GeneratorCLI {
     )
     var wasiSysroot: String
 
-    func deriveTargetTriple() -> Triple {
-      self.generatorOptions.target ?? Triple("wasm32-unknown-wasi")
+    func deriveTargetTriples() -> [Triple] {
+      if !generatorOptions.target.isEmpty {
+        return generatorOptions.target
+      }
+      // Default: single wasm triple
+      return [Triple("wasm32-unknown-wasip1")]
     }
 
     func run() async throws {
+      let targetTriples = self.deriveTargetTriples()
       let recipe = try WebAssemblyRecipe(
         hostSwiftPackage: generatorOptions.hostSwiftPackagePath.map {
           let hostTriples = try self.generatorOptions.deriveHostTriples()
@@ -428,12 +438,12 @@ extension GeneratorCLI {
         targetSwiftPackagePath: generatorOptions.targetSwiftPackagePath.map { FilePath($0) },
         wasiSysroot: FilePath(self.wasiSysroot),
         swiftVersion: self.generatorOptions.swiftVersion,
+        targetTriples: targetTriples,
         logger: loggerWithLevel(from: self.generatorOptions)
       )
-      let targetTriple = self.deriveTargetTriple()
       try await GeneratorCLI.run(
         recipe: recipe,
-        targetTriple: targetTriple,
+        targetTriples: targetTriples,
         options: self.generatorOptions
       )
     }

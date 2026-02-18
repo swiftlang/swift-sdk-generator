@@ -17,7 +17,8 @@ extension SwiftSDKGenerator {
   func copyTargetSwiftFromDocker(
     targetDistribution: LinuxDistribution,
     baseDockerImage: String,
-    sdkDirPath: FilePath
+    sdkDirPath: FilePath,
+    targetTriple: Triple
   ) async throws {
     logger.info("Launching a container to extract the Swift SDK for the target triple...")
     try await withDockerContainer(fromImage: baseDockerImage) { containerID in

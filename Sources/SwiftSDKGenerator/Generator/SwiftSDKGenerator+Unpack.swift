@@ -109,12 +109,12 @@ extension SwiftSDKGenerator {
     }
   }
 
-  func prepareLLDLinker(_ engine: QueryEngine, llvmArtifact: DownloadableArtifacts.Item)
+  func prepareLLDLinker(_ engine: QueryEngine, llvmArtifact: DownloadableArtifacts.Item, targetTriple: Triple)
     async throws
   {
     logger.info("Unpacking and copying `lld` linker...")
     let pathsConfiguration = self.pathsConfiguration
-    let targetOS = self.targetTriple.os
+    let targetOS = targetTriple.os
 
     let untarDestination = pathsConfiguration.artifactsCachePath.appending(
       FilePath.Component(llvmArtifact.localPath.stem!)!.stem

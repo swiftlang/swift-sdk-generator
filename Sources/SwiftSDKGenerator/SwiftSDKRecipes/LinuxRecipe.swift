@@ -246,7 +246,7 @@ package struct LinuxRecipe: SwiftSDKRecipe {
 
     var downloadableArtifacts = try DownloadableArtifacts(
       hostTriples: mainHostTriples,
-      targetTriple: generator.targetTriple,
+      targetTriple: self.mainTargetTriple,
       self.versionsConfiguration,
       generator.pathsConfiguration
     )
@@ -266,7 +266,8 @@ package struct LinuxRecipe: SwiftSDKRecipe {
           engine,
           requiredPackages: version.requiredPackages,
           versionsConfiguration: self.versionsConfiguration,
-          sdkDirPath: sdkDirPath
+          sdkDirPath: sdkDirPath,
+          targetTriple: self.mainTargetTriple
         )
       case .debian(let version):
         try await generator.downloadDebianPackages(
@@ -274,7 +275,8 @@ package struct LinuxRecipe: SwiftSDKRecipe {
           engine,
           requiredPackages: version.requiredPackages,
           versionsConfiguration: self.versionsConfiguration,
-          sdkDirPath: sdkDirPath
+          sdkDirPath: sdkDirPath,
+          targetTriple: self.mainTargetTriple
         )
       default:
         throw
@@ -302,7 +304,8 @@ package struct LinuxRecipe: SwiftSDKRecipe {
       try await generator.copyTargetSwiftFromDocker(
         targetDistribution: self.linuxDistribution,
         baseDockerImage: baseSwiftDockerImage,
-        sdkDirPath: sdkDirPath
+        sdkDirPath: sdkDirPath,
+        targetTriple: self.mainTargetTriple
       )
     case let .localPackage(filePath):
       try await generator.copyTargetSwift(
@@ -335,7 +338,8 @@ package struct LinuxRecipe: SwiftSDKRecipe {
     if self.versionsConfiguration.swiftVersion.hasAnyPrefix(from: ["5.9", "5.10", "6.0"]) {
       try await generator.generateSDKSettingsFile(
         sdkDirPath: sdkDirPath,
-        distribution: linuxDistribution
+        distribution: linuxDistribution,
+        targetTriple: self.mainTargetTriple
       )
     }
 
@@ -343,7 +347,7 @@ package struct LinuxRecipe: SwiftSDKRecipe {
       if !self.mainHostTriples.contains(where: { $0.os == .linux })
         && !self.versionsConfiguration.swiftVersion.hasPrefix("6.")
       {
-        try await generator.prepareLLDLinker(engine, llvmArtifact: downloadableArtifacts.hostLLVM)
+        try await generator.prepareLLDLinker(engine, llvmArtifact: downloadableArtifacts.hostLLVM, targetTriple: self.mainTargetTriple)
       }
 
       if self.versionsConfiguration.swiftVersion.hasAnyPrefix(from: ["5.9", "5.10"]) {
@@ -360,6 +364,6 @@ package struct LinuxRecipe: SwiftSDKRecipe {
       }
     }
 
-    return SwiftSDKProduct(sdkDirPath: sdkDirPath, hostTriples: self.hostTriples)
+    return SwiftSDKProduct(sdkDirPath: sdkDirPath, targetTriple: self.mainTargetTriple, hostTriples: self.hostTriples)
   }
 }

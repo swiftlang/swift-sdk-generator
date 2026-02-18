@@ -15,10 +15,29 @@ import Logging
 
 import struct SystemPackage.FilePath
 
+extension Triple: Hashable {
+  public func hash(into hasher: inout Hasher) {
+    hasher.combine(triple)
+  }
+}
+
 package struct SwiftSDKProduct {
-  let sdkDirPath: FilePath
+  /// Maps target triple to its SDK directory path
+  let sdkDirPaths: [Triple: FilePath]
   /// Array of supported host triples. `nil` indicates the SDK can be universally used.
   let hostTriples: [Triple]?
+
+  /// Convenience initializer for single-target recipes
+  init(sdkDirPath: FilePath, targetTriple: Triple, hostTriples: [Triple]?) {
+    self.sdkDirPaths = [targetTriple: sdkDirPath]
+    self.hostTriples = hostTriples
+  }
+
+  /// Initializer for multi-target recipes
+  init(sdkDirPaths: [Triple: FilePath], hostTriples: [Triple]?) {
+    self.sdkDirPaths = sdkDirPaths
+    self.hostTriples = hostTriples
+  }
 }
 
 /// A protocol describing a set of platform specific instructions to make a Swift SDK

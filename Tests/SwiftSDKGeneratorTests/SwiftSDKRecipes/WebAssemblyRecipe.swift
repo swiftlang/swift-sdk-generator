@@ -24,6 +24,7 @@ final class WebAssemblyRecipeTests: XCTestCase {
       targetSwiftPackagePath: "./target-toolchain",
       wasiSysroot: "./wasi-sysroot",
       swiftVersion: "5.10",
+      targetTriples: [Triple("wasm32-unknown-wasip1")],
       logger: logger
     )
   }
