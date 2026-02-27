@@ -161,7 +161,7 @@ if configuration.useLocalDependencies {
   package.dependencies += [
     .package(url: "https://github.com/apple/swift-system", from: "1.3.0"),
     .package(url: "https://github.com/apple/swift-argument-parser", from: "1.4.0"),
-    .package(url: "https://github.com/apple/swift-async-algorithms.git", exact: "1.0.1"),
+    .package(url: "https://github.com/apple/swift-async-algorithms.git", from: "1.0.1"),
     .package(url: "https://github.com/apple/swift-atomics.git", from: "1.2.0"),
     .package(url: "https://github.com/apple/swift-collections.git", from: "1.1.2"),
     .package(url: "https://github.com/apple/swift-crypto.git", from: "3.1.0"),

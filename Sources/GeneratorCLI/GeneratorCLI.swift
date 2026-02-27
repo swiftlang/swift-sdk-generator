@@ -151,12 +151,9 @@ extension GeneratorCLI {
 
     @Option(
       help:
-        """
-        The target triple(s) of the bundle. Can be specified multiple times for multiple targets. \
-        The default depends on a recipe used for SDK generation.
-        """
+        "The target triple of the bundle. The default depends on a recipe used for SDK generation."
     )
-    var target: [Triple] = []
+    var target: Triple? = nil
 
     @Option(help: "Deprecated. Use `--host` instead")
     var hostArch: Triple.Arch? = nil
@@ -242,16 +239,16 @@ extension GeneratorCLI {
     )
     var distributionVersion: String?
 
-    func deriveTargetTriples(hostTriples: [Triple]) -> [Triple] {
-      if !generatorOptions.target.isEmpty {
-        return generatorOptions.target
+    func deriveTargetTriple(hostTriples: [Triple]) -> Triple {
+      if let target = generatorOptions.target, target.os == .linux {
+        return target
       }
       if let arch = generatorOptions.targetArch {
         let target = Triple(arch: arch, vendor: nil, os: .linux, environment: .gnu)
         appLogger.warning(
           "Using `--target-arch \(arch)` defaults to `\(target.triple)`. Use `--target` if you want to pass the full target triple."
         )
-        return [target]
+        return target
       }
       let arch: Triple.Arch
       if hostTriples.count == 1, let hostTriple = hostTriples.first {
@@ -259,7 +256,7 @@ extension GeneratorCLI {
       } else {
         arch = try! SwiftSDKGenerator.getCurrentTriple(isVerbose: false).arch!
       }
-      return [Triple(arch: arch, vendor: nil, os: .linux, environment: .gnu)]
+      return Triple(arch: arch, vendor: nil, os: .linux, environment: .gnu)
     }
 
     func run() async throws {
@@ -284,10 +281,10 @@ extension GeneratorCLI {
         version: distributionVersion
       )
       let hostTriples = try self.generatorOptions.deriveHostTriples()
-      let targetTriples = self.deriveTargetTriples(hostTriples: hostTriples)
+      let targetTriple = self.deriveTargetTriple(hostTriples: hostTriples)
 
       let recipe = try LinuxRecipe(
-        targetTriple: targetTriples[0],
+        targetTriple: targetTriple,
         hostTriples: hostTriples,
         linuxDistribution: linuxDistribution,
         swiftVersion: generatorOptions.swiftVersion,
@@ -302,7 +299,7 @@ extension GeneratorCLI {
       )
       try await GeneratorCLI.run(
         recipe: recipe,
-        targetTriples: targetTriples,
+        targetTriples: [targetTriple],
         options: self.generatorOptions
       )
     }
@@ -342,9 +339,9 @@ extension GeneratorCLI {
     )
     var freeBSDVersion: String
 
-    func deriveTargetTriples(hostTriples: [Triple], freeBSDVersion: String) throws -> [Triple] {
-      if !generatorOptions.target.isEmpty {
-        return generatorOptions.target
+    func deriveTargetTriple(hostTriples: [Triple], freeBSDVersion: String) throws -> Triple {
+      if let target = generatorOptions.target, target.os == .freeBSD {
+        return target
       }
       if let arch = generatorOptions.targetArch {
         let target = Triple(arch: arch, vendor: nil, os: .freeBSD, version: freeBSDVersion)
@@ -354,7 +351,7 @@ extension GeneratorCLI {
             Use `--target` if you want to pass the full target triple.
           """
         )
-        return [target]
+        return target
       }
       let arch: Triple.Arch
       if hostTriples.count == 1, let hostTriple = hostTriples.first {
@@ -362,7 +359,7 @@ extension GeneratorCLI {
       } else {
         arch = try! SwiftSDKGenerator.getCurrentTriple(isVerbose: false).arch!
       }
-      return [Triple(arch: arch, vendor: nil, os: .freeBSD)]
+      return Triple(arch: arch, vendor: nil, os: .freeBSD)
     }
 
     func run() async throws {
@@ -372,7 +369,7 @@ extension GeneratorCLI {
       }
 
       let hostTriples = try self.generatorOptions.deriveHostTriples()
-      let targetTriples = try self.deriveTargetTriples(hostTriples: hostTriples, freeBSDVersion: self.freeBSDVersion)
+      let targetTriple = try self.deriveTargetTriple(hostTriples: hostTriples, freeBSDVersion: self.freeBSDVersion)
 
       if self.generatorOptions.hostSwiftPackagePath != nil {
         throw StringError("This tool does not support embedding host-specific toolchains into FreeBSD SDKs")
@@ -387,13 +384,13 @@ extension GeneratorCLI {
 
       let recipe = FreeBSDRecipe(
         freeBSDVersion: freebsdVersion,
-        mainTargetTriple: targetTriples[0],
+        mainTargetTriple: targetTriple,
         sourceSwiftToolchain: sourceSwiftToolchain,
         logger: loggerWithLevel(from: self.generatorOptions)
       )
       try await GeneratorCLI.run(
         recipe: recipe,
-        targetTriples: targetTriples,
+        targetTriples: [targetTriple],
         options: self.generatorOptions
       )
     }
@@ -405,8 +402,8 @@ extension GeneratorCLI {
       abstract: "Experimental: Generate a Swift SDK bundle for WebAssembly.",
       discussion: """
         The default `--target` triple is wasm32-unknown-wasip1. \
-        Use `--target wasm32-unknown-wasip1 --target wasm32-unknown-wasip1-threads` to generate \
-        a Swift SDK bundle supporting both threaded and non-threaded WebAssembly targets.
+        Use `--recipe-path` to provide a JSON recipe file with per-triple \
+        sysroot and package paths for multi-target SDK bundles.
         """
     )
 
@@ -415,37 +412,64 @@ extension GeneratorCLI {
 
     @Option(
       help: """
-        Path to the WASI sysroot directory containing the WASI libc headers and libraries.
+        Path to a JSON recipe file specifying per-triple WASI sysroot and Swift package paths. \
+        When provided, --wasi-sysroot and --target-swift-package-path are not required, \
+        and target triples are read from the recipe file.
         """
     )
-    var wasiSysroot: String
+    var recipePath: String? = nil
 
-    func deriveTargetTriples() -> [Triple] {
-      if !generatorOptions.target.isEmpty {
-        return generatorOptions.target
-      }
-      // Default: single wasm triple
-      return [Triple("wasm32-unknown-wasip1")]
+    @Option(
+      help: """
+        Path to the WASI sysroot directory containing the WASI libc headers and libraries. \
+        Required unless --recipe-path is provided.
+        """
+    )
+    var wasiSysroot: String? = nil
+
+    func deriveTargetTriple() -> Triple {
+      generatorOptions.target ?? Triple("wasm32-unknown-wasip1")
     }
 
     func run() async throws {
-      let targetTriples = self.deriveTargetTriples()
-      let recipe = try WebAssemblyRecipe(
-        hostSwiftPackage: generatorOptions.hostSwiftPackagePath.map {
-          let hostTriples = try self.generatorOptions.deriveHostTriples()
-          return WebAssemblyRecipe.HostToolchainPackage(path: FilePath($0), triples: hostTriples)
-        },
-        targetSwiftPackagePath: generatorOptions.targetSwiftPackagePath.map { FilePath($0) },
-        wasiSysroot: FilePath(self.wasiSysroot),
-        swiftVersion: self.generatorOptions.swiftVersion,
-        targetTriples: targetTriples,
-        logger: loggerWithLevel(from: self.generatorOptions)
-      )
-      try await GeneratorCLI.run(
-        recipe: recipe,
-        targetTriples: targetTriples,
-        options: self.generatorOptions
-      )
+      if let recipePath {
+        let recipeData = try Data(contentsOf: URL(fileURLWithPath: recipePath))
+        let recipeFile = try JSONDecoder().decode(WasmSDKRecipeFile.self, from: recipeData)
+        let hostTriples = try generatorOptions.deriveHostTriples()
+        let targetTriples = recipeFile.targets.map { Triple($0.triple) }
+
+        let recipe = WebAssemblyRecipe(
+          recipeFile: recipeFile,
+          hostTriples: hostTriples,
+          logger: loggerWithLevel(from: self.generatorOptions)
+        )
+        try await GeneratorCLI.run(
+          recipe: recipe,
+          targetTriples: targetTriples,
+          options: self.generatorOptions
+        )
+      } else {
+        guard let wasiSysroot else {
+          throw StringError("--wasi-sysroot is required unless --recipe-path is provided.")
+        }
+        let targetTriple = self.deriveTargetTriple()
+        let recipe = try WebAssemblyRecipe(
+          hostSwiftPackage: generatorOptions.hostSwiftPackagePath.map {
+            let hostTriples = try self.generatorOptions.deriveHostTriples()
+            return WebAssemblyRecipe.HostToolchainPackage(path: FilePath($0), triples: hostTriples)
+          },
+          targetSwiftPackagePath: generatorOptions.targetSwiftPackagePath.map { FilePath($0) },
+          wasiSysroot: FilePath(wasiSysroot),
+          swiftVersion: self.generatorOptions.swiftVersion,
+          targetTriples: [targetTriple],
+          logger: loggerWithLevel(from: self.generatorOptions)
+        )
+        try await GeneratorCLI.run(
+          recipe: recipe,
+          targetTriples: [targetTriple],
+          options: self.generatorOptions
+        )
+      }
     }
   }
 }

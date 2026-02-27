@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift open source project
 //
-// Copyright (c) 2022-2024 Apple Inc. and the Swift project authors
+// Copyright (c) 2022-2026 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See https://swift.org/LICENSE.txt for license information
@@ -128,3 +128,116 @@ final class WebAssemblyRecipeTests: XCTestCase {
     XCTAssertNotNil(metadata.targetTriples[targetTriple.triple])
   }
 }
+
+#if compiler(>=6.0)
+import Foundation
+import Testing
+
+@Suite
+struct WasmSDKRecipeFileTests {
+  let logger = Logger(label: "WasmSDKRecipeFileTests")
+
+  @Test
+  func recipeFileDeserialization() throws {
+    let json = """
+    {
+      "schemaVersion": "0.1",
+      "recipeType": "wasm",
+      "swiftVersion": "6.2.1-RELEASE",
+      "hostSwiftPackagePath": "/path/to/host",
+      "targets": [
+        {
+          "triple": "wasm32-unknown-wasip1",
+          "wasiSysroot": "/path/to/wasip1-sysroot",
+          "swiftPackagePath": "/path/to/wasip1-package"
+        },
+        {
+          "triple": "wasm32-unknown-wasip1-threads",
+          "wasiSysroot": "/path/to/threads-sysroot",
+          "swiftPackagePath": "/path/to/threads-package"
+        }
+      ]
+    }
+    """.data(using: .utf8)!
+
+    let recipe = try JSONDecoder().decode(WasmSDKRecipeFile.self, from: json)
+    #expect(recipe.schemaVersion == "0.1")
+    #expect(recipe.recipeType == .wasm)
+    #expect(recipe.swiftVersion == "6.2.1-RELEASE")
+    #expect(recipe.hostSwiftPackagePath == "/path/to/host")
+    #expect(recipe.targets.count == 2)
+    #expect(recipe.targets[0].triple == "wasm32-unknown-wasip1")
+    #expect(recipe.targets[0].wasiSysroot == "/path/to/wasip1-sysroot")
+    #expect(recipe.targets[0].swiftPackagePath == "/path/to/wasip1-package")
+    #expect(recipe.targets[1].triple == "wasm32-unknown-wasip1-threads")
+    #expect(recipe.targets[1].wasiSysroot == "/path/to/threads-sysroot")
+    #expect(recipe.targets[1].swiftPackagePath == "/path/to/threads-package")
+  }
+
+  @Test
+  func recipeFileWithoutOptionalFields() throws {
+    let json = """
+    {
+      "schemaVersion": "0.1",
+      "recipeType": "wasm",
+      "swiftVersion": "6.2.1-RELEASE",
+      "targets": [
+        {
+          "triple": "wasm32-unknown-wasip1",
+          "wasiSysroot": "/path/to/sysroot"
+        }
+      ]
+    }
+    """.data(using: .utf8)!
+
+    let recipe = try JSONDecoder().decode(WasmSDKRecipeFile.self, from: json)
+    #expect(recipe.hostSwiftPackagePath == nil)
+    #expect(recipe.targets.count == 1)
+    #expect(recipe.targets[0].swiftPackagePath == nil)
+  }
+
+  @Test
+  func recipeBasedConstruction() throws {
+    let json = """
+    {
+      "schemaVersion": "0.1",
+      "recipeType": "wasm",
+      "swiftVersion": "6.2.1-RELEASE",
+      "targets": [
+        {
+          "triple": "wasm32-unknown-wasip1",
+          "wasiSysroot": "/sysroot/wasip1",
+          "swiftPackagePath": "/package/wasip1"
+        },
+        {
+          "triple": "wasm32-unknown-wasip1-threads",
+          "wasiSysroot": "/sysroot/threads",
+          "swiftPackagePath": "/package/threads"
+        }
+      ]
+    }
+    """.data(using: .utf8)!
+
+    let recipeFile = try JSONDecoder().decode(WasmSDKRecipeFile.self, from: json)
+    let recipe = WebAssemblyRecipe(
+      recipeFile: recipeFile,
+      hostTriples: [],
+      logger: logger
+    )
+
+    #expect(recipe.targetTriples.count == 2)
+    #expect(recipe.targetTriples[0].triple == "wasm32-unknown-wasip1")
+    #expect(recipe.targetTriples[1].triple == "wasm32-unknown-wasip1-threads")
+    #expect(recipe.swiftVersion == "6.2.1-RELEASE")
+
+    // Verify per-triple config has distinct entries
+    let perTripleConfig = try #require(recipe.perTripleConfig)
+    let wasip1Config = try #require(perTripleConfig[Triple("wasm32-unknown-wasip1")])
+    let threadsConfig = try #require(perTripleConfig[Triple("wasm32-unknown-wasip1-threads")])
+    #expect(wasip1Config.wasiSysroot == "/sysroot/wasip1")
+    #expect(threadsConfig.wasiSysroot == "/sysroot/threads")
+    #expect(wasip1Config.swiftPackagePath == "/package/wasip1")
+    #expect(threadsConfig.swiftPackagePath == "/package/threads")
+  }
+}
+#endif
