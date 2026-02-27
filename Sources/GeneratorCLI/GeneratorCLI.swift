@@ -461,7 +461,7 @@ extension GeneratorCLI {
           targetSwiftPackagePath: generatorOptions.targetSwiftPackagePath.map { FilePath($0) },
           wasiSysroot: FilePath(wasiSysroot),
           swiftVersion: self.generatorOptions.swiftVersion,
-          targetTriples: [targetTriple],
+          targetTriple: targetTriple,
           logger: loggerWithLevel(from: self.generatorOptions)
         )
         try await GeneratorCLI.run(

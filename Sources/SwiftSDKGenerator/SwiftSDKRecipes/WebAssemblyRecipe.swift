@@ -44,14 +44,14 @@ package struct WebAssemblyRecipe: SwiftSDKRecipe {
     targetSwiftPackagePath: FilePath?,
     wasiSysroot: FilePath,
     swiftVersion: String,
-    targetTriples: [Triple],
+    targetTriple: Triple,
     logger: Logger
   ) {
     self.hostSwiftPackage = hostSwiftPackage
     self.targetSwiftPackagePath = targetSwiftPackagePath
     self.wasiSysroot = wasiSysroot
     self.swiftVersion = swiftVersion
-    self.targetTriples = targetTriples
+    self.targetTriples = [targetTriple]
     self.perTripleConfig = nil
     self.logger = logger
   }
