@@ -413,7 +413,7 @@ extension GeneratorCLI {
     @Option(
       help: """
         Path to a JSON recipe file specifying per-triple WASI sysroot and Swift package paths. \
-        When provided, --wasi-sysroot and --target-swift-package-path are not required, \
+        When provided, `--wasi-sysroot` and `--target-swift-package-path` are not required, \
         and target triples are read from the recipe file.
         """
     )
@@ -422,7 +422,7 @@ extension GeneratorCLI {
     @Option(
       help: """
         Path to the WASI sysroot directory containing the WASI libc headers and libraries. \
-        Required unless --recipe-path is provided.
+        Required unless `--recipe-path` is provided.
         """
     )
     var wasiSysroot: String? = nil

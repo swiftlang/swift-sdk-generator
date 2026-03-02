@@ -347,7 +347,11 @@ package struct LinuxRecipe: SwiftSDKRecipe {
       if !self.mainHostTriples.contains(where: { $0.os == .linux })
         && !self.versionsConfiguration.swiftVersion.hasPrefix("6.")
       {
-        try await generator.prepareLLDLinker(engine, llvmArtifact: downloadableArtifacts.hostLLVM, targetTriple: self.mainTargetTriple)
+        try await generator.prepareLLDLinker(
+          engine,
+          llvmArtifact: downloadableArtifacts.hostLLVM,
+          targetTriple: self.mainTargetTriple
+        )
       }
 
       if self.versionsConfiguration.swiftVersion.hasAnyPrefix(from: ["5.9", "5.10"]) {
