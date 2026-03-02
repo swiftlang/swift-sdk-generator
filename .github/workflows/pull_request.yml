@@ -26,6 +26,6 @@ jobs:
 
   soundness:
     name: Soundness
-    uses: swiftlang/github-workflows/.github/workflows/soundness.yml@0.0.3
+    uses: swiftlang/github-workflows/.github/workflows/soundness.yml@0.0.7
     with:
       api_breakage_check_enabled: false
