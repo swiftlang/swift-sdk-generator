@@ -45,11 +45,7 @@ extension SwiftSDKGenerator {
       #endif
       try await httpClientType.with { client in
         if !self.isIncremental {
-          // Clean up directories for all target triples
-          for triple in targetTriples {
-            let paths = pathsConfiguration(for: triple)
-            try await self.removeRecursively(at: paths.toolchainDirPath)
-          }
+          try await self.removeRecursively(at: pathsConfiguration.toolchainDirPath)
         }
 
         try await self.createDirectoryIfNeeded(at: pathsConfiguration.artifactsCachePath)
@@ -60,36 +56,25 @@ extension SwiftSDKGenerator {
           httpClient: client
         )
 
-        // Generate toolsets for each target triple
-        var toolsetPaths: [Triple: FilePath] = [:]
-        for triple in targetTriples {
-          let toolsetPath = try await self.generateToolsetJSON(recipe: recipe, targetTriple: triple)
-          toolsetPaths[triple] = toolsetPath
-        }
+        let toolsetPath = try await self.generateToolsetJSON(recipe: recipe)
 
         var artifacts = try await [
           self.artifactID: generateSwiftSDKMetadata(
-            toolsetPaths: toolsetPaths,
-            sdkDirPaths: swiftSDKProduct.sdkDirPaths,
+            toolsetPath: toolsetPath,
+            sdkDirPath: swiftSDKProduct.sdkDirPath,
             recipe: recipe
           )
         ]
 
         if recipe.shouldSupportEmbeddedSwift {
-          // Generate embedded toolsets for each target triple
-          var embeddedToolsetPaths: [Triple: FilePath] = [:]
-          for triple in targetTriples {
-            let toolsetPath = try await self.generateToolsetJSON(
-              recipe: recipe,
-              targetTriple: triple,
-              isForEmbeddedSwift: true
-            )
-            embeddedToolsetPaths[triple] = toolsetPath
-          }
+          let embeddedToolsetPath = try await self.generateToolsetJSON(
+            recipe: recipe,
+            isForEmbeddedSwift: true
+          )
 
           artifacts["\(self.artifactID)-embedded"] = try await generateSwiftSDKMetadata(
-            toolsetPaths: embeddedToolsetPaths,
-            sdkDirPaths: swiftSDKProduct.sdkDirPaths,
+            toolsetPath: embeddedToolsetPath,
+            sdkDirPath: swiftSDKProduct.sdkDirPath,
             recipe: recipe,
             isForEmbeddedSwift: true
           )

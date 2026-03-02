@@ -22,20 +22,13 @@ extension Triple: Hashable {
 }
 
 package struct SwiftSDKProduct {
-  /// Maps target triple to its SDK directory path
-  let sdkDirPaths: [Triple: FilePath]
+  /// The SDK directory path for this target
+  let sdkDirPath: FilePath
   /// Array of supported host triples. `nil` indicates the SDK can be universally used.
   let hostTriples: [Triple]?
 
-  /// Convenience initializer for single-target recipes
-  init(sdkDirPath: FilePath, targetTriple: Triple, hostTriples: [Triple]?) {
-    self.sdkDirPaths = [targetTriple: sdkDirPath]
-    self.hostTriples = hostTriples
-  }
-
-  /// Initializer for multi-target recipes
-  init(sdkDirPaths: [Triple: FilePath], hostTriples: [Triple]?) {
-    self.sdkDirPaths = sdkDirPaths
+  init(sdkDirPath: FilePath, hostTriples: [Triple]?) {
+    self.sdkDirPath = sdkDirPath
     self.hostTriples = hostTriples
   }
 }

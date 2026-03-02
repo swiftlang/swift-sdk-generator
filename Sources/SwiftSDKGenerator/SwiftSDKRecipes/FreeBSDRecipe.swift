@@ -175,7 +175,7 @@ package struct FreeBSDRecipe: SwiftSDKRecipe {
     }
 
     // Return the path to the newly created SDK.
-    return .init(sdkDirPath: swiftSDKRootPath, targetTriple: mainTargetTriple, hostTriples: nil)
+    return .init(sdkDirPath: swiftSDKRootPath, hostTriples: nil)
   }
 
   public init(

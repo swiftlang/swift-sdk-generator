@@ -37,14 +37,14 @@ struct GeneratorCLI: AsyncParsableCommand {
 
   static func run(
     recipe: some SwiftSDKRecipe,
-    targetTriples: [Triple],
+    targetTriple: Triple,
     options: GeneratorOptions
   ) async throws {
     let logger = loggerWithLevel(from: options)
     let elapsed = try await ContinuousClock().measure {
       let generator = try await SwiftSDKGenerator(
         bundleVersion: options.bundleVersion,
-        targetTriples: targetTriples,
+        targetTriple: targetTriple,
         artifactID: options.sdkName ?? recipe.defaultArtifactID,
         isIncremental: options.incremental,
         isVerbose: options.verbose,
@@ -299,7 +299,7 @@ extension GeneratorCLI {
       )
       try await GeneratorCLI.run(
         recipe: recipe,
-        targetTriples: [targetTriple],
+        targetTriple: targetTriple,
         options: self.generatorOptions
       )
     }
@@ -390,7 +390,7 @@ extension GeneratorCLI {
       )
       try await GeneratorCLI.run(
         recipe: recipe,
-        targetTriples: [targetTriple],
+        targetTriple: targetTriple,
         options: self.generatorOptions
       )
     }
@@ -436,18 +436,28 @@ extension GeneratorCLI {
         let recipeData = try Data(contentsOf: URL(fileURLWithPath: recipePath))
         let recipeFile = try JSONDecoder().decode(WasmSDKRecipeFile.self, from: recipeData)
         let hostTriples = try generatorOptions.deriveHostTriples()
-        let targetTriples = recipeFile.targets.map { Triple($0.triple) }
+        let logger = loggerWithLevel(from: self.generatorOptions)
 
-        let recipe = WebAssemblyRecipe(
-          recipeFile: recipeFile,
-          hostTriples: hostTriples,
-          logger: loggerWithLevel(from: self.generatorOptions)
-        )
-        try await GeneratorCLI.run(
-          recipe: recipe,
-          targetTriples: targetTriples,
-          options: self.generatorOptions
-        )
+        // Generate a separate SDK for each target in the recipe file.
+        for targetConfig in recipeFile.targets {
+          let targetTriple = Triple(targetConfig.triple)
+          let recipe = WebAssemblyRecipe(
+            recipeFile: recipeFile,
+            targetTriple: targetTriple,
+            hostTriples: hostTriples,
+            logger: logger
+          )
+          // Each target gets its own artifact ID so the bundles don't collide.
+          var perTargetOptions = self.generatorOptions
+          if let baseName = self.generatorOptions.sdkName {
+            perTargetOptions.sdkName = "\(baseName)_\(targetTriple.triple)"
+          }
+          try await GeneratorCLI.run(
+            recipe: recipe,
+            targetTriple: targetTriple,
+            options: perTargetOptions
+          )
+        }
       } else {
         guard let wasiSysroot else {
           throw StringError("--wasi-sysroot is required unless --recipe-path is provided.")
@@ -466,7 +476,7 @@ extension GeneratorCLI {
         )
         try await GeneratorCLI.run(
           recipe: recipe,
-          targetTriples: [targetTriple],
+          targetTriple: targetTriple,
           options: self.generatorOptions
         )
       }

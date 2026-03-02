@@ -47,7 +47,7 @@ final class SwiftSDKGeneratorMetadataTests: XCTestCase {
     for testCase in testCases {
       let sdk = try await SwiftSDKGenerator(
         bundleVersion: testCase.bundleVersion,
-        targetTriples: [testCase.targetTriple],
+        targetTriple: testCase.targetTriple,
         artifactID: "6.0.3-RELEASE_ubuntu_jammy_\(testCase.targetTriple.archName)",
         isIncremental: false,
         isVerbose: false,
@@ -79,7 +79,7 @@ final class SwiftSDKGeneratorMetadataTests: XCTestCase {
       for shouldUseFullPaths in [true, false] {
         // Generate bundle metadata
         try await sdk.generateArtifactBundleManifest(
-          hostTriples: sdk.targetTriples,
+          hostTriples: [sdk.targetTriple],
           artifacts: ["foo": sdk.pathsConfiguration.artifactBundlePath.appending("foo").appending("bar.json")],
           shouldUseFullPaths: shouldUseFullPaths
         )

@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 import Logging
+import SystemPackage
 import XCTest
 
 @testable import SwiftSDKGenerator
@@ -197,6 +198,55 @@ struct WasmSDKRecipeFileTests {
   }
 
   @Test
+  func defaultArtifactIDNaming() {
+    // wasip1 with host toolchain → "wasm" suffix
+    let wasip1 = WebAssemblyRecipe(
+      hostSwiftPackage: .init(path: "/host", triples: []),
+      targetSwiftPackagePath: "/target",
+      wasiSysroot: "/sysroot",
+      swiftVersion: "6.2.1-RELEASE",
+      targetTriple: Triple("wasm32-unknown-wasip1"),
+      logger: logger
+    )
+    #expect(wasip1.defaultArtifactID == "6.2.1-RELEASE_wasm")
+    // Embedded suffix is appended by the entrypoint: "<artifactID>-embedded"
+    #expect("\(wasip1.defaultArtifactID)-embedded" == "6.2.1-RELEASE_wasm-embedded")
+
+    // wasip1-threads → "wasm-threads" suffix
+    let threads = WebAssemblyRecipe(
+      hostSwiftPackage: .init(path: "/host", triples: []),
+      targetSwiftPackagePath: "/target",
+      wasiSysroot: "/sysroot",
+      swiftVersion: "6.2.1-RELEASE",
+      targetTriple: Triple("wasm32-unknown-wasip1-threads"),
+      logger: logger
+    )
+    #expect(threads.defaultArtifactID == "6.2.1-RELEASE_wasm-threads")
+    #expect("\(threads.defaultArtifactID)-embedded" == "6.2.1-RELEASE_wasm-threads-embedded")
+
+    // Without host/target packages → bare suffix
+    let bare = WebAssemblyRecipe(
+      hostSwiftPackage: nil,
+      targetSwiftPackagePath: nil,
+      wasiSysroot: "/sysroot",
+      swiftVersion: "6.2.1-RELEASE",
+      targetTriple: Triple("wasm32-unknown-wasip1"),
+      logger: logger
+    )
+    #expect(bare.defaultArtifactID == "wasm")
+
+    let bareThreads = WebAssemblyRecipe(
+      hostSwiftPackage: nil,
+      targetSwiftPackagePath: nil,
+      wasiSysroot: "/sysroot",
+      swiftVersion: "6.2.1-RELEASE",
+      targetTriple: Triple("wasm32-unknown-wasip1-threads"),
+      logger: logger
+    )
+    #expect(bareThreads.defaultArtifactID == "wasm-threads")
+  }
+
+  @Test
   func recipeBasedConstruction() throws {
     let json = """
     {
@@ -219,25 +269,30 @@ struct WasmSDKRecipeFileTests {
     """.data(using: .utf8)!
 
     let recipeFile = try JSONDecoder().decode(WasmSDKRecipeFile.self, from: json)
-    let recipe = WebAssemblyRecipe(
+
+    // Each target gets its own recipe instance (the CLI loops over targets).
+    let wasip1Recipe = WebAssemblyRecipe(
       recipeFile: recipeFile,
+      targetTriple: Triple("wasm32-unknown-wasip1"),
       hostTriples: [],
       logger: logger
     )
+    #expect(wasip1Recipe.targetTriple.triple == "wasm32-unknown-wasip1")
+    #expect(wasip1Recipe.swiftVersion == "6.2.1-RELEASE")
+    #expect(wasip1Recipe.wasiSysroot == FilePath("/sysroot/wasip1"))
+    #expect(wasip1Recipe.targetSwiftPackagePath == FilePath("/package/wasip1"))
+    #expect(wasip1Recipe.defaultArtifactID == "6.2.1-RELEASE_wasm")
 
-    #expect(recipe.targetTriples.count == 2)
-    #expect(recipe.targetTriples[0].triple == "wasm32-unknown-wasip1")
-    #expect(recipe.targetTriples[1].triple == "wasm32-unknown-wasip1-threads")
-    #expect(recipe.swiftVersion == "6.2.1-RELEASE")
-
-    // Verify per-triple config has distinct entries
-    let perTripleConfig = try #require(recipe.perTripleConfig)
-    let wasip1Config = try #require(perTripleConfig[Triple("wasm32-unknown-wasip1")])
-    let threadsConfig = try #require(perTripleConfig[Triple("wasm32-unknown-wasip1-threads")])
-    #expect(wasip1Config.wasiSysroot == "/sysroot/wasip1")
-    #expect(threadsConfig.wasiSysroot == "/sysroot/threads")
-    #expect(wasip1Config.swiftPackagePath == "/package/wasip1")
-    #expect(threadsConfig.swiftPackagePath == "/package/threads")
+    let threadsRecipe = WebAssemblyRecipe(
+      recipeFile: recipeFile,
+      targetTriple: Triple("wasm32-unknown-wasip1-threads"),
+      hostTriples: [],
+      logger: logger
+    )
+    #expect(threadsRecipe.targetTriple.triple == "wasm32-unknown-wasip1-threads")
+    #expect(threadsRecipe.wasiSysroot == FilePath("/sysroot/threads"))
+    #expect(threadsRecipe.targetSwiftPackagePath == FilePath("/package/threads"))
+    #expect(threadsRecipe.defaultArtifactID == "6.2.1-RELEASE_wasm-threads")
   }
 }
 #endif

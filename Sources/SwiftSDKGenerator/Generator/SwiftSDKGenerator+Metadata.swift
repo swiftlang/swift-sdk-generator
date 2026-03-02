@@ -21,13 +21,12 @@ private let encoder: JSONEncoder = {
 }()
 
 extension SwiftSDKGenerator {
-  /// Generates toolset JSON file for a specific target triple.
+  /// Generates toolset JSON file for the target triple.
   func generateToolsetJSON(
     recipe: SwiftSDKRecipe,
-    targetTriple: Triple,
     isForEmbeddedSwift: Bool = false
   ) throws -> FilePath {
-    let paths = pathsConfiguration(for: targetTriple)
+    let paths = pathsConfiguration
     logger.info("Generating toolset JSON file for \(targetTriple.triple)...")
 
     let toolsetJSONPath = paths.swiftSDKRootPath.appending(
@@ -47,7 +46,7 @@ extension SwiftSDKGenerator {
     var toolset = Toolset(rootPath: relativeToolchainBinDir.string)
     recipe.applyPlatformOptions(
       toolset: &toolset,
-      targetTriple: targetTriple,
+      targetTriple: self.targetTriple,
       isForEmbeddedSwift: isForEmbeddedSwift
     )
     try writeFile(at: toolsetJSONPath, encoder.encode(toolset))
@@ -55,16 +54,15 @@ extension SwiftSDKGenerator {
     return toolsetJSONPath
   }
 
-  /// Generates `swift-sdk.json` metadata file for multiple target triples.
+  /// Generates `swift-sdk.json` metadata file for the target triple.
   func generateSwiftSDKMetadata(
-    toolsetPaths: [Triple: FilePath],
-    sdkDirPaths: [Triple: FilePath],
+    toolsetPath: FilePath,
+    sdkDirPath: FilePath,
     recipe: SwiftSDKRecipe,
     isForEmbeddedSwift: Bool = false
   ) throws -> FilePath {
     logger.info("Generating Swift SDK metadata JSON file...")
 
-    // Use artifact bundle directory for metadata file (shared across all triples)
     let swiftSDKMetadataPath = pathsConfiguration.artifactBundlePath
       .appending(artifactID)
       .appending("\(isForEmbeddedSwift ? "embedded-" : "")swift-sdk.json")
@@ -72,47 +70,36 @@ extension SwiftSDKGenerator {
     // Base path for computing relative paths
     let basePath = pathsConfiguration.artifactBundlePath.appending(artifactID)
 
-    var targetTriplesMetadata: [String: SwiftSDKMetadataV4.TripleProperties] = [:]
+    var relativeSDKDir = sdkDirPath
+    var relativeToolsetPath = toolsetPath
 
-    for targetTriple in targetTriples {
-      guard let toolsetPath = toolsetPaths[targetTriple],
-            let sdkDirPath = sdkDirPaths[targetTriple] else {
-        fatalError("Missing toolset or SDK path for triple \(targetTriple.triple)")
-      }
+    guard
+      relativeSDKDir.removePrefix(basePath),
+      relativeToolsetPath.removePrefix(basePath)
+    else {
+      fatalError(
+        """
+        `sdkDirPath` and `toolsetPath` are at unexpected locations that prevent computing \
+        relative paths
+        """
+      )
+    }
 
-      var relativeSDKDir = sdkDirPath
-      var relativeToolsetPath = toolsetPath
-
-      guard
-        relativeSDKDir.removePrefix(basePath),
-        relativeToolsetPath.removePrefix(basePath)
-      else {
-        fatalError(
-          """
-          `sdkDirPath` and `toolsetPath` are at unexpected locations that prevent computing \
-          relative paths
-          """
+    var metadata = SwiftSDKMetadataV4(
+      targetTriples: [
+        targetTriple.triple: .init(
+          sdkRootPath: relativeSDKDir.string,
+          toolsetPaths: [relativeToolsetPath.string]
         )
-      }
+      ]
+    )
 
-      targetTriplesMetadata[targetTriple.triple] = .init(
-        sdkRootPath: relativeSDKDir.string,
-        toolsetPaths: [relativeToolsetPath.string]
-      )
-    }
-
-    var metadata = SwiftSDKMetadataV4(targetTriples: targetTriplesMetadata)
-
-    // Apply platform-specific options for each triple
-    for targetTriple in targetTriples {
-      let paths = pathsConfiguration(for: targetTriple)
-      recipe.applyPlatformOptions(
-        metadata: &metadata,
-        paths: paths,
-        targetTriple: targetTriple,
-        isForEmbeddedSwift: isForEmbeddedSwift
-      )
-    }
+    recipe.applyPlatformOptions(
+      metadata: &metadata,
+      paths: pathsConfiguration,
+      targetTriple: targetTriple,
+      isForEmbeddedSwift: isForEmbeddedSwift
+    )
 
     try createDirectoryIfNeeded(at: swiftSDKMetadataPath.removingLastComponent())
     try writeFile(

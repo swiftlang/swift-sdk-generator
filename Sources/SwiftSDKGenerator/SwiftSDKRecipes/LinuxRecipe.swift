@@ -364,6 +364,6 @@ package struct LinuxRecipe: SwiftSDKRecipe {
       }
     }
 
-    return SwiftSDKProduct(sdkDirPath: sdkDirPath, targetTriple: self.mainTargetTriple, hostTriples: self.hostTriples)
+    return SwiftSDKProduct(sdkDirPath: sdkDirPath, hostTriples: self.hostTriples)
   }
 }

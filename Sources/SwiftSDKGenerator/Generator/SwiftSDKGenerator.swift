@@ -18,7 +18,7 @@ import SystemPackage
 /// Top-level actor that sequences all of the required SDK generation steps.
 public actor SwiftSDKGenerator {
   let bundleVersion: String
-  let targetTriples: [Triple]
+  let targetTriple: Triple
   let artifactID: String
   let pathsConfiguration: PathsConfiguration
   let isIncremental: Bool
@@ -28,14 +28,12 @@ public actor SwiftSDKGenerator {
 
   public init(
     bundleVersion: String,
-    targetTriples: [Triple],
+    targetTriple: Triple,
     artifactID: String,
     isIncremental: Bool,
     isVerbose: Bool,
     logger: Logger
   ) async throws {
-    precondition(!targetTriples.isEmpty, "At least one target triple must be specified")
-
     let sourceRoot = FilePath(#filePath)
       .removingLastComponent()
       .removingLastComponent()
@@ -44,28 +42,19 @@ public actor SwiftSDKGenerator {
 
     self.bundleVersion = bundleVersion
 
-    self.targetTriples = targetTriples
+    self.targetTriple = targetTriple
     self.artifactID = artifactID
 
     self.pathsConfiguration = .init(
       sourceRoot: sourceRoot,
       artifactID: self.artifactID,
-      targetTriple: self.targetTriples[0]
+      targetTriple: self.targetTriple
     )
     self.isIncremental = isIncremental
     self.isVerbose = isVerbose
 
     self.engineCachePath = .path(self.pathsConfiguration.artifactsCachePath.appending("cache.db"))
     self.logger = logger
-  }
-
-  /// Returns a `PathsConfiguration` for the given target triple.
-  nonisolated func pathsConfiguration(for targetTriple: Triple) -> PathsConfiguration {
-    PathsConfiguration(
-      sourceRoot: pathsConfiguration.sourceRoot,
-      artifactID: self.artifactID,
-      targetTriple: targetTriple
-    )
   }
 
   private let fileManager = FileManager.default
@@ -92,7 +81,7 @@ public actor SwiftSDKGenerator {
     try await Shell.readStdout(
       """
       \(Self.dockerCommand) run --rm --platform=linux/\(
-        self.targetTriples[0].arch!.debianConventionName
+        self.targetTriple.arch!.debianConventionName
       ) -d \(imageName) tail -f /dev/null
       """,
       shouldLogCommands: self.isVerbose
