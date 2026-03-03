@@ -105,10 +105,15 @@ let package = Package(
         .product(name: "SystemPackage", package: "swift-system"),
       ]
     ),
+    .executableTarget(
+        name: "sap-exec",
+        dependencies: ["AsyncProcess"]
+    ),
     .testTarget(
       name: "AsyncProcessTests",
       dependencies: [
         "AsyncProcess",
+        "sap-exec",
         .product(name: "Atomics", package: "swift-atomics"),
         .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
         .product(name: "NIO", package: "swift-nio"),
