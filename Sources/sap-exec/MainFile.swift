@@ -10,8 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-import AsyncProcess
-import Foundation
+// swift-format-ignore-file
 
 #if canImport(Darwin)
   import Darwin
@@ -28,6 +27,9 @@ import Foundation
 #else
   #error("unknown libc, please fix")
 #endif
+
+import AsyncProcess
+import Foundation
 
 @main
 struct SAPExec {
