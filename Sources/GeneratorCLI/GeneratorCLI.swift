@@ -434,7 +434,7 @@ extension GeneratorCLI {
     func run() async throws {
       if let recipePath {
         let recipeData = try Data(contentsOf: URL(fileURLWithPath: recipePath))
-        let recipeFile = try JSONDecoder().decode(WasmSDKRecipeFile.self, from: recipeData)
+        let recipeFile = try JSONDecoder().decode(WasmSwiftSDKRecipeFile.self, from: recipeData)
         let hostTriples = try generatorOptions.deriveHostTriples()
         let logger = loggerWithLevel(from: self.generatorOptions)
 

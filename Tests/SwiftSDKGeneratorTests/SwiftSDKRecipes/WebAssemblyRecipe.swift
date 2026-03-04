@@ -135,8 +135,8 @@ final class WebAssemblyRecipeTests: XCTestCase {
   import Testing
 
   @Suite
-  struct WasmSDKRecipeFileTests {
-    let logger = Logger(label: "WasmSDKRecipeFileTests")
+  struct WasmSwiftSDKRecipeFileTests {
+    let logger = Logger(label: "WasmSwiftSDKRecipeFileTests")
 
     @Test
     func recipeFileDeserialization() throws {
@@ -161,7 +161,7 @@ final class WebAssemblyRecipeTests: XCTestCase {
         }
         """.data(using: .utf8)!
 
-      let recipe = try JSONDecoder().decode(WasmSDKRecipeFile.self, from: json)
+      let recipe = try JSONDecoder().decode(WasmSwiftSDKRecipeFile.self, from: json)
       #expect(recipe.schemaVersion == "0.1")
       #expect(recipe.recipeType == .wasm)
       #expect(recipe.swiftVersion == "6.2.1-RELEASE")
@@ -191,7 +191,7 @@ final class WebAssemblyRecipeTests: XCTestCase {
         }
         """.data(using: .utf8)!
 
-      let recipe = try JSONDecoder().decode(WasmSDKRecipeFile.self, from: json)
+      let recipe = try JSONDecoder().decode(WasmSwiftSDKRecipeFile.self, from: json)
       #expect(recipe.hostSwiftPackagePath == nil)
       #expect(recipe.targets.count == 1)
       #expect(recipe.targets[0].swiftPackagePath == nil)
@@ -268,7 +268,7 @@ final class WebAssemblyRecipeTests: XCTestCase {
         }
         """.data(using: .utf8)!
 
-      let recipeFile = try JSONDecoder().decode(WasmSDKRecipeFile.self, from: json)
+      let recipeFile = try JSONDecoder().decode(WasmSwiftSDKRecipeFile.self, from: json)
 
       // Each target gets its own recipe instance (the CLI loops over targets).
       let wasip1Recipe = WebAssemblyRecipe(

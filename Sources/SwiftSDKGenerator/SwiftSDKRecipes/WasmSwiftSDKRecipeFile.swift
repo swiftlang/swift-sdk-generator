@@ -31,7 +31,7 @@
 ///   ]
 /// }
 /// ```
-package struct WasmSDKRecipeFile: Decodable, Sendable {
+package struct WasmSwiftSDKRecipeFile: Decodable, Sendable {
   /// Schema version for forward compatibility.
   package let schemaVersion: String
 

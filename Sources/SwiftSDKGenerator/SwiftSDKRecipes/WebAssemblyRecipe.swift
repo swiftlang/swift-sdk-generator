@@ -56,7 +56,7 @@ package struct WebAssemblyRecipe: SwiftSDKRecipe {
   /// The recipe file may contain multiple targets; the caller picks which one
   /// to build by passing `targetTriple`.
   package init(
-    recipeFile: WasmSDKRecipeFile,
+    recipeFile: WasmSwiftSDKRecipeFile,
     targetTriple: Triple,
     hostTriples: [Triple],
     logger: Logger
