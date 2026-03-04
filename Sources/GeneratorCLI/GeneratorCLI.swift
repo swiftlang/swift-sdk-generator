@@ -90,7 +90,7 @@ extension GeneratorCLI {
 
     @Option(
       help: """
-        Name of the SDK bundle. Defaults to a string composed of Swift version, target OS release/version \
+        Name of the Swift SDK bundle. Defaults to a string composed of Swift version, target OS release/version \
         and target CPU architecture.
         """
     )
@@ -98,7 +98,7 @@ extension GeneratorCLI {
 
     @Flag(
       help:
-        "Experimental: avoid cleaning up toolchain and SDK directories and regenerate the SDK bundle incrementally."
+        "Experimental: avoid cleaning up toolchain and SDK directories and regenerate the Swift SDK bundle incrementally."
     )
     var incremental: Bool = false
 
@@ -401,7 +401,9 @@ extension GeneratorCLI {
       commandName: "make-wasm-sdk",
       abstract: "Experimental: Generate a Swift SDK bundle for WebAssembly.",
       discussion: """
-        The default `--target` triple is wasm32-unknown-wasi
+        The default `--target` triple is wasm32-unknown-wasip1. \
+        Use `--recipe-path` to provide a JSON recipe file with per-triple \
+        sysroot and package paths for multi-target SDK bundles.
         """
     )
 
@@ -410,32 +412,74 @@ extension GeneratorCLI {
 
     @Option(
       help: """
-        Path to the WASI sysroot directory containing the WASI libc headers and libraries.
+        Path to a JSON recipe file specifying per-triple WASI sysroot and Swift package paths. \
+        When provided, `--wasi-sysroot` and `--target-swift-package-path` are not required, \
+        and target triples are read from the recipe file.
         """
     )
-    var wasiSysroot: String
+    var recipePath: String? = nil
+
+    @Option(
+      help: """
+        Path to the WASI sysroot directory containing the WASI libc headers and libraries. \
+        Required unless `--recipe-path` is provided.
+        """
+    )
+    var wasiSysroot: String? = nil
 
     func deriveTargetTriple() -> Triple {
-      self.generatorOptions.target ?? Triple("wasm32-unknown-wasi")
+      generatorOptions.target ?? Triple("wasm32-unknown-wasip1")
     }
 
     func run() async throws {
-      let recipe = try WebAssemblyRecipe(
-        hostSwiftPackage: generatorOptions.hostSwiftPackagePath.map {
-          let hostTriples = try self.generatorOptions.deriveHostTriples()
-          return WebAssemblyRecipe.HostToolchainPackage(path: FilePath($0), triples: hostTriples)
-        },
-        targetSwiftPackagePath: generatorOptions.targetSwiftPackagePath.map { FilePath($0) },
-        wasiSysroot: FilePath(self.wasiSysroot),
-        swiftVersion: self.generatorOptions.swiftVersion,
-        logger: loggerWithLevel(from: self.generatorOptions)
-      )
-      let targetTriple = self.deriveTargetTriple()
-      try await GeneratorCLI.run(
-        recipe: recipe,
-        targetTriple: targetTriple,
-        options: self.generatorOptions
-      )
+      if let recipePath {
+        let recipeData = try Data(contentsOf: URL(fileURLWithPath: recipePath))
+        let recipeFile = try JSONDecoder().decode(WasmSwiftSDKRecipeFile.self, from: recipeData)
+        let hostTriples = try generatorOptions.deriveHostTriples()
+        let logger = loggerWithLevel(from: self.generatorOptions)
+
+        // Generate a separate SDK for each target in the recipe file.
+        for targetConfig in recipeFile.targets {
+          let targetTriple = Triple(targetConfig.triple)
+          let recipe = WebAssemblyRecipe(
+            recipeFile: recipeFile,
+            targetTriple: targetTriple,
+            hostTriples: hostTriples,
+            logger: logger
+          )
+          // Each target gets its own artifact ID so the bundles don't collide.
+          var perTargetOptions = self.generatorOptions
+          if let baseName = self.generatorOptions.sdkName {
+            perTargetOptions.sdkName = "\(baseName)_\(targetTriple.triple)"
+          }
+          try await GeneratorCLI.run(
+            recipe: recipe,
+            targetTriple: targetTriple,
+            options: perTargetOptions
+          )
+        }
+      } else {
+        guard let wasiSysroot else {
+          throw StringError("--wasi-sysroot is required unless --recipe-path is provided.")
+        }
+        let targetTriple = self.deriveTargetTriple()
+        let recipe = try WebAssemblyRecipe(
+          hostSwiftPackage: generatorOptions.hostSwiftPackagePath.map {
+            let hostTriples = try self.generatorOptions.deriveHostTriples()
+            return WebAssemblyRecipe.HostToolchainPackage(path: FilePath($0), triples: hostTriples)
+          },
+          targetSwiftPackagePath: generatorOptions.targetSwiftPackagePath.map { FilePath($0) },
+          wasiSysroot: FilePath(wasiSysroot),
+          swiftVersion: self.generatorOptions.swiftVersion,
+          targetTriple: targetTriple,
+          logger: loggerWithLevel(from: self.generatorOptions)
+        )
+        try await GeneratorCLI.run(
+          recipe: recipe,
+          targetTriple: targetTriple,
+          options: self.generatorOptions
+        )
+      }
     }
   }
 }

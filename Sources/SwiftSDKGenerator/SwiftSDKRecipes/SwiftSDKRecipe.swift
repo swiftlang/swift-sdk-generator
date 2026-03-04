@@ -16,6 +16,7 @@ import Logging
 import struct SystemPackage.FilePath
 
 package struct SwiftSDKProduct {
+  /// The SDK directory path for this target.
   let sdkDirPath: FilePath
   /// Array of supported host triples. `nil` indicates the SDK can be universally used.
   let hostTriples: [Triple]?

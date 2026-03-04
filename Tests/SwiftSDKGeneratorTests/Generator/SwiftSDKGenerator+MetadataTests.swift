@@ -56,7 +56,11 @@ final class SwiftSDKGeneratorMetadataTests: XCTestCase {
       let linuxDistribution = try LinuxDistribution(name: .ubuntu, version: "22.04")
 
       let sdkDirPath = FilePath(".")
-      try await sdk.generateSDKSettingsFile(sdkDirPath: sdkDirPath, distribution: linuxDistribution)
+      try await sdk.generateSDKSettingsFile(
+        sdkDirPath: sdkDirPath,
+        distribution: linuxDistribution,
+        targetTriple: testCase.targetTriple
+      )
 
       // Make sure the file exists
       let sdkSettingsFile = sdkDirPath.appending("SDKSettings.json")

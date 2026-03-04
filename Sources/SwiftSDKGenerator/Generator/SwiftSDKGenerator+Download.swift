@@ -81,7 +81,7 @@ extension SwiftSDKGenerator {
     )
   }
 
-  func getMirrorURL(for linuxDistribution: LinuxDistribution) throws -> String {
+  func getMirrorURL(for linuxDistribution: LinuxDistribution, targetTriple: Triple) throws -> String {
     if linuxDistribution.name == .ubuntu {
       if targetTriple.arch == .x86_64 {
         return ubuntuMainMirror
@@ -108,9 +108,10 @@ extension SwiftSDKGenerator {
     _ engine: QueryEngine,
     requiredPackages: [String],
     versionsConfiguration: VersionsConfiguration,
-    sdkDirPath: FilePath
+    sdkDirPath: FilePath,
+    targetTriple: Triple
   ) async throws {
-    let mirrorURL = try getMirrorURL(for: versionsConfiguration.linuxDistribution)
+    let mirrorURL = try getMirrorURL(for: versionsConfiguration.linuxDistribution, targetTriple: targetTriple)
     let distributionName = versionsConfiguration.linuxDistribution.name
     let distributionRelease = versionsConfiguration.linuxDistribution.release
 
@@ -146,7 +147,7 @@ extension SwiftSDKGenerator {
           release: distributionRelease,
           releaseSuffix: "",
           repository: "main",
-          targetTriple: self.targetTriple,
+          targetTriple: targetTriple,
           xzPath: xzPath
         )
       }
@@ -157,7 +158,7 @@ extension SwiftSDKGenerator {
           release: distributionRelease,
           releaseSuffix: "-updates",
           repository: "main",
-          targetTriple: self.targetTriple,
+          targetTriple: targetTriple,
           xzPath: xzPath
         )
       }
@@ -169,7 +170,7 @@ extension SwiftSDKGenerator {
             release: distributionRelease,
             releaseSuffix: "-updates",
             repository: "universe",
-            targetTriple: self.targetTriple,
+            targetTriple: targetTriple,
             xzPath: xzPath
           )
         }

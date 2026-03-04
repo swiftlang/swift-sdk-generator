@@ -22,6 +22,7 @@ package struct WebAssemblyRecipe: SwiftSDKRecipe {
   let targetSwiftPackagePath: FilePath?
   let wasiSysroot: FilePath
   let swiftVersion: String
+  let targetTriple: Triple
   package let logger: Logger
 
   package struct HostToolchainPackage: Sendable {
@@ -39,20 +40,49 @@ package struct WebAssemblyRecipe: SwiftSDKRecipe {
     targetSwiftPackagePath: FilePath?,
     wasiSysroot: FilePath,
     swiftVersion: String,
+    targetTriple: Triple,
     logger: Logger
   ) {
     self.hostSwiftPackage = hostSwiftPackage
     self.targetSwiftPackagePath = targetSwiftPackagePath
     self.wasiSysroot = wasiSysroot
     self.swiftVersion = swiftVersion
+    self.targetTriple = targetTriple
     self.logger = logger
+  }
+
+  /// Construct a recipe for a single target triple from a recipe file.
+  ///
+  /// The recipe file may contain multiple targets; the caller picks which one
+  /// to build by passing `targetTriple`.
+  package init(
+    recipeFile: WasmSwiftSDKRecipeFile,
+    targetTriple: Triple,
+    hostTriples: [Triple],
+    logger: Logger
+  ) {
+    self.swiftVersion = recipeFile.swiftVersion
+    self.targetTriple = targetTriple
+    self.hostSwiftPackage = recipeFile.hostSwiftPackagePath.map {
+      HostToolchainPackage(path: FilePath($0), triples: hostTriples)
+    }
+
+    // Find the matching target config.
+    let targetConfig = recipeFile.targets.first { $0.triple == targetTriple.triple }!
+    self.wasiSysroot = FilePath(targetConfig.wasiSysroot)
+    self.targetSwiftPackagePath = targetConfig.swiftPackagePath.map { FilePath($0) }
+    self.logger = logger
+  }
+
+  private var wasmSuffix: String {
+    targetTriple.environmentName == "threads" ? "wasm-threads" : "wasm"
   }
 
   package var defaultArtifactID: String {
     if hostSwiftPackage == nil && targetSwiftPackagePath == nil {
-      return "wasm"
+      return wasmSuffix
     }
-    return "\(self.swiftVersion)_wasm"
+    return "\(self.swiftVersion)_\(wasmSuffix)"
   }
 
   package let shouldSupportEmbeddedSwift = true

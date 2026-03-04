@@ -56,21 +56,24 @@ extension SwiftSDKGenerator {
           httpClient: client
         )
 
-        let toolsetJSONPath = try await self.generateToolsetJSON(recipe: recipe)
+        let toolsetPath = try await self.generateToolsetJSON(recipe: recipe)
 
         var artifacts = try await [
           self.artifactID: generateSwiftSDKMetadata(
-            toolsetPath: toolsetJSONPath,
+            toolsetPath: toolsetPath,
             sdkDirPath: swiftSDKProduct.sdkDirPath,
             recipe: recipe
           )
         ]
 
         if recipe.shouldSupportEmbeddedSwift {
-          let toolsetJSONPath = try await self.generateToolsetJSON(recipe: recipe, isForEmbeddedSwift: true)
+          let embeddedToolsetPath = try await self.generateToolsetJSON(
+            recipe: recipe,
+            isForEmbeddedSwift: true
+          )
 
           artifacts["\(self.artifactID)-embedded"] = try await generateSwiftSDKMetadata(
-            toolsetPath: toolsetJSONPath,
+            toolsetPath: embeddedToolsetPath,
             sdkDirPath: swiftSDKProduct.sdkDirPath,
             recipe: recipe,
             isForEmbeddedSwift: true

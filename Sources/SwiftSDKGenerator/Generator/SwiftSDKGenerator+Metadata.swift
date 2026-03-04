@@ -21,17 +21,22 @@ private let encoder: JSONEncoder = {
 }()
 
 extension SwiftSDKGenerator {
-  func generateToolsetJSON(recipe: SwiftSDKRecipe, isForEmbeddedSwift: Bool = false) throws -> FilePath {
-    logger.info("Generating toolset JSON file...")
+  /// Generates toolset JSON file for the target triple.
+  func generateToolsetJSON(
+    recipe: SwiftSDKRecipe,
+    isForEmbeddedSwift: Bool = false
+  ) throws -> FilePath {
+    let paths = pathsConfiguration
+    logger.info("Generating toolset JSON file for \(targetTriple.triple)...")
 
-    let toolsetJSONPath = pathsConfiguration.swiftSDKRootPath.appending(
+    let toolsetJSONPath = paths.swiftSDKRootPath.appending(
       "\(isForEmbeddedSwift ? "embedded-" : "")toolset.json"
     )
 
-    var relativeToolchainBinDir = pathsConfiguration.toolchainBinDirPath
+    var relativeToolchainBinDir = paths.toolchainBinDirPath
 
     guard
-      relativeToolchainBinDir.removePrefix(pathsConfiguration.swiftSDKRootPath)
+      relativeToolchainBinDir.removePrefix(paths.swiftSDKRootPath)
     else {
       fatalError(
         "`toolchainBinDirPath` is at an unexpected location that prevents computing a relative path"
@@ -49,7 +54,7 @@ extension SwiftSDKGenerator {
     return toolsetJSONPath
   }
 
-  /// Generates `swift-sdk.json` metadata file.
+  /// Generates `swift-sdk.json` metadata file for the target triple.
   func generateSwiftSDKMetadata(
     toolsetPath: FilePath,
     sdkDirPath: FilePath,
@@ -58,22 +63,23 @@ extension SwiftSDKGenerator {
   ) throws -> FilePath {
     logger.info("Generating Swift SDK metadata JSON file...")
 
-    let swiftSDKMetadataPath = pathsConfiguration.swiftSDKRootPath.appending(
-      "\(isForEmbeddedSwift ? "embedded-" : "")swift-sdk.json"
-    )
+    let swiftSDKMetadataPath = pathsConfiguration.artifactBundlePath
+      .appending(artifactID)
+      .appending("\(isForEmbeddedSwift ? "embedded-" : "")swift-sdk.json")
 
-    var relativeToolchainBinDir = pathsConfiguration.toolchainBinDirPath
+    // Base path for computing relative paths
+    let basePath = pathsConfiguration.artifactBundlePath.appending(artifactID)
+
     var relativeSDKDir = sdkDirPath
     var relativeToolsetPath = toolsetPath
 
     guard
-      relativeToolchainBinDir.removePrefix(pathsConfiguration.swiftSDKRootPath),
-      relativeSDKDir.removePrefix(pathsConfiguration.swiftSDKRootPath),
-      relativeToolsetPath.removePrefix(pathsConfiguration.swiftSDKRootPath)
+      relativeSDKDir.removePrefix(basePath),
+      relativeToolsetPath.removePrefix(basePath)
     else {
       fatalError(
         """
-        `toolchainBinDirPath`, `sdkDirPath`, and `toolsetPath` are at unexpected locations that prevent computing \
+        `sdkDirPath` and `toolsetPath` are at unexpected locations that prevent computing \
         relative paths
         """
       )
@@ -81,7 +87,7 @@ extension SwiftSDKGenerator {
 
     var metadata = SwiftSDKMetadataV4(
       targetTriples: [
-        self.targetTriple.triple: .init(
+        targetTriple.triple: .init(
           sdkRootPath: relativeSDKDir.string,
           toolsetPaths: [relativeToolsetPath.string]
         )
@@ -91,10 +97,11 @@ extension SwiftSDKGenerator {
     recipe.applyPlatformOptions(
       metadata: &metadata,
       paths: pathsConfiguration,
-      targetTriple: self.targetTriple,
+      targetTriple: targetTriple,
       isForEmbeddedSwift: isForEmbeddedSwift
     )
 
+    try createDirectoryIfNeeded(at: swiftSDKMetadataPath.removingLastComponent())
     try writeFile(
       at: swiftSDKMetadataPath,
       encoder.encode(metadata)
@@ -160,7 +167,7 @@ extension SwiftSDKGenerator {
   ///   }
   /// }
   /// ```
-  func generateSDKSettingsFile(sdkDirPath: FilePath, distribution: LinuxDistribution) throws {
+  func generateSDKSettingsFile(sdkDirPath: FilePath, distribution: LinuxDistribution, targetTriple: Triple) throws {
     logger.info("Generating SDKSettings.json file to silence cross-compilation warnings...")
 
     let sdkSettings = SDKSettings(
