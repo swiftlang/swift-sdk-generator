@@ -105,10 +105,15 @@ let package = Package(
         .product(name: "SystemPackage", package: "swift-system"),
       ]
     ),
+    .executableTarget(
+      name: "sap-exec",
+      dependencies: ["AsyncProcess"]
+    ),
     .testTarget(
       name: "AsyncProcessTests",
       dependencies: [
         "AsyncProcess",
+        "sap-exec",
         .product(name: "Atomics", package: "swift-atomics"),
         .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
         .product(name: "NIO", package: "swift-nio"),
@@ -165,7 +170,7 @@ if configuration.useLocalDependencies {
     .package(url: "https://github.com/apple/swift-atomics.git", from: "1.2.0"),
     .package(url: "https://github.com/apple/swift-collections.git", from: "1.1.2"),
     .package(url: "https://github.com/apple/swift-crypto.git", from: "3.1.0"),
-    .package(url: "https://github.com/apple/swift-nio.git", from: "2.65.0"),
+    .package(url: "https://github.com/apple/swift-nio.git", from: "2.92.2"),
     .package(url: "https://github.com/apple/swift-log.git", from: "1.5.4"),
   ]
 }

@@ -18,18 +18,6 @@ import ProcessSpawnSync
 
 @_exported import struct SystemPackage.FileDescriptor
 
-#if os(Linux) || ASYNC_PROCESS_FORCE_PS_PROCESS
-  // Foundation.Process is too buggy on Linux
-  //
-  // - Foundation.Process on Linux throws error Error Domain=NSCocoaErrorDomain Code=256 "(null)" if executable not found
-  //   https://github.com/swiftlang/swift-corelibs-foundation/issues/4810
-  // - Foundation.Process on Linux doesn't correctly detect when child process dies (creating zombie processes)
-  //   https://github.com/swiftlang/swift-corelibs-foundation/issues/4795
-  // - Foundation.Process on Linux seems to inherit the Process.run()-calling thread's signal mask, even SIGTERM blocked
-  //   https://github.com/swiftlang/swift-corelibs-foundation/issues/4772
-  typealias Process = PSProcess
-#endif
-
 #if os(iOS) || os(tvOS) || os(watchOS)
   // Process & fork/exec unavailable
   #error("Process and fork() unavailable")
@@ -205,6 +193,7 @@ public final actor ProcessExecutor {
   private let teardownSequence: TeardownSequence
   private let spawnOptions: SpawnOptions
 
+  @available(*, deprecated, message: "do not use")
   public static var isBackedByPSProcess: Bool {
     return Process.self == PSProcess.self
   }
@@ -215,18 +204,12 @@ public final actor ProcessExecutor {
     /// The default and safe option is `true` but on Linux this incurs a performance penalty unless you have
     /// a new-enough Glibc & Linux that support the
     /// [`close_range`](https://man7.org/linux/man-pages/man2/close_range.2.html) syscall.
-    ///
-    /// On Darwin, `false` is only supported if you compile with `-Xswiftc -DASYNC_PROCESS_FORCE_PS_PROCESS`,
-    /// otherwise it will be silently ignored (and the other file descriptors will be closed anyway.).
     public var closeOtherFileDescriptors: Bool
 
     /// Change the working directory of the child process to this directory.
     public var changedWorkingDirectory: Optional<String>
 
     /// Should we call `setsid()` in the child process?
-    ///
-    /// Not supported on Darwin, unless you compile with `-Xswiftc -DASYNC_PROCESS_FORCE_PS_PROCESS`, otherwise
-    /// it will be silently ignored (and no new session will be created).
     public var createNewSession: Bool
 
     /// If an `AsyncSequence` to write is provided to `standardInput`, should we ignore all write errors?
@@ -248,6 +231,8 @@ public final actor ProcessExecutor {
     ///            not return from `run(WithExtendedInfo)` until we streamed our full standard input (or it failed).
     public var cancelStandardInputWritingWhenProcessExits: Bool
 
+    internal var replaceProcess: Bool
+
     /// Safe & sensible default options.
     public static var `default`: SpawnOptions {
       return SpawnOptions(
@@ -256,8 +241,38 @@ public final actor ProcessExecutor {
         createNewSession: false,
         ignoreStdinStreamWriteErrors: false,
         cancelProcessOnStandardInputWriteFailure: true,
-        cancelStandardInputWritingWhenProcessExits: true
+        cancelStandardInputWritingWhenProcessExits: true,
+        replaceProcess: false
       )
+    }
+
+    internal static var suitableForProcessReplacement: SpawnOptions {
+      return SpawnOptions(
+        closeOtherFileDescriptors: false,
+        changedWorkingDirectory: nil,
+        createNewSession: false,
+        ignoreStdinStreamWriteErrors: false,
+        cancelProcessOnStandardInputWriteFailure: false,
+        cancelStandardInputWritingWhenProcessExits: false,
+        replaceProcess: true
+      )
+    }
+
+    internal var requiresPSProcess: Bool {
+      #if os(Linux) || ASYNC_PROCESS_FORCE_PS_PROCESS
+        // Foundation.Process is too buggy on Linux
+        //
+        // - Foundation.Process on Linux throws error Error Domain=NSCocoaErrorDomain Code=256 "(null)" if executable not found
+        //   https://github.com/swiftlang/swift-corelibs-foundation/issues/4810
+        // - Foundation.Process on Linux doesn't correctly detect when child process dies (creating zombie processes)
+        //   https://github.com/swiftlang/swift-corelibs-foundation/issues/4795
+        // - Foundation.Process on Linux seems to inherit the Process.run()-calling thread's signal mask, even SIGTERM blocked
+        //   https://github.com/swiftlang/swift-corelibs-foundation/issues/4772
+        return true
+      #else
+        let requiresPSProcess = !self.closeOtherFileDescriptors || self.createNewSession || self.replaceProcess
+        return requiresPSProcess
+      #endif
     }
   }
 
@@ -436,7 +451,13 @@ public final actor ProcessExecutor {
     self.teardownSequence = teardownSequence
     self.spawnOptions = spawnOptions
 
-    self.standardInputPipe = StandardInput.self == EOFSequence<ByteBuffer>.self ? .devNull : .ownedHandle(Pipe())
+    if StandardInput.self == EOFSequence<ByteBuffer>.self {
+      self.standardInputPipe = .devNull
+    } else if StandardInput.self == InheritStandardInput.self {
+      self.standardInputPipe = .inherit
+    } else {
+      self.standardInputPipe = .ownedHandle(Pipe())
+    }
 
     let standardOutputWriteHandle: ChildFileState<FileHandle>
     let standardErrorWriteHandle: ChildFileState<FileHandle>
@@ -566,7 +587,7 @@ public final actor ProcessExecutor {
     )
   }
 
-  private func teardown(process: Process) async {
+  private func teardown(process: any ProcessImplementation) async {
     let childPid = self.processPid.load(ordering: .sequentiallyConsistent)
     guard childPid != 0 else {
       self.logger.warning(
@@ -599,6 +620,7 @@ public final actor ProcessExecutor {
                 return .processHasExited
               }
             }
+            logger.info("sending signal to process", metadata: ["signal": "\(signal)"])
             try? await self.sendSignal(signal)
             return await group.next()!
           }
@@ -659,7 +681,7 @@ public final actor ProcessExecutor {
     try await self.setupStandardOutput()
     try await self.setupStandardError()
 
-    let p = Process()
+    let p: any ProcessImplementation = Process.initialiseProcessImpl(spawnOptions: self.spawnOptions)
     #if canImport(Darwin)
       if #available(macOS 13.0, *) {
         p.executableURL = URL(filePath: self.executable)
@@ -669,55 +691,53 @@ public final actor ProcessExecutor {
     #else
       p.executableURL = URL(fileURLWithPath: self.executable)
     #endif
-    p.arguments = self.arguments
-    p.environment = self.environment
-    p.standardInput = nil
-    func isTypeOf<Existing, New>(_ existing: Existing, type: New.Type) -> New? {
-      return existing as? New
-    }
+    p.setArguments(self.arguments)
+    p.setEnvironment(self.environment)
     if let newCWD = self.spawnOptions.changedWorkingDirectory {
       p.currentDirectoryURL = URL.init(fileURLWithPath: newCWD)
     }
-    if let pSpecial = isTypeOf(p, type: PSProcess.self) {
-      assert(Self.isBackedByPSProcess)
-      pSpecial._closeOtherFileDescriptors = self.spawnOptions.closeOtherFileDescriptors
-      pSpecial._createNewSession = self.spawnOptions.createNewSession
-    } else {
-      assert(!Self.isBackedByPSProcess)
+    if !self.spawnOptions.closeOtherFileDescriptors {
+      (p as! PSProcess)._closeOtherFileDescriptors = false
+    }
+    if self.spawnOptions.createNewSession {
+      (p as! PSProcess)._createNewSession = true
+    }
+    if self.spawnOptions.replaceProcess {
+      (p as! PSProcess)._replaceProcess = true
     }
 
     switch self.standardInputPipe {
     case .inherit:
       ()  // We are _not_ setting it, this is `Foundation.Process`'s API for inheritance
     case .devNull:
-      p.standardInput = nil  // Yes, setting to `nil` means `/dev/null`
+      p.setStandardInput(nil)  // Yes, setting to `nil` means `/dev/null`
     case .ownedHandle(let pipe), .unownedHandle(let pipe):
-      p.standardInput = pipe
+      p.setStandardInput(pipe)
     }
 
     switch self.standardOutputWriteHandle {
     case .inherit:
       ()  // We are _not_ setting it, this is `Foundation.Process`'s API for inheritance
     case .devNull:
-      p.standardOutput = nil  // Yes, setting to `nil` means `/dev/null`
+      p.setStandardOutput(nil)  // Yes, setting to `nil` means `/dev/null`
     case .ownedHandle(let fileHandle), .unownedHandle(let fileHandle):
-      p.standardOutput = fileHandle
+      p.setStandardOutput(fileHandle)
     }
 
     switch self.standardErrorWriteHandle {
     case .inherit:
       ()  // We are _not_ setting it, this is `Foundation.Process`'s API for inheritance
     case .devNull:
-      p.standardError = nil  // Yes, setting to `nil` means `/dev/null`
+      p.setStandardError(nil)  // Yes, setting to `nil` means `/dev/null`
     case .ownedHandle(let fileHandle), .unownedHandle(let fileHandle):
-      p.standardError = fileHandle
+      p.setStandardError(fileHandle)
     }
 
     let (terminationStreamConsumer, terminationStreamProducer) = AsyncStream.justMakeIt(
       elementType: ProcessExitReason.self
     )
 
-    p.terminationHandler = { p in
+    p.setTerminationHandler { p in
       let pProcessID = p.processIdentifier
       var terminationPidExchange: (exchanged: Bool, original: pid_t) = (false, -1)
       while !terminationPidExchange.exchanged {
@@ -897,6 +917,9 @@ public final actor ProcessExecutor {
             ignoreWriteErrors: self.spawnOptions.ignoreStdinStreamWriteErrors,
             eventLoop: self.group.any()
           )
+        } catch is CancellationError {
+          // The CancellationError comes from us cancelling this task when the process exits, and is expected. Don't surface an error in this case.
+          return .stdinWriter(nil)
         } catch {
           return .stdinWriter(error)
         }
