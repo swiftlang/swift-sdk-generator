@@ -92,11 +92,15 @@ package struct FreeBSDRecipe: SwiftSDKRecipe {
   ]
 
   private func baseSysURL() -> String {
-    // The FreeBSD package system uses arm64 instead of aarch64 in its URLs.
+    // The FreeBSD package system uses different architecture strings in URLs,
+    // arm64 instead of aarch64, and amd64 instead of x86_64.
     let architectureString: String
-    if mainTargetTriple.arch == .aarch64 {
+    switch mainTargetTriple.arch {
+    case .aarch64:
       architectureString = "arm64"
-    } else {
+    case .x86_64:
+      architectureString = "amd64"
+    default:
       architectureString = architecture
     }
 
