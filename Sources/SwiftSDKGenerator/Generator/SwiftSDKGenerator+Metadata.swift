@@ -12,6 +12,7 @@
 
 import SystemPackage
 
+import class Foundation.JSONDecoder
 import class Foundation.JSONEncoder
 
 private let encoder: JSONEncoder = {
@@ -112,30 +113,66 @@ extension SwiftSDKGenerator {
 
     let artifactBundleManifestPath = pathsConfiguration.artifactBundlePath.appending("info.json")
 
+    let newArtifacts: [String: ArtifactsArchiveMetadata.Artifact] = artifacts.mapValues {
+      var relativePath = $0
+      let prefixRemoved = relativePath.removePrefix(pathsConfiguration.artifactBundlePath)
+      assert(prefixRemoved, "artifact path \($0) must be inside the bundle path \(pathsConfiguration.artifactBundlePath)")
+      if !shouldUseFullPaths {
+        relativePath.removeLastComponent()
+      }
+
+      return .init(
+        type: .swiftSDK,
+        version: self.bundleVersion,
+        variants: [
+          .init(
+            path: relativePath.string,
+            supportedTriples: hostTriples.map { $0.map(\.triple) }
+          )
+        ]
+      )
+    }
+
+    // In incremental mode, preserve any artifact entries already present in
+    // the bundle's `info.json` so that running the generator multiple times
+    // with different `--sdk-name` values (and a shared `--bundle-name`) yields
+    // a single bundle containing all of them. Foreign keys are kept as-is;
+    // current-run keys overwrite. Tolerate a missing file by writing fresh.
+    let mergedArtifacts: [String: ArtifactsArchiveMetadata.Artifact]
+    if isIncremental, doesFileExist(at: artifactBundleManifestPath) {
+      let existingData = try readFile(at: artifactBundleManifestPath)
+      let existing: ArtifactsArchiveMetadata
+      do {
+        existing = try JSONDecoder().decode(
+          ArtifactsArchiveMetadata.self, from: existingData
+        )
+      } catch {
+        throw GeneratorError.incrementalManifestDecodingFailed(
+          artifactBundleManifestPath, error
+        )
+      }
+      let expectedSchemaVersion = "1.0"
+      guard existing.schemaVersion == expectedSchemaVersion else {
+        throw GeneratorError.incrementalManifestSchemaMismatch(
+          artifactBundleManifestPath,
+          expected: expectedSchemaVersion,
+          actual: existing.schemaVersion
+        )
+      }
+      logger.info(
+        "Merging \(newArtifacts.count) new artifact(s) into existing manifest at \(artifactBundleManifestPath) (\(existing.artifacts.count) existing entries)."
+      )
+      mergedArtifacts = existing.artifacts.merging(newArtifacts) { _, new in new }
+    } else {
+      mergedArtifacts = newArtifacts
+    }
+
     try writeFile(
       at: artifactBundleManifestPath,
       encoder.encode(
         ArtifactsArchiveMetadata(
           schemaVersion: "1.0",
-          artifacts: artifacts.mapValues {
-            var relativePath = $0
-            let prefixRemoved = relativePath.removePrefix(pathsConfiguration.artifactBundlePath)
-            assert(prefixRemoved)
-            if !shouldUseFullPaths {
-              relativePath.removeLastComponent()
-            }
-
-            return .init(
-              type: .swiftSDK,
-              version: self.bundleVersion,
-              variants: [
-                .init(
-                  path: relativePath.string,
-                  supportedTriples: hostTriples.map { $0.map(\.triple) }
-                )
-              ]
-            )
-          }
+          artifacts: mergedArtifacts
         )
       )
     )

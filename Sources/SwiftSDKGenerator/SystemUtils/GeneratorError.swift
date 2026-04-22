@@ -30,6 +30,8 @@ enum GeneratorError: Error {
   case debianPackagesListDownloadRequiresXz
   case packagesListDecompressionFailure
   case packagesListParsingFailure(expectedPackages: Int, actual: Int)
+  case incrementalManifestDecodingFailed(FilePath, Error)
+  case incrementalManifestSchemaMismatch(FilePath, expected: String, actual: String)
 }
 
 extension GeneratorError: CustomStringConvertible {
@@ -74,6 +76,10 @@ extension GeneratorError: CustomStringConvertible {
       return "Failed to decompress the list of packages."
     case let .packagesListParsingFailure(expected, actual):
       return "Failed to parse packages manifest, expected \(expected), found \(actual) packages."
+    case let .incrementalManifestDecodingFailed(path, underlying):
+      return "Failed to decode existing artifact bundle manifest at \(path) for incremental merge: \(underlying)"
+    case let .incrementalManifestSchemaMismatch(path, expected, actual):
+      return "Existing artifact bundle manifest at \(path) declares schemaVersion \"\(actual)\", but this generator only supports \"\(expected)\". Refusing to merge to avoid silently changing the schema."
     }
   }
 }
