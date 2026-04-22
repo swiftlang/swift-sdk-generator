@@ -101,7 +101,7 @@ extension GeneratorCLI {
       help: """
         Name of the .artifactbundle directory written to disk (without the `.artifactbundle` suffix). \
         Defaults to the SDK name. Set explicitly when generating multiple Swift SDKs that should share \
-        a single bundle (e.g. wasip1, wasip1-threads, and emscripten in one wasm bundle). \
+        a single bundle (e.g. wasip1, wasip1-threads, and emscripten in one Wasm bundle). \
         Must be a single path component: no `/`, `\\`, `..`, `.`, or empty string.
         """
     )
