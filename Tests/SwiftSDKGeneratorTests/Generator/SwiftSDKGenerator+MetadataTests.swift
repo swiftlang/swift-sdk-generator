@@ -87,7 +87,7 @@ final class SwiftSDKGeneratorMetadataTests: XCTestCase {
       XCTAssertEqual(
         Set(firstDecoded.artifacts.keys),
         ["first-sdk"],
-        "Sanity check: initial write should produce single-entry manifest"
+        "initial write should produce single-entry manifest"
       )
 
       // Second write (still isIncremental): adds "second-sdk".
