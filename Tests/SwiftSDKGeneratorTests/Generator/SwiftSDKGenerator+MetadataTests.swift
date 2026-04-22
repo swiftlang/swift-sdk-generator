@@ -41,7 +41,8 @@ final class SwiftSDKGeneratorMetadataTests: XCTestCase {
       .appendingPathComponent("swift-sdk-generator-metadata-tests")
       .appendingPathComponent(UUID().uuidString)
     try FileManager.default.createDirectory(
-      at: tempRoot, withIntermediateDirectories: true
+      at: tempRoot,
+      withIntermediateDirectories: true
     )
     let sourceRoot = FilePath(tempRoot.path)
 
@@ -68,7 +69,9 @@ final class SwiftSDKGeneratorMetadataTests: XCTestCase {
   /// `.artifactbundle`.
   func testIncrementalManifestMergesWithExisting() async throws {
     let (sdk, sourceRoot) = try await makeGenerator(
-      artifactID: "first-sdk", bundleName: "merge-test-bundle", isIncremental: true
+      artifactID: "first-sdk",
+      bundleName: "merge-test-bundle",
+      isIncremental: true
     )
     try await withAsyncThrowing {
       let bundlePath = await sdk.pathsConfiguration.artifactBundlePath
@@ -113,7 +116,9 @@ final class SwiftSDKGeneratorMetadataTests: XCTestCase {
   /// most-recent write wins — older variants must not stick around.
   func testIncrementalManifestOverwritesSameKey() async throws {
     let (sdk, sourceRoot) = try await makeGenerator(
-      artifactID: "shared-id", bundleName: "merge-overwrite-bundle", isIncremental: true
+      artifactID: "shared-id",
+      bundleName: "merge-overwrite-bundle",
+      isIncremental: true
     )
     try await withAsyncThrowing {
       let bundlePath = await sdk.pathsConfiguration.artifactBundlePath
@@ -137,7 +142,8 @@ final class SwiftSDKGeneratorMetadataTests: XCTestCase {
       XCTAssertEqual(decoded.artifacts.count, 1, "Same-key writes must collapse to one entry")
       let variant = try XCTUnwrap(decoded.artifacts["shared-id"]?.variants.first)
       XCTAssertEqual(
-        variant.path, "shared-id-new",
+        variant.path,
+        "shared-id-new",
         "Most recent write must win for the same artifact key"
       )
       XCTAssertEqual(
@@ -154,7 +160,9 @@ final class SwiftSDKGeneratorMetadataTests: XCTestCase {
   /// overwritten — preserving the legacy single-SDK-per-bundle behavior.
   func testNonIncrementalManifestOverwritesExisting() async throws {
     let (sdk, sourceRoot) = try await makeGenerator(
-      artifactID: "first-sdk", bundleName: "overwrite-test-bundle", isIncremental: false
+      artifactID: "first-sdk",
+      bundleName: "overwrite-test-bundle",
+      isIncremental: false
     )
     try await withAsyncThrowing {
       let bundlePath = await sdk.pathsConfiguration.artifactBundlePath
@@ -188,7 +196,9 @@ final class SwiftSDKGeneratorMetadataTests: XCTestCase {
   /// manifest — there is no error or special-case behavior.
   func testIncrementalManifestToleratesMissingFile() async throws {
     let (sdk, sourceRoot) = try await makeGenerator(
-      artifactID: "fresh-sdk", bundleName: "fresh-bundle", isIncremental: true
+      artifactID: "fresh-sdk",
+      bundleName: "fresh-bundle",
+      isIncremental: true
     )
     try await withAsyncThrowing {
       let bundlePath = await sdk.pathsConfiguration.artifactBundlePath
@@ -213,7 +223,9 @@ final class SwiftSDKGeneratorMetadataTests: XCTestCase {
   /// merge to throw rather than silently downgrading the schema.
   func testIncrementalManifestRejectsSchemaMismatch() async throws {
     let (sdk, sourceRoot) = try await makeGenerator(
-      artifactID: "x", bundleName: "schema-mismatch-bundle", isIncremental: true
+      artifactID: "x",
+      bundleName: "schema-mismatch-bundle",
+      isIncremental: true
     )
     try await withAsyncThrowing {
       let bundlePath = await sdk.pathsConfiguration.artifactBundlePath

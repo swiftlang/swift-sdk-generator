@@ -116,7 +116,10 @@ extension SwiftSDKGenerator {
     let newArtifacts: [String: ArtifactsArchiveMetadata.Artifact] = artifacts.mapValues {
       var relativePath = $0
       let prefixRemoved = relativePath.removePrefix(pathsConfiguration.artifactBundlePath)
-      assert(prefixRemoved, "artifact path \($0) must be inside the bundle path \(pathsConfiguration.artifactBundlePath)")
+      assert(
+        prefixRemoved,
+        "artifact path \($0) must be inside the bundle path \(pathsConfiguration.artifactBundlePath)"
+      )
       if !shouldUseFullPaths {
         relativePath.removeLastComponent()
       }
@@ -144,11 +147,13 @@ extension SwiftSDKGenerator {
       let existing: ArtifactsArchiveMetadata
       do {
         existing = try JSONDecoder().decode(
-          ArtifactsArchiveMetadata.self, from: existingData
+          ArtifactsArchiveMetadata.self,
+          from: existingData
         )
       } catch {
         throw GeneratorError.incrementalManifestDecodingFailed(
-          artifactBundleManifestPath, error
+          artifactBundleManifestPath,
+          error
         )
       }
       let expectedSchemaVersion = "1.0"

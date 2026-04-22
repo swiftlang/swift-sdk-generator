@@ -79,7 +79,11 @@ extension GeneratorError: CustomStringConvertible {
     case let .incrementalManifestDecodingFailed(path, underlying):
       return "Failed to decode existing artifact bundle manifest at \(path) for incremental merge: \(underlying)"
     case let .incrementalManifestSchemaMismatch(path, expected, actual):
-      return "Existing artifact bundle manifest at \(path) declares schemaVersion \"\(actual)\", but this generator only supports \"\(expected)\". Refusing to merge to avoid silently changing the schema."
+      return """
+        Existing artifact bundle manifest at \(path) declares schemaVersion "\(actual)", \
+        but this generator only supports "\(expected)". \
+        Refusing to merge to avoid silently changing the schema.
+        """
     }
   }
 }
