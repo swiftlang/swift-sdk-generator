@@ -46,6 +46,7 @@ struct GeneratorCLI: AsyncParsableCommand {
         bundleVersion: options.bundleVersion,
         targetTriple: targetTriple,
         artifactID: options.sdkName ?? recipe.defaultArtifactID,
+        bundleName: options.bundleName,
         isIncremental: options.incremental,
         isVerbose: options.verbose,
         logger: logger
@@ -95,6 +96,16 @@ extension GeneratorCLI {
         """
     )
     var sdkName: String? = nil
+
+    @Option(
+      help: """
+        Name of the .artifactbundle directory written to disk (without the `.artifactbundle` suffix). \
+        Defaults to the SDK name. Set explicitly when generating multiple Swift SDKs that should share \
+        a single bundle (e.g. wasip1, wasip1-threads, and emscripten in one Wasm bundle). \
+        Must be a single path component: no `/`, `\\`, `..`, `.`, or empty string.
+        """
+    )
+    var bundleName: String? = nil
 
     @Flag(
       help:
@@ -174,6 +185,16 @@ extension GeneratorCLI {
       #else
         false
       #endif
+    }
+
+    func validate() throws {
+      if let bundleName {
+        do {
+          try PathsConfiguration.validateBundleName(bundleName)
+        } catch {
+          throw ValidationError("--bundle-name is invalid: \(error)")
+        }
+      }
     }
 
     func deriveHostTriples() throws -> [Triple] {
@@ -401,7 +422,8 @@ extension GeneratorCLI {
       commandName: "make-wasm-sdk",
       abstract: "Experimental: Generate a Swift SDK bundle for WebAssembly.",
       discussion: """
-        The default `--target` triple is wasm32-unknown-wasi
+        The default `--target` triple is wasm32-unknown-wasi. Use \
+        `wasm32-unknown-emscripten` to target Emscripten.
         """
     )
 
@@ -413,24 +435,61 @@ extension GeneratorCLI {
         Path to the WASI sysroot directory containing the WASI libc headers and libraries.
         """
     )
-    var wasiSysroot: String
+    var targetSysroot: String? = nil
+
+    @Option(
+      help: """
+        Deprecated: use `--target-sysroot` instead. Kept for backwards compatibility \
+        with callers that still pass the old name.
+        """
+    )
+    var wasiSysroot: String? = nil
 
     func deriveTargetTriple() -> Triple {
       self.generatorOptions.target ?? Triple("wasm32-unknown-wasi")
     }
 
+    func validate() throws {
+      if targetSysroot == nil && wasiSysroot == nil {
+        throw ValidationError("Either `--target-sysroot` or the deprecated `--wasi-sysroot` must be provided.")
+      }
+    }
+
+    /// Resolve the user-provided sysroot, accepting either the new `--target-sysroot`
+    /// or the deprecated `--wasi-sysroot`. Emits deprecation warnings via the
+    /// supplied (verbosity-scoped) logger. Precondition: ``validate()`` has run
+    /// and at least one of the two options is set.
+    private func resolveTargetSysroot(logger: Logger) -> String {
+      switch (targetSysroot, wasiSysroot) {
+      case (let new?, nil):
+        return new
+      case (nil, let old?):
+        logger.warning("`--wasi-sysroot` is deprecated; use `--target-sysroot` instead.")
+        return old
+      case (let new?, _?):
+        logger.warning(
+          "Both `--target-sysroot` and `--wasi-sysroot` were specified; using `--target-sysroot` and ignoring the deprecated `--wasi-sysroot`."
+        )
+        return new
+      case (nil, nil):
+        preconditionFailure("validate() must have rejected the missing sysroot before run()")
+      }
+    }
+
     func run() async throws {
+      let logger = loggerWithLevel(from: self.generatorOptions)
+      let targetTriple = self.deriveTargetTriple()
       let recipe = try WebAssemblyRecipe(
         hostSwiftPackage: generatorOptions.hostSwiftPackagePath.map {
           let hostTriples = try self.generatorOptions.deriveHostTriples()
           return WebAssemblyRecipe.HostToolchainPackage(path: FilePath($0), triples: hostTriples)
         },
         targetSwiftPackagePath: generatorOptions.targetSwiftPackagePath.map { FilePath($0) },
-        wasiSysroot: FilePath(self.wasiSysroot),
+        targetSysroot: FilePath(self.resolveTargetSysroot(logger: logger)),
         swiftVersion: self.generatorOptions.swiftVersion,
-        logger: loggerWithLevel(from: self.generatorOptions)
+        targetTriple: targetTriple,
+        logger: logger
       )
-      let targetTriple = self.deriveTargetTriple()
       try await GeneratorCLI.run(
         recipe: recipe,
         targetTriple: targetTriple,
