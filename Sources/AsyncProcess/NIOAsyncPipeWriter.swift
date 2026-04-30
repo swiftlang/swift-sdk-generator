@@ -42,6 +42,8 @@ struct NIOAsyncPipeWriter<Chunks: AsyncSequence & Sendable> where Chunks.Element
       } onCancel: {
         channel.close(promise: nil)
       }
+      // Re-raise CancellationError if we got cancelled and the cancellation handler ate the error.
+      try Task.checkCancellation()
     } finally: { _ in
       do {
         try await channel.close()
