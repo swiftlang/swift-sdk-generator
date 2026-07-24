@@ -20,8 +20,9 @@ package struct WebAssemblyRecipe: SwiftSDKRecipe {
 
   /// Optional to allow creating WebAssembly Swift SDKs that don't include Swift support and therefore can only target C/C++.
   let targetSwiftPackagePath: FilePath?
-  let wasiSysroot: FilePath
+  let targetSysroot: FilePath
   let swiftVersion: String
+  let targetTriple: Triple
   package let logger: Logger
 
   package struct HostToolchainPackage: Sendable {
@@ -37,22 +38,53 @@ package struct WebAssemblyRecipe: SwiftSDKRecipe {
   package init(
     hostSwiftPackage: HostToolchainPackage?,
     targetSwiftPackagePath: FilePath?,
-    wasiSysroot: FilePath,
+    targetSysroot: FilePath,
     swiftVersion: String,
+    targetTriple: Triple,
     logger: Logger
   ) {
     self.hostSwiftPackage = hostSwiftPackage
     self.targetSwiftPackagePath = targetSwiftPackagePath
-    self.wasiSysroot = wasiSysroot
+    self.targetSysroot = targetSysroot
     self.swiftVersion = swiftVersion
+    self.targetTriple = targetTriple
     self.logger = logger
+  }
+
+  /// True when this recipe's target triple is an Emscripten triple
+  /// (e.g. `wasm32-unknown-emscripten`). False for any wasi flavor.
+  var isEmscripten: Bool {
+    targetTriple.os == .emscripten
+  }
+
+  /// Subdirectory name inside the Swift SDK root where the platform sysroot
+  /// is copied. `WASI.sdk` for wasi targets, `Emscripten.sdk` for emscripten.
+  var sdkSubdirName: String {
+    isEmscripten ? "Emscripten.sdk" : "WASI.sdk"
+  }
+
+  /// Platform name used in Swift toolchain layout subdirectories
+  /// (e.g. `usr/lib/swift/<name>`, `usr/lib/swift_static/<name>`).
+  /// Mirrors the unversioned OS name produced by the swift toolchain build:
+  /// `wasi` for any wasi flavor, `emscripten` for emscripten.
+  var swiftPlatformDirName: String {
+    isEmscripten ? "emscripten" : "wasi"
+  }
+
+  /// Suffix appended to `defaultArtifactID` to disambiguate wasm flavors
+  /// when multiple Swift SDKs share a single `.artifactbundle`.
+  private var artifactIDSuffix: String {
+    if isEmscripten {
+      return "wasm-emscripten"
+    }
+    return targetTriple.environmentName == "threads" ? "wasm-threads" : "wasm"
   }
 
   package var defaultArtifactID: String {
     if hostSwiftPackage == nil && targetSwiftPackagePath == nil {
-      return "wasm"
+      return artifactIDSuffix
     }
-    return "\(self.swiftVersion)_wasm"
+    return "\(self.swiftVersion)_\(artifactIDSuffix)"
   }
 
   package let shouldSupportEmbeddedSwift = true
@@ -195,20 +227,24 @@ package struct WebAssemblyRecipe: SwiftSDKRecipe {
 
       // TODO: Remove this once we drop support for Swift 6.2
       // Embedded Swift looks up clang compiler-rt in a different path.
-      let embeddedCompilerRTPath = pathsConfiguration.toolchainDirPath.appending(
-        "usr/lib/swift/clang/lib/wasip1"
-      )
-      if await !generator.doesFileExist(at: embeddedCompilerRTPath) {
-        try await generator.createSymlink(
-          at: embeddedCompilerRTPath,
-          pointingTo: "../../../swift_static/clang/lib/wasi"
+      // This workaround is only meaningful for wasi targets — emscripten has
+      // a different toolchain layout and does not need it.
+      if !isEmscripten {
+        let embeddedCompilerRTPath = pathsConfiguration.toolchainDirPath.appending(
+          "usr/lib/swift/clang/lib/wasip1"
         )
+        if await !generator.doesFileExist(at: embeddedCompilerRTPath) {
+          try await generator.createSymlink(
+            at: embeddedCompilerRTPath,
+            pointingTo: "../../../swift_static/clang/lib/wasi"
+          )
+        }
       }
     }
 
-    // Copy the WASI sysroot into the Swift SDK bundle.
-    let sdkDirPath = pathsConfiguration.swiftSDKRootPath.appending("WASI.sdk")
-    try await generator.rsyncContents(from: self.wasiSysroot, to: sdkDirPath)
+    // Copy the platform sysroot into the Swift SDK bundle.
+    let sdkDirPath = pathsConfiguration.swiftSDKRootPath.appending(sdkSubdirName)
+    try await generator.rsyncContents(from: self.targetSysroot, to: sdkDirPath)
 
     return SwiftSDKProduct(sdkDirPath: sdkDirPath, hostTriples: hostTriples)
   }
@@ -217,16 +253,18 @@ package struct WebAssemblyRecipe: SwiftSDKRecipe {
   func mergeTargetSwift(from distributionPath: FilePath, generator: SwiftSDKGenerator) async throws {
     let pathsConfiguration = generator.pathsConfiguration
     logger.info("Copying Swift core libraries for the target triple into Swift SDK bundle...")
+    let platformDir = swiftPlatformDirName
     for (pathWithinPackage, pathWithinSwiftSDK, isOptional) in [
       ("clang", pathsConfiguration.toolchainDirPath.appending("usr/lib"), false),
       ("swift/clang", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift"), false),
-      ("swift/wasi", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift"), false),
+      ("swift/\(platformDir)", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift"), false),
       (
         "swift_static/clang", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static"),
         false
       ),
       (
-        "swift_static/wasi", pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static"),
+        "swift_static/\(platformDir)",
+        pathsConfiguration.toolchainDirPath.appending("usr/lib/swift_static"),
         false
       ),
       (

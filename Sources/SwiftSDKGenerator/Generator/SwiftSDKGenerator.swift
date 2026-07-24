@@ -30,16 +30,36 @@ public actor SwiftSDKGenerator {
     bundleVersion: String,
     targetTriple: Triple,
     artifactID: String,
+    bundleName: String? = nil,
     isIncremental: Bool,
     isVerbose: Bool,
     logger: Logger
   ) async throws {
-    let sourceRoot = FilePath(#filePath)
-      .removingLastComponent()
-      .removingLastComponent()
-      .removingLastComponent()
-      .removingLastComponent()
+    try await self.init(
+      bundleVersion: bundleVersion,
+      targetTriple: targetTriple,
+      artifactID: artifactID,
+      bundleName: bundleName,
+      sourceRoot: Self.defaultSourceRoot,
+      isIncremental: isIncremental,
+      isVerbose: isVerbose,
+      logger: logger
+    )
+  }
 
+  /// Designated initializer that exposes `sourceRoot` for tests, so they can
+  /// route generated bundles into a temporary directory instead of polluting
+  /// the package's working tree.
+  init(
+    bundleVersion: String,
+    targetTriple: Triple,
+    artifactID: String,
+    bundleName: String? = nil,
+    sourceRoot: FilePath,
+    isIncremental: Bool,
+    isVerbose: Bool,
+    logger: Logger
+  ) async throws {
     self.bundleVersion = bundleVersion
 
     self.targetTriple = targetTriple
@@ -48,6 +68,7 @@ public actor SwiftSDKGenerator {
     self.pathsConfiguration = .init(
       sourceRoot: sourceRoot,
       artifactID: self.artifactID,
+      bundleName: bundleName,
       targetTriple: self.targetTriple
     )
     self.isIncremental = isIncremental
@@ -55,6 +76,17 @@ public actor SwiftSDKGenerator {
 
     self.engineCachePath = .path(self.pathsConfiguration.artifactsCachePath.appending("cache.db"))
     self.logger = logger
+  }
+
+  /// Path to the swift-sdk-generator package's source root, derived from
+  /// `#filePath`. This is the location used to compose the on-disk
+  /// `Bundles/` directory in production.
+  private static var defaultSourceRoot: FilePath {
+    FilePath(#filePath)
+      .removingLastComponent()
+      .removingLastComponent()
+      .removingLastComponent()
+      .removingLastComponent()
   }
 
   private let fileManager = FileManager.default

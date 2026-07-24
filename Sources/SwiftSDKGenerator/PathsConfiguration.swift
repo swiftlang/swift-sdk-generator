@@ -13,12 +13,48 @@
 import struct SystemPackage.FilePath
 
 public struct PathsConfiguration: Sendable {
-  init(sourceRoot: FilePath, artifactID: String, targetTriple: Triple) {
+  /// Errors thrown by ``PathsConfiguration/validateBundleName(_:)``.
+  package enum BundleNameValidationError: Error, CustomStringConvertible {
+    case empty
+    case containsPathSeparator(String)
+    case pathTraversal(String)
+
+    package var description: String {
+      switch self {
+      case .empty:
+        return "bundle name must not be empty"
+      case .containsPathSeparator(let name):
+        return "bundle name must be a single path component, got \"\(name)\""
+      case .pathTraversal(let name):
+        return "bundle name must not be a path-traversal segment, got \"\(name)\""
+      }
+    }
+  }
+
+  /// Validate that `name` is safe to use as the on-disk `.artifactbundle`
+  /// directory name. The bundle name is appended to `<sourceRoot>/Bundles/`,
+  /// so it must be a single path component that cannot escape that directory.
+  ///
+  /// Rejects: empty strings, names containing `/` or `\`, and the special
+  /// names `.` and `..` (whether bare or as the first segment).
+  package static func validateBundleName(_ name: String) throws {
+    if name.isEmpty {
+      throw BundleNameValidationError.empty
+    }
+    if name.contains("/") || name.contains("\\") {
+      throw BundleNameValidationError.containsPathSeparator(name)
+    }
+    if name == "." || name == ".." || name.hasPrefix("../") || name.hasPrefix("..\\") {
+      throw BundleNameValidationError.pathTraversal(name)
+    }
+  }
+
+  init(sourceRoot: FilePath, artifactID: String, bundleName: String? = nil, targetTriple: Triple) {
     self.sourceRoot = sourceRoot
     self.artifactBundlePath =
       sourceRoot
       .appending("Bundles")
-      .appending("\(artifactID).artifactbundle")
+      .appending("\(bundleName ?? artifactID).artifactbundle")
     self.artifactsCachePath = sourceRoot.appending("Artifacts")
     self.swiftSDKRootPath = self.artifactBundlePath
       .appending(artifactID)

@@ -44,7 +44,8 @@ let package = Package(
     .testTarget(
       name: "SwiftSDKGeneratorTests",
       dependencies: [
-        "SwiftSDKGenerator"
+        "SwiftSDKGenerator",
+        "Helpers",
       ],
       swiftSettings: [
         .enableExperimentalFeature("StrictConcurrency=complete")

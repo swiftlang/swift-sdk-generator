@@ -18,15 +18,60 @@ import XCTest
 final class WebAssemblyRecipeTests: XCTestCase {
   let logger = Logger(label: "WebAssemblyRecipeTests")
 
-  func createRecipe() -> WebAssemblyRecipe {
+  func createRecipe(targetTriple: Triple = Triple("wasm32-unknown-wasip1")) -> WebAssemblyRecipe {
     WebAssemblyRecipe(
       hostSwiftPackage: nil,
       targetSwiftPackagePath: "./target-toolchain",
-      wasiSysroot: "./wasi-sysroot",
+      targetSysroot: "./target-sysroot",
       swiftVersion: "5.10",
+      targetTriple: targetTriple,
       logger: logger
     )
   }
+
+  // MARK: - Triple-aware path derivation
+
+  /// For WASI targets, the SDK subdirectory inside the bundle is `WASI.sdk`
+  /// (existing convention).
+  func testSDKSubdirNameForWasi() {
+    let recipe = self.createRecipe(targetTriple: Triple("wasm32-unknown-wasip1"))
+    XCTAssertEqual(recipe.sdkSubdirName, "WASI.sdk")
+  }
+
+  /// For Emscripten targets, the SDK subdirectory is `Emscripten.sdk`.
+  func testSDKSubdirNameForEmscripten() {
+    let recipe = self.createRecipe(targetTriple: Triple("wasm32-unknown-emscripten"))
+    XCTAssertEqual(recipe.sdkSubdirName, "Emscripten.sdk")
+  }
+
+  /// For WASI targets, target Swift package paths use the `wasi`
+  /// platform subdirectory (matching the swift toolchain layout).
+  func testSwiftPlatformDirNameForWasi() {
+    let recipe = self.createRecipe(targetTriple: Triple("wasm32-unknown-wasip1"))
+    XCTAssertEqual(recipe.swiftPlatformDirName, "wasi")
+  }
+
+  /// For Emscripten targets, target Swift package paths use the `emscripten`
+  /// platform subdirectory.
+  func testSwiftPlatformDirNameForEmscripten() {
+    let recipe = self.createRecipe(targetTriple: Triple("wasm32-unknown-emscripten"))
+    XCTAssertEqual(recipe.swiftPlatformDirName, "emscripten")
+  }
+
+  /// `defaultArtifactID` distinguishes WASI from Emscripten so that two
+  /// invocations targeting different wasm flavors produce distinct artifact
+  /// entries inside the same `.artifactbundle`.
+  func testDefaultArtifactIDDistinguishesEmscripten() {
+    let wasi = self.createRecipe(targetTriple: Triple("wasm32-unknown-wasip1"))
+    let emscripten = self.createRecipe(targetTriple: Triple("wasm32-unknown-emscripten"))
+    XCTAssertNotEqual(
+      wasi.defaultArtifactID,
+      emscripten.defaultArtifactID,
+      "wasi and emscripten recipes must produce distinct default artifact IDs"
+    )
+  }
+
+  // MARK: - Existing behavior (toolset/metadata)
 
   func testToolOptions() {
     let recipe = self.createRecipe()
