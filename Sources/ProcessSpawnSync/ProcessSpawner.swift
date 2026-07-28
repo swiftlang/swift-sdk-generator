@@ -97,6 +97,7 @@ public final class PSProcess: Sendable {
     var currentDirectoryURL: URL? = nil
     var closeOtherFileDescriptors: Bool = true
     var createNewSession: Bool = false
+    var replaceProcess: Bool = false
     private(set) var pidWhenRunning: pid_t? = nil
     var standardInput: OptionallySet<Pipe> = .notSet
     var standardOutput: OptionallySet<FileHandle> = .notSet
@@ -217,11 +218,14 @@ public final class PSProcess: Sendable {
       stderrFDForChild = handle.fileDescriptor
     }
 
-    let psSetup: [ps_fd_setup] = [
-      ps_fd_setup(psfd_kind: PS_MAP_FD, psfd_parent_fd: stdinFDForChild),
-      ps_fd_setup(psfd_kind: PS_MAP_FD, psfd_parent_fd: stdoutFDForChild),
-      ps_fd_setup(psfd_kind: PS_MAP_FD, psfd_parent_fd: stderrFDForChild),
-    ]
+    let psSetup: [ps_fd_setup] =
+      self._replaceProcess
+      ? []
+      : [
+        ps_fd_setup(psfd_kind: PS_MAP_FD, psfd_parent_fd: stdinFDForChild),
+        ps_fd_setup(psfd_kind: PS_MAP_FD, psfd_parent_fd: stdoutFDForChild),
+        ps_fd_setup(psfd_kind: PS_MAP_FD, psfd_parent_fd: stderrFDForChild),
+      ]
     let (pid, error) = psSetup.withUnsafeBufferPointer { psSetupPtr -> (pid_t, ps_error) in
       var config = ps_process_configuration_s(
         psc_path: path,
@@ -231,7 +235,8 @@ public final class PSProcess: Sendable {
         psc_fd_setup_count: CInt(psSetupPtr.count),
         psc_fd_setup_instructions: psSetupPtr.baseAddress!,
         psc_new_session: state.createNewSession,
-        psc_close_other_fds: state.closeOtherFileDescriptors
+        psc_close_other_fds: state.closeOtherFileDescriptors,
+        psc_replace_process: state.replaceProcess
       )
       var error = ps_error()
       let pid = ps_spawn_process(&config, &error)
@@ -474,6 +479,20 @@ public final class PSProcess: Sendable {
     set {
       self.state.withLockedValue { state in
         state.createNewSession = newValue
+      }
+    }
+  }
+
+  public var _replaceProcess: Bool {
+    get {
+      self.state.withLockedValue { state in
+        return state.replaceProcess
+      }
+    }
+    set {
+      self.state.withLockedValue { state in
+        state.replaceProcess = newValue
+        return
       }
     }
   }

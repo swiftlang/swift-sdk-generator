@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+import NIO
+
 public struct EOFSequence<Element>: AsyncSequence & Sendable {
   public typealias Element = Element
 
@@ -20,6 +22,22 @@ public struct EOFSequence<Element>: AsyncSequence & Sendable {
   }
 
   public init(of type: Element.Type = Element.self) {}
+
+  public func makeAsyncIterator() -> AsyncIterator {
+    return AsyncIterator()
+  }
+}
+
+public struct InheritStandardInput: AsyncSequence & Sendable {
+  public typealias Element = ByteBuffer
+
+  public struct AsyncIterator: AsyncIteratorProtocol {
+    public mutating func next() async throws -> Element? {
+      return nil
+    }
+  }
+
+  public init() {}
 
   public func makeAsyncIterator() -> AsyncIterator {
     return AsyncIterator()
