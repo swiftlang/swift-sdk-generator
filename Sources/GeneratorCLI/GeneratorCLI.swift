@@ -125,7 +125,7 @@ extension GeneratorCLI {
     var swiftBranch: String? = nil
 
     @Option(help: "Version of Swift to supply in the bundle.")
-    var swiftVersion = "6.3.3-RELEASE"
+    var swiftVersion = "6.4.0-RELEASE"
 
     @Option(
       help: """
@@ -253,7 +253,7 @@ extension GeneratorCLI {
     @Option(
       help: """
         Version of the Linux distribution used as a target platform.
-        - Available options for Ubuntu: `20.04`, `22.04` (default when `--distribution-name` is `ubuntu`), `24.04`.
+        - Available options for Ubuntu: `20.04`, `22.04`, `24.04` (default when `--distribution-name` is `ubuntu`).
         - Available options for Debian: `11`, `12` (default when `--distribution-name` is `debian`).
         - Available options for RHEL: `ubi9` (default when `--distribution-name` is `rhel`).
         """
@@ -291,7 +291,7 @@ extension GeneratorCLI {
       case .rhel:
         distributionDefaultVersion = "ubi9"
       case .ubuntu:
-        distributionDefaultVersion = "22.04"
+        distributionDefaultVersion = "24.04"
       case .debian:
         distributionDefaultVersion = "12"
       }
