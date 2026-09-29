@@ -19,6 +19,7 @@ public enum LinuxDistribution: Hashable, Sendable {
 
   public enum RHEL: String, Sendable {
     case ubi9
+    case ubi10
   }
 
   public enum Ubuntu: String, Sendable, Equatable, CaseIterable {

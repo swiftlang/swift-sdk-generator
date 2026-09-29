@@ -255,7 +255,7 @@ extension GeneratorCLI {
         Version of the Linux distribution used as a target platform.
         - Available options for Ubuntu: `20.04`, `22.04`, `24.04` (default when `--distribution-name` is `ubuntu`), `26.04`.
         - Available options for Debian: `11`, `12` (default when `--distribution-name` is `debian`), `13`.
-        - Available options for RHEL: `ubi9` (default when `--distribution-name` is `rhel`).
+        - Available options for RHEL: `ubi9` (default when `--distribution-name` is `rhel`), `ubi10`.
         """
     )
     var distributionVersion: String?
