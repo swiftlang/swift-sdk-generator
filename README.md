@@ -102,7 +102,7 @@ After installing a Swift SDK, verify that it's available to SwiftPM:
 swift sdk list
 ```
 
-The output of the last command should contain `ubuntu24.04`. Note the full Swift SDK ID in the output, we'll refer to it
+The output of the last command should contain `ubuntu_noble`. Note the full Swift SDK ID in the output, we'll refer to it
 subsequently as `<generated_sdk_id>`.
 
 Create a new project to verify that the SDK works:
@@ -132,9 +132,7 @@ That should produce output similar to this:
 dynamically linked, interpreter /lib/ld-linux-aarch64.so.1, for GNU/Linux 3.7.0, with debug_info, not stripped
 ```
 
-You can then copy this binary to a Docker image that has Swift runtime libraries installed. For example,
-for Ubuntu Noble and Swift 6.1 this would be `swift:6.1-noble-slim`. If you'd like to copy the binary to
-an arbitrary Ubuntu Noble system, make sure you pass `--static-swift-stdlib` flag to `swift build`, in addition
+You can then copy this binary to a Docker image that has Swift runtime libraries installed. For example, if the binary was generated for Swift 6.1 and Ubuntu Noble, this would be `swift:6.1-noble-slim`. If you'd like to copy the binary to an arbitrary Ubuntu Noble system, make sure you pass `--static-swift-stdlib` flag to `swift build`, in addition
 to the `--swift-sdk` option.
 
 ## Common Generator Options
