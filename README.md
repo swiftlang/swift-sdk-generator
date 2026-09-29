@@ -40,6 +40,23 @@ These dependencies can be installed from the `Brewfile`:
 brew bundle install
 ```
 
+### Linux Requirements
+
+The generator depends on the following dependencies to be installed on Linux:
+
+- `xz`: used for more efficient downloading of package lists for Ubuntu. If `xz` is not found, the generator will fallback on `gzip`.
+- `zstd`: required to decompress certain downloaded artifacts that use [Zstandard](https://github.com/facebook/zstd) compression.
+- `sqlite`: required for artifact cache.
+
+These are installable through apt or dnf:
+
+```shell
+# Debian-based
+sudo apt install libsqlite3-dev zstd xz-utils
+# RHEL-based
+sudo dnf install sqlite-devel zstd xz
+```
+
 ## Supported platforms and minimum versions
 
 FreeBSD and Linux are supported as both host and target platforms. macOS is only supported as a host platform.
