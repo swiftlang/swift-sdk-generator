@@ -20,7 +20,7 @@ Usage of Swift SDKs requires Swift 5.9, follow [installation instructions on swi
 
 After that, verify that the `experimental-sdk` command is available:
 
-```
+```bash
 swift experimental-sdk list
 ```
 
@@ -50,7 +50,7 @@ The generator depends on the following dependencies to be installed on Linux:
 
 These are installable through apt or dnf:
 
-```shell
+```bash
 # Debian-based
 sudo apt install libsqlite3-dev zstd xz-utils
 # RHEL-based
@@ -82,32 +82,32 @@ need CMake and Ninja preinstalled (e.g. via `brew install cmake ninja`).
 
 Clone this repository into a directory of your choice and make it the current directory. Build and run it with this command:
 
-```
+```bash
 swift run swift-sdk-generator make-linux-sdk
 ```
 
-This will download required components and produce a Swift SDK for Ubuntu Jammy in the `Bundles` subdirectory. Follow the steps
+This will download required components and produce a Swift SDK for Ubuntu Noble in the `Bundles` subdirectory. Follow the steps
 printed at the end of generator's output for installing the newly generated Swift SDK.
 
 Additional command-line options are available for specifying target platform features, such as Linux distribution name,
 version, and target CPU architecture. Pass `--help` flag to see all of the available options:
 
-```
+```bash
 swift run swift-sdk-generator make-linux-sdk --help
 ```
 
 After installing a Swift SDK, verify that it's available to SwiftPM:
 
-```
+```bash
 swift experimental-sdk list
 ```
 
-The output of the last command should contain `ubuntu22.04`. Note the full Swift SDK ID in the output, we'll refer to it
+The output of the last command should contain `ubuntu24.04`. Note the full Swift SDK ID in the output, we'll refer to it
 subsequently as `<generated_sdk_id>`.
 
 Create a new project to verify that the SDK works:
 
-```
+```bash
 mkdir cross-compilation-test
 cd cross-compilation-test
 swift package init --type executable
@@ -115,32 +115,32 @@ swift package init --type executable
 
 Build this project with the SDK:
 
-```
+```bash
 swift build --experimental-swift-sdk <generated_sdk_id>
 ```
 
 Verify that the produced binary is compatible with Linux:
 
-```
+```bash
 file .build/debug/cross-compilation-test
 ```
 
 That should produce output similar to this:
 
-```
+```bash
 .build/debug/cross-compilation-test: ELF 64-bit LSB pie executable, ARM aarch64, version 1 (SYSV), 
 dynamically linked, interpreter /lib/ld-linux-aarch64.so.1, for GNU/Linux 3.7.0, with debug_info, not stripped
 ```
 
 You can then copy this binary to a Docker image that has Swift runtime libraries installed. For example,
-for Ubuntu Jammy and Swift 5.9 this would be `swift:5.9-jammy-slim`. If you'd like to copy the binary to
-an arbitrary Ubuntu Jammy system, make sure you pass `--static-swift-stdlib` flag to `swift build`, in addition
+for Ubuntu Noble and Swift 6.1 this would be `swift:6.1-noble-slim`. If you'd like to copy the binary to
+an arbitrary Ubuntu Noble system, make sure you pass `--static-swift-stdlib` flag to `swift build`, in addition
 to the `--experimental-swift-sdk` option.
 
 ## Common Generator Options
 
 By default, on macOS hosts running on Apple Silicon, the Swift SDK Generator will create Swift SDKs
-for Ubuntu Jammy on aarch64, which matches the CPU architecture of the host. However, it is possible to change
+for Ubuntu Noble on aarch64, which matches the CPU architecture of the host. However, it is possible to change
 the default target architecture by passing the `--target-arch` flag:
 
 ```bash
@@ -150,10 +150,10 @@ swift run swift-sdk-generator make-linux-sdk --target-arch x86_64
 This will default to building the Swift SDK for `x86_64-unknown-linux-gnu`. To build for other
 platforms and environments, supply the `--target` flag with the full target triple instead.
 
-The Linux distribution name and version can also be passed to change from the default of Ubuntu Jammy:
+The Linux distribution name and version can also be passed to change from the default of Ubuntu Noble:
 
 ```bash
-swift run swift-sdk-generator make-linux-sdk --distribution-name ubuntu --distribution-version 24.04
+swift run swift-sdk-generator make-linux-sdk --distribution-name ubuntu --distribution-version jammy
 ```
 
 ### Host Toolchain
@@ -162,7 +162,7 @@ The host toolchain is not included in the generated Swift SDK by default on Linu
 of the [Static Linux Swift SDKs](https://www.swift.org/documentation/articles/static-linux-getting-started.html)
 downloadable from [swift.org](https://www.swift.org/install/). However, on macOS, since most users are using Xcode
 and are likely not using the Swift OSS toolchain to build and run Swift projects, the Swift host toolchain
-is included by *default*. This default behavior can be changed by passing  `--no-host-toolchain`:
+is included by _default_. This default behavior can be changed by passing  `--no-host-toolchain`:
 
 ```bash
 swift run swift-sdk-generator make-linux-sdk --no-host-toolchain --target-arch x86_64
@@ -177,26 +177,29 @@ swift run swift-sdk-generator make-linux-sdk --host-toolchain --target-arch aarc
 ## Building an SDK from a container image
 
 You can base your SDK on a container image, such as one of the
-[official Swift images](https://hub.docker.com/_/swift).   By
+[official Swift images](https://hub.docker.com/_/swift). By
 default, the command below will build an SDK based on the Ubuntu
-Jammy image:
-```
+Noble image:
+
+```bash
 swift run swift-sdk-generator make-linux-sdk --with-docker
 ```
+
 To build a RHEL images, use the `--distribution-name` option.
 The following command will build a `ubi9`-based image:
-```
+
+```bash
 swift run swift-sdk-generator make-linux-sdk --with-docker --distribution-name rhel
 ```
 
 You can also specify the base container image by name:
 
-```
-swift run swift-sdk-generator make-linux-sdk --from-container-image swift:5.9-jammy
+```shell
+swift run swift-sdk-generator make-linux-sdk --from-container-image swift:6.1-noble
 ```
 
-```
-swift run swift-sdk-generator make-linux-sdk --with-docker --distribution-name rhel --from-container-image swift:5.9-rhel-ubi9
+```shell
+swift run swift-sdk-generator make-linux-sdk --with-docker --distribution-name rhel --from-container-image swift:6.1-rhel-ubi9
 ```
 
 ### Including extra Linux libraries
@@ -206,22 +209,24 @@ standard base image, you can build your SDK from a custom container
 image which includes them.
 
 Prepare a `Dockerfile` which derives from one of the standard images
-and installs the packages you need.   This example installs SQLite
-and its dependencies on top of the Swift project's Ubuntu Jammy image:
+and installs the packages you need. This example installs SQLite
+and its dependencies on top of the Swift project's Ubuntu Noble image:
 
-```
-FROM swift:5.9-jammy
+```bash
+FROM swift:6.1-noble
 RUN apt update && apt -y install libsqlite3-dev && apt -y clean
 ```
 
 Build the new container image:
-```
+
+```bash
 docker build -t my-custom-image -f Dockerfile .
 ```
 
 Finally, build your custom SDK:
-```
-swift run swift-sdk-generator make-linux-sdk --with-docker --from-container-image my-custom-image:latest --sdk-name 5.9-ubuntu-with-sqlite
+
+```bash
+swift run swift-sdk-generator make-linux-sdk --with-docker --from-container-image my-custom-image:latest --sdk-name 6.1-ubuntu-with-sqlite
 ```
 
 ## Swift SDK distribution
@@ -230,19 +235,18 @@ The `.artifactbundle` directory produced in the previous section can be packaged
 in this form. Users of such Swift SDK bundle archive can easily install it with `swift experimental-sdk install`
 command, which supports both local file system paths and public `http://` and `https://` URLs as an argument.
 
-
 ## Contributing
 
 There are several ways to contribute to Swift SDK Generator. To learn about the policies, best practices that govern contributions to the Swift project, and instructions for setting up the development environment please read the [Contributor Guide](CONTRIBUTING.md).
 
-If you're interested in adding support for a new platform, please open an issue on this repository first so that the best implementation strategy can be discussed before proceeding with an implementation. 
+If you're interested in adding support for a new platform, please open an issue on this repository first so that the best implementation strategy can be discussed before proceeding with an implementation.
 
 ## Reporting issues
 
 If you have any trouble with the Swift SDK Generator, help is available. We recommend:
 
-* Generator's [bug tracker](https://github.com/swiftlang/swift-sdk-generator/issues);
-* The [Swift Forums](https://forums.swift.org/c/development/swiftpm/).
+- Generator's [bug tracker](https://github.com/swiftlang/swift-sdk-generator/issues);
+- The [Swift Forums](https://forums.swift.org/c/development/swiftpm/).
 
 When reporting an issue please follow the bug reporting guidelines, they can be found in [contribution guide](./CONTRIBUTING.md#how-to-submit-a-bug-report).
 
