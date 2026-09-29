@@ -88,10 +88,10 @@ extension SwiftSDKGenerator {
           """
 
           All done! Install the newly generated SDK with this command:
-          swift experimental-sdk install \(pathsConfiguration.artifactBundlePath)
+          swift sdk install \(pathsConfiguration.artifactBundlePath)
 
           After that, use the newly installed SDK when building with this command:
-          swift build --experimental-swift-sdk \(artifactID)
+          swift build --swift-sdk \(artifactID)
 
           """
         )
