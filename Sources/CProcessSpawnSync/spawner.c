@@ -72,6 +72,36 @@ struct child_scratch {
     int duplicated_fd;
 };
 
+struct sap_thread_data {
+    ps_process_configuration *config;
+    int result;
+    int error_code;
+};
+
+static void *execve_with_clean_signals(void *arg) {
+    struct sap_thread_data *data = (struct sap_thread_data *)arg;
+
+    // Reset signal mask for this new thread
+    sigset_t sigset;
+    sigemptyset(&sigset);
+    int err = pthread_sigmask(SIG_SETMASK, &sigset, NULL);
+    if (err) {
+        data->error_code = errno;
+        data->result = -1;
+        return NULL;
+    }
+
+    // Call execve with clean signal mask
+    err = execve(data->config->psc_path,
+                 data->config->psc_argv,
+                 data->config->psc_env);
+
+    // If we get here, execve failed
+    data->error_code = errno;
+    data->result = -1;
+    return NULL;
+}
+
 static void setup_and_execve_child(ps_process_configuration *config, int error_pipe, struct child_scratch *scratch) {
     ps_error error = { 0 };
     sigset_t sigset = { 0 };
@@ -205,7 +235,49 @@ pid_t ps_spawn_process(ps_process_configuration *config, ps_error *out_error) {
     sigset_t old_sigmask;
     struct child_scratch *scratch = NULL;
     int error_pid_fd[2] = { -1, -1 };
-    int err = pipe(error_pid_fd);
+    int err = -1;
+
+    if (config->psc_replace_process) {
+        ps_precondition(!config->psc_close_other_fds);
+        ps_precondition(config->psc_cwd == NULL);
+        ps_precondition(config->psc_fd_setup_count == 0);
+        ps_precondition(!config->psc_new_session);
+
+        pthread_t thread;
+        pthread_attr_t attr;
+        struct sap_thread_data thread_data = {
+            .config = config,
+            .result = 0,
+            .error_code = 0
+        };
+
+        // Create thread with default attributes
+        pthread_attr_init(&attr);
+        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
+
+        err = pthread_create(&thread, &attr, execve_with_clean_signals, &thread_data);
+        pthread_attr_destroy(&attr);
+
+        if (err) {
+            if (out_error) {
+                errno = err;
+                *out_error = MAKE_PS_ERROR_FROM_ERRNO(PS_ERROR_KIND_PTHREAD_CREATE);
+            }
+            return -1;
+        }
+
+        // Wait for thread to either execve or fail
+        pthread_join(thread, NULL);
+
+        // If we get here, execve failed (otherwise process would be replaced)
+        if (out_error) {
+            errno = thread_data.error_code;
+            *out_error = MAKE_PS_ERROR_FROM_ERRNO(PS_ERROR_KIND_EXECVE);
+        }
+        return -1;
+    }
+
+    err = pipe(error_pid_fd);
     if (err) {
         ps_error error = MAKE_PS_ERROR_FROM_ERRNO(PS_ERROR_KIND_PIPE);
         if (out_error) {
