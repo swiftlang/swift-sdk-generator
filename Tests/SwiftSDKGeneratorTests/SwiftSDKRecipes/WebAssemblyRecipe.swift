@@ -101,13 +101,45 @@ final class WebAssemblyRecipeTests: XCTestCase {
         "-static-stdlib",
         "-enable-experimental-feature", "Embedded", "-wmo",
       ]
-        + ["-lc++", "-lswift_Concurrency"].flatMap {
+        + [
+          "-lc++", "-lswift_Concurrency",
+          "-lswiftEmbeddedPlatformPOSIX", "-lswiftEmbeddedPlatformSingleThreaded",
+        ].flatMap {
           ["-Xlinker", $0]
         }
     )
     XCTAssertEqual(toolset.cCompiler?.extraCLIOptions, ["-D__EMBEDDED_SWIFT__"])
     XCTAssertEqual(toolset.cxxCompiler?.extraCLIOptions, ["-D__EMBEDDED_SWIFT__"])
     XCTAssertNil(toolset.linker)
+  }
+
+  func testEmbeddedToolOptionsWithThreads() {
+    let recipe = self.createRecipe()
+    var toolset = Toolset(rootPath: nil)
+    recipe.applyPlatformOptions(
+      toolset: &toolset,
+      targetTriple: Triple("wasm32-unknown-wasip1-threads"),
+      isForEmbeddedSwift: true
+    )
+    XCTAssertEqual(
+      toolset.swiftCompiler?.extraCLIOptions,
+      [
+        "-static-stdlib",
+        "-enable-experimental-feature", "Embedded", "-wmo",
+      ]
+        + [
+          "-lc++", "-lswift_Concurrency",
+          "-lswiftEmbeddedPlatformPOSIX", "-lswiftEmbeddedPlatformMultiThreadedPOSIX",
+        ].flatMap {
+          ["-Xlinker", $0]
+        }
+        + [
+          "-matomics", "-mbulk-memory", "-mthread-model", "posix",
+          "-pthread", "-ftls-model=local-exec",
+        ].flatMap {
+          ["-Xcc", $0]
+        }
+    )
   }
 
   func testToolOptionsWithThreads() {

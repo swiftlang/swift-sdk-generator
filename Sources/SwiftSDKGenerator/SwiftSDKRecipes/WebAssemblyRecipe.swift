@@ -110,6 +110,21 @@ package struct WebAssemblyRecipe: SwiftSDKRecipe {
           ["-Xlinker", $0]
         }
       )
+
+      // The Embedded Swift standard library calls into a platform abstraction
+      // layer (see `swift/EmbeddedPlatform.h` in the Swift toolchain) for
+      // memory allocation, output, and locking. Link the toolchain's POSIX
+      // implementation of it, along with the locking implementation that
+      // matches the threading model.
+      let platformLockingLibrary =
+        targetTriple.environmentName == "threads"
+        ? "-lswiftEmbeddedPlatformMultiThreadedPOSIX"
+        : "-lswiftEmbeddedPlatformSingleThreaded"
+      toolset.swiftCompiler?.extraCLIOptions?.append(
+        contentsOf: ["-lswiftEmbeddedPlatformPOSIX", platformLockingLibrary].flatMap {
+          ["-Xlinker", $0]
+        }
+      )
     }
 
     if targetTriple.environmentName == "threads" {
