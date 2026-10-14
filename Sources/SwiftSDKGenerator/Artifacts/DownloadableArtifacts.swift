@@ -91,13 +91,17 @@ struct DownloadableArtifacts: Sendable {
         isPrebuilt: true
       )
     } else if hostTriple.os == .linux && hostTriples.count == 1 {
-      // Amazon Linux 2 is chosen for its best compatibility with all Swift-supported Linux hosts
+      // Swift 6.4  no longer supports Amazon Linux 2, so we need to use Ubuntu 22.04 for the
+      // host Swift toolchain instead. For older toolchains we can continue to use Amazon Linux 2
+      // for the host Swift toolchain, as it is the most compatible with all Swift-supported Linux hosts.
+      let supportsAmazonLinux2 = versions.swiftVersion.hasAnyPrefix(from: ["5.", "6.0", "6.1", "6.2", "6.3"])
+      let hostPlatform = supportsAmazonLinux2 ? "amazonlinux2" : "ubuntu22.04"
       let hostArchSuffix =
         hostTriple.arch == .aarch64 ? "-\(Triple.Arch.aarch64.linuxConventionName)" : ""
       self.hostSwift = .init(
         remoteURL: versions.swiftDownloadURL(
-          subdirectory: "amazonlinux2\(hostArchSuffix)",
-          platform: "amazonlinux2\(hostArchSuffix)",
+          subdirectory: "\(hostPlatform.replacingOccurrences(of: ".", with: ""))\(hostArchSuffix)",
+          platform: "\(hostPlatform)\(hostArchSuffix)",
           fileExtension: "tar.gz"
         ),
         localPath: paths.artifactsCachePath

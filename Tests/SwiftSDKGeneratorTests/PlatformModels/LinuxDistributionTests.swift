@@ -25,6 +25,9 @@
 
         ("24.04", LinuxDistribution.Ubuntu.noble),
         ("noble", LinuxDistribution.Ubuntu.noble),
+
+        ("26.04", LinuxDistribution.Ubuntu.resolute),
+        ("resolute", LinuxDistribution.Ubuntu.resolute),
       ])
       func validVersionStrings(versionString: String, expectedVersion: LinuxDistribution.Ubuntu) throws {
         let version = try LinuxDistribution.Ubuntu(version: versionString)
@@ -46,6 +49,7 @@
         (LinuxDistribution.Ubuntu.focal, "20.04"),
         (LinuxDistribution.Ubuntu.jammy, "22.04"),
         (LinuxDistribution.Ubuntu.noble, "24.04"),
+        (LinuxDistribution.Ubuntu.resolute, "26.04"),
       ])
       func versionProperty(ubuntuVersion: LinuxDistribution.Ubuntu, expectedVersionString: String) {
         #expect(ubuntuVersion.version == expectedVersionString)
