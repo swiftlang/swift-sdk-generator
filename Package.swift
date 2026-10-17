@@ -45,6 +45,7 @@ let package = Package(
       name: "SwiftSDKGeneratorTests",
       dependencies: [
         "SwiftSDKGenerator",
+        "GeneratorCLI",
         "Helpers",
       ],
       swiftSettings: [
