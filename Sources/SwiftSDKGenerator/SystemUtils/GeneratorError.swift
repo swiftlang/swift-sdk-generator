@@ -22,6 +22,7 @@ enum GeneratorError: Error {
   case unknownLinuxDistribution(name: String, version: String?)
   case unknownMacOSVersion(String)
   case unknownCPUArchitecture(String)
+  case incompleteTargetTriple(String)
   case unknownLLDVersion(String)
   case distributionSupportsOnlyDockerGenerator(LinuxDistribution)
   case distributionDoesNotSupportArchitecture(LinuxDistribution, targetArchName: String)
@@ -54,6 +55,12 @@ extension GeneratorError: CustomStringConvertible {
       return "macOS version `\(version)` is not supported by this generator."
     case let .unknownCPUArchitecture(cpu):
       return "CPU architecture `\(cpu)` is not supported by this generator."
+    case let .incompleteTargetTriple(triple):
+      return """
+        Target triple `\(triple)` is incomplete. Expected a full triple of the form \
+        `aarch64-unknown-linux-gnu` (architecture-vendor-OS[-environment]). Architecture, OS, \
+        and, for Linux, an environment/ABI such as `gnu` or `musl` are required.
+        """
     case let .unknownLLDVersion(version):
       return "LLD version `\(version)` is not supported by this generator."
     case let .distributionSupportsOnlyDockerGenerator(linuxDistribution):
