@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift open source project
 //
-// Copyright (c) 2022-2023 Apple Inc. and the Swift project authors
+// Copyright (c) 2022-2025 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See https://swift.org/LICENSE.txt for license information
@@ -17,6 +17,24 @@ public typealias Triple = Helpers.Triple
 extension Triple: @unchecked Sendable {}
 
 extension Triple {
+  /// Ensures a user-supplied `--target` triple has architecture, OS, and (for Linux) an environment/ABI.
+  ///
+  /// Incomplete values such as `aarch64`, `linux-gnu`, or `x86_64-unknown-linux` (missing `-gnu`) produce
+  /// SDKs the compiler cannot use. WASI, Emscripten, and FreeBSD triples used by this generator typically
+  /// omit an environment and are accepted when architecture and OS are present.
+  package func validateSDKTargetTriple() throws {
+    guard self.arch != nil else {
+      throw GeneratorError.incompleteTargetTriple(self.triple)
+    }
+    guard self.os != nil else {
+      throw GeneratorError.incompleteTargetTriple(self.triple)
+    }
+
+    if self.os == .linux && self.environment == nil {
+      throw GeneratorError.incompleteTargetTriple(self.triple)
+    }
+  }
+
   public init(arch: Arch, vendor: Vendor?, os: OS, environment: Environment) {
     let os = os.rawValue
     self.init("\(arch)-\(vendor?.rawValue ?? "unknown")-\(os)-\(environment)", normalizing: true)
