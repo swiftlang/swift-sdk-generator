@@ -69,8 +69,11 @@ The generator also allows cross-compiling between most Linux distributions offic
 | FreeBSD        | ✅ 14.3+                  | ✅ 14.3+                   |
 | Ubuntu         | ✅ 20.04+                 | ✅ 20.04+                  |
 | Debian         | ✅ 11, 12, 13[^2]         | ✅ 11, 12, 13[^2]          |
-| RHEL           | ✅ Fedora 39, UBI 9       | ✅ Fedora 39, UBI 9[^3]    |
-| Amazon Linux 2 | ✅ Supported              | ✅ Supported[^3]           |
+| Fedora         | ✅ 34+ (using UBI 9)      | ✅ 39, 41[^3]              |
+| RHEL           | ✅ UBI 9, UBI 10          | ✅ UBI 9, UBI 10[^3]       |
+| Amazon Linux   | ✅ 2, 2023                | ✅ 2, 2023[^3]             |
+
+Note that all versions of Swift are not supported on all Linux distributions that are supported. Please investigate on [swift.org](https://www.swift.org/install/linux/) under the "Alernate Install Options" link to see specific Swift version support per distribution version.
 
 [^1]: Since LLVM project doesn't provide pre-built binaries of `lld` for macOS on x86_64, it will be automatically built
 from sources by the generator, which will increase its runtime by at least 15 minutes on recent hardware. You will also
