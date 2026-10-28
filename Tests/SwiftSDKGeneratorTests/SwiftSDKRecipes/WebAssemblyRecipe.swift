@@ -85,6 +85,8 @@ final class WebAssemblyRecipeTests: XCTestCase {
     XCTAssertNil(toolset.cCompiler)
     XCTAssertNil(toolset.cxxCompiler)
     XCTAssertNil(toolset.linker)
+    XCTAssertNil(toolset.debugger)
+    XCTAssertNil(toolset.testRunner)
   }
 
   func testEmbeddedToolOptions() {
@@ -111,6 +113,8 @@ final class WebAssemblyRecipeTests: XCTestCase {
     XCTAssertEqual(toolset.cCompiler?.extraCLIOptions, ["-D__EMBEDDED_SWIFT__"])
     XCTAssertEqual(toolset.cxxCompiler?.extraCLIOptions, ["-D__EMBEDDED_SWIFT__"])
     XCTAssertNil(toolset.linker)
+    XCTAssertNil(toolset.debugger)
+    XCTAssertNil(toolset.testRunner)
   }
 
   func testEmbeddedToolOptionsWithThreads() {
@@ -140,6 +144,10 @@ final class WebAssemblyRecipeTests: XCTestCase {
           ["-Xcc", $0]
         }
     )
+    XCTAssertNil(toolset.debugger?.path)
+    XCTAssertEqual(toolset.debugger?.extraCLIOptions, ["--wasi-threads"])
+    XCTAssertNil(toolset.testRunner?.path)
+    XCTAssertEqual(toolset.testRunner?.extraCLIOptions, ["--wasi-threads"])
   }
 
   func testToolOptionsWithThreads() {
@@ -175,6 +183,10 @@ final class WebAssemblyRecipeTests: XCTestCase {
         "--import-memory", "--export-memory", "--shared-memory", "--max-memory=1073741824",
       ]
     )
+    XCTAssertNil(toolset.debugger?.path)
+    XCTAssertEqual(toolset.debugger?.extraCLIOptions, ["--wasi-threads"])
+    XCTAssertNil(toolset.testRunner?.path)
+    XCTAssertEqual(toolset.testRunner?.extraCLIOptions, ["--wasi-threads"])
   }
 
   func testMetadataWithEmbedded() {
