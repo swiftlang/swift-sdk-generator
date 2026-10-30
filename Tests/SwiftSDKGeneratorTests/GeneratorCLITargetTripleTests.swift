@@ -10,25 +10,21 @@
 //
 //===----------------------------------------------------------------------===//
 
-import XCTest
+import Testing
 
 @testable import GeneratorCLI
 
-final class GeneratorCLITargetTripleTests: XCTestCase {
+struct GeneratorCLITargetTripleTests {
   /// Drives the existing CLI options → Triple path (`MakeLinuxSDK.parse` / `--target`).
   /// Incomplete triples must be rejected; this compiles against unmodified main, where parse
   /// currently succeeds and this assertion fails.
-  func testIncompleteTargetTriplesAreRejectedByCLIOptions() {
-    let incompleteTriples = [
-      "x86_64-unknown-linux",
-      "aarch64-linux",
-    ]
-
-    for tripleString in incompleteTriples {
-      XCTAssertThrowsError(
-        try GeneratorCLI.MakeLinuxSDK.parse(["--target", tripleString]),
-        "Incomplete triple \(tripleString) should be rejected"
-      )
+  @Test(arguments: [
+    "x86_64-unknown-linux",
+    "aarch64-linux",
+  ])
+  func incompleteTargetTriplesAreRejectedByCLIOptions(tripleString: String) {
+    #expect(throws: (any Error).self) {
+      try GeneratorCLI.MakeLinuxSDK.parse(["--target", tripleString])
     }
   }
 }
