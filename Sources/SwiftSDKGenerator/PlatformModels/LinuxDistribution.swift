@@ -19,18 +19,21 @@ public enum LinuxDistribution: Hashable, Sendable {
 
   public enum RHEL: String, Sendable {
     case ubi9
+    case ubi10
   }
 
   public enum Ubuntu: String, Sendable, Equatable, CaseIterable {
     case focal
     case jammy
     case noble
+    case resolute
 
     init(version: String) throws {
       switch version {
       case "20.04": self = .focal
       case "22.04": self = .jammy
       case "24.04": self = .noble
+      case "26.04": self = .resolute
       default:
         guard let versionType = Self(rawValue: version) else {
           throw GeneratorError.unknownLinuxDistribution(
@@ -47,6 +50,7 @@ public enum LinuxDistribution: Hashable, Sendable {
       case .focal: return "20.04"
       case .jammy: return "22.04"
       case .noble: return "24.04"
+      case .resolute: return "26.04"
       }
     }
 
@@ -61,6 +65,7 @@ public enum LinuxDistribution: Hashable, Sendable {
         "zlib1g-dev",
         "libicu-dev",
         "libcurl4-openssl-dev",
+        "libsqlite3-dev",
       ]
     }
 
@@ -83,6 +88,12 @@ public enum LinuxDistribution: Hashable, Sendable {
           "libgcc-13-dev",
           "libicu74",
           "libstdc++-13-dev",
+        ]
+      case .resolute:
+        return commonPackages + [
+          "libgcc-15-dev",
+          "libicu78",
+          "libstdc++-15-dev",
         ]
       }
     }

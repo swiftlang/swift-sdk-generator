@@ -44,15 +44,24 @@ public struct VersionsConfiguration: Sendable {
     case let .ubuntu(ubuntu):
       return "ubuntu\(ubuntu.version)"
     case let .debian(debian):
-      if debian.version == "11" {
+      switch debian.version {
+      case "11":
         // Ubuntu 20.04 toolchain is binary compatible with Debian 11
         return "ubuntu20.04"
-      } else if self.swiftVersion.hasPrefix("5.9") || self.swiftVersion == "5.10" {
+      case "12":
         // Ubuntu 22.04 toolchain is binary compatible with Debian 12
-        return "ubuntu22.04"
-      } else if debian.version == "13" {
+        // Only required for Swift 5.9 and 5.10, as Swift 6.0+ toolchains are built for Debian 12
+        if self.swiftVersion.hasPrefix("5.9") || self.swiftVersion == "5.10" {
+          return "ubuntu22.04"
+        }
+      case "13":
         // Ubuntu 24.04 toolchain is binary compatible with Debian 13
-        return "ubuntu24.04"
+        // Swift 6.4+ toolchains are built for Debian 13
+        if !self.swiftVersion.hasPrefix("6.4") {
+          return "ubuntu24.04"
+        }
+      default:
+        break
       }
       return "debian\(debian.version)"
     case let .rhel(rhel):

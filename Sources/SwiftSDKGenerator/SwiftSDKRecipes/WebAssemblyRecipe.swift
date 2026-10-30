@@ -153,6 +153,11 @@ package struct WebAssemblyRecipe: SwiftSDKRecipe {
         "--max-memory=1073741824",
       ]
       toolset.linker = Toolset.ToolProperties(extraCLIOptions: linkerOptions)
+
+      // Appended to SwiftPM's default WasmKit runner, which rejects shared memory without it.
+      let runner = Toolset.ToolProperties(extraCLIOptions: ["--wasi-threads"])
+      toolset.debugger = runner
+      toolset.testRunner = runner
     }
   }
 
