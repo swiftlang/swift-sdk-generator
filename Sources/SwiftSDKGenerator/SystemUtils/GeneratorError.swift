@@ -59,7 +59,7 @@ extension GeneratorError: CustomStringConvertible {
       return """
         Target triple `\(triple)` is incomplete. Expected a full triple of the form \
         `aarch64-unknown-linux-gnu` (architecture-vendor-OS-environment). Architecture, OS, \
-        and an environment/ABI such as `gnu` or `musl` are required.
+        and an environment/ABI such as `gnu` or `musl` are required on Linux.
         """
     case let .unknownLLDVersion(version):
       return "LLD version `\(version)` is not supported by this generator."
