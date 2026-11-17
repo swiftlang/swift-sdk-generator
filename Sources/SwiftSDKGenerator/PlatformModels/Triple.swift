@@ -23,7 +23,7 @@ extension Triple {
   /// SDKs the compiler cannot use. WASI, Emscripten, and FreeBSD triples used by this generator typically
   /// omit an environment and are accepted when architecture and OS are present.
   package func validateSDKTargetTriple() throws {
-    guard let arch, let os else {
+    guard self.arch != nil, let os else {
       throw GeneratorError.incompleteTargetTriple(self.triple)
     }
 
