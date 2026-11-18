@@ -195,6 +195,13 @@ extension GeneratorCLI {
           throw ValidationError("--bundle-name is invalid: \(error)")
         }
       }
+      if let target {
+        do {
+          try target.validateSDKTargetTriple()
+        } catch {
+          throw ValidationError(String(describing: error))
+        }
+      }
     }
 
     func deriveHostTriples() throws -> [Triple] {
