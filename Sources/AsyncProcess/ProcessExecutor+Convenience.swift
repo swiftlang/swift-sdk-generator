@@ -509,4 +509,32 @@ extension ProcessExecutor {
       logger: logger
     )
   }
+
+  /// Runs the process by _replacing_ the current executable.
+  ///
+  /// This is achieved by calling `execve` with just the signal mask being cleared.
+  ///
+  /// - note: Contrary to normal executions, we inherit everything else (file descriptors, working directory, ...).
+  public static func _runReplacingCurrentProcess(
+    executable: String,
+    _ arguments: [String],
+    environment: [String: String] = [:],
+    logger: Logger = ProcessExecutor.disableLogging
+  ) async throws {
+    let spawnOptions = SpawnOptions.suitableForProcessReplacement
+    let exe = ProcessExecutor(
+      group: .singletonMultiThreadedEventLoopGroup,
+      executable: executable,
+      arguments,
+      environment: environment,
+      spawnOptions: spawnOptions,
+      standardInput: EOFSequence(),
+      standardOutput: .inherit,
+      standardError: .inherit,
+      teardownSequence: [],
+      logger: logger
+    )
+    _ = try await exe.run()
+    fatalError("this should be unreachable: success replacing process and yet we're running!?")
+  }
 }

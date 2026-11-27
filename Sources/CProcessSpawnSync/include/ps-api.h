@@ -29,6 +29,7 @@ typedef enum ps_error_kind_s {
     PS_ERROR_KIND_DUP = 10,
     PS_ERROR_KIND_SIGMASK_THREAD = 11,
     PS_ERROR_KIND_FAILED_CHILD_WAITPID = 12,
+    PS_ERROR_KIND_PTHREAD_CREATE = 13,
 } ps_error_kind;
 
 typedef struct ps_error_s {
@@ -64,6 +65,8 @@ typedef struct ps_process_configuration_s {
 
     bool psc_new_session;
     bool psc_close_other_fds;
+
+    bool psc_replace_process;
 } ps_process_configuration;
 
 pid_t ps_spawn_process(ps_process_configuration *config, ps_error *out_error);
